@@ -14,6 +14,9 @@ const EspaciosVerdes = () => {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successId, setSuccessId] = useState('');
     const [operadores, setOperadores] = useState([]);
+    const [alertModal, setAlertModal] = useState({ isOpen: false, title: '', message: '' });
+
+    const showAlert = (title, message) => setAlertModal({ isOpen: true, title, message });
     
     const { todayStr, nowTimeStr, minDateStr, maxDateStr } = getDateConstraints();
     
@@ -107,12 +110,28 @@ const EspaciosVerdes = () => {
         const combinedCreatedAt = `${formData.fechaCarga}T${formData.horaCarga}`;
         const dateError = validateRecordDate(combinedCreatedAt);
         if (dateError) {
-            alert(dateError);
+            showAlert('Fecha inválida', dateError);
             return;
         }
 
-        if (!formData.espacioVerde || !formData.tareaRealizada || !formData.consumoAgua || !formData.estadoSalud || !formData.responsable) {
-            alert('Por favor, complete todos los campos obligatorios marcados con *');
+        if (!formData.espacioVerde) {
+            showAlert('Campo requerido', 'Seleccione el Espacio Verde a registrar.');
+            return;
+        }
+        if (!formData.tareaRealizada) {
+            showAlert('Campo requerido', 'Seleccione la Tarea Realizada.');
+            return;
+        }
+        if (!formData.consumoAgua) {
+            showAlert('Campo requerido', 'Ingrese el Consumo de Agua (litros).');
+            return;
+        }
+        if (!formData.estadoSalud) {
+            showAlert('Campo requerido', 'Seleccione el Estado de Salud de la Vegetación.');
+            return;
+        }
+        if (!formData.responsable) {
+            showAlert('Campo requerido', 'Seleccione el Responsable de la Tarea.');
             return;
         }
 
@@ -140,13 +159,13 @@ const EspaciosVerdes = () => {
                 plantasAgregadas: '0',
                 especieAgregada: '',
                 estadoSalud: '',
-                responsableTarea: 'Jardinería & Mantenimiento Don Yeyo',
+                responsableTarea: `Jardinería & Mantenimiento ${import.meta.env.VITE_COMPANY_NAME_SHORT || 'Don Yeyo'}`,
                 responsable: localStorage.getItem('shigma_last_operator_espacios-verdes') || '',
                 observaciones: ''
             });
         } catch (error) {
             console.error('Error submitting green spaces form:', error);
-            alert('Error al guardar el registro en el servidor.');
+            showAlert('Error del servidor', 'No se pudo guardar el registro. Por favor, intente nuevamente.');
         } finally {
             setSubmitting(false);
         }
@@ -353,6 +372,22 @@ const EspaciosVerdes = () => {
                     </Button>
                 </div>
             </form>
+
+            {/* Alert Modal */}
+            <Modal
+                isOpen={alertModal.isOpen}
+                onClose={() => setAlertModal({ isOpen: false, title: '', message: '' })}
+                title={alertModal.title}
+                showFooter={false}
+            >
+                <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                    <div style={{ color: 'var(--dy-red)', marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    </div>
+                    <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '1rem' }}>{alertModal.message}</p>
+                    <Button variant="primary" onClick={() => setAlertModal({ isOpen: false, title: '', message: '' })} style={{ background: '#84cc16', color: '#fff' }}>Entendido</Button>
+                </div>
+            </Modal>
 
             {/* Success Modal */}
             <Modal 

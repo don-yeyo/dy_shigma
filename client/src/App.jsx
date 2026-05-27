@@ -85,14 +85,14 @@ const AuthGate = ({ children }) => {
                     {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
                 </button>
 
-                <img src={logo} alt="Don Yeyo" style={{ height: '140px', marginBottom: '16px', objectFit: 'contain' }} />
+                <img src={logo} alt={import.meta.env.VITE_COMPANY_NAME_SHORT || 'SHIGMA'} style={{ height: '140px', marginBottom: '16px', objectFit: 'contain' }} />
                 
                 <h1 style={{ fontWeight: '800', color: 'var(--header-text)', margin: 0 }}>
                     SHIGMA
                 </h1>
 
                 <p style={{ color: 'var(--text-muted)', maxWidth: '400px', margin: '16px 0 32px 0', fontSize: '1.1rem', textAlign: 'center' }}>
-                    Bienvenido. Gestión de Seguridad, Higiene y Medioambiente de Don Yeyo S.A.
+                    Bienvenido. Gestión de Seguridad, Higiene y Medioambiente de {import.meta.env.VITE_COMPANY_NAME || 'la empresa'}.
                 </p>
 
                 <div className="login-options">

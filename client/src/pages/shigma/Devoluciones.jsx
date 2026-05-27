@@ -14,9 +14,25 @@ const Devoluciones = () => {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successId, setSuccessId] = useState('');
     const [operadores, setOperadores] = useState([]);
-    
+
+    const [alertModal, setAlertModal] = useState({
+        isOpen: false,
+        title: 'Validación',
+        message: '',
+        type: 'warning'
+    });
+
+    const showAlert = (message, title = 'Validación', type = 'warning') => {
+        setAlertModal({
+            isOpen: true,
+            title,
+            message,
+            type
+        });
+    };
+
     const { todayStr, nowTimeStr, minDateStr, maxDateStr } = getDateConstraints();
-    
+
     const [formData, setFormData] = useState({
         fechaCarga: todayStr,
         horaCarga: nowTimeStr,
@@ -64,7 +80,7 @@ const Devoluciones = () => {
             const response = await SHIGMAService.getOperadoresByForm('devoluciones');
             const ops = response.data;
             setOperadores(ops);
-            
+
             const lastOperator = localStorage.getItem('shigma_last_operator_devoluciones');
             if (lastOperator) {
                 const exists = ops.some(op => op.apellidoNombre === lastOperator);
@@ -101,16 +117,16 @@ const Devoluciones = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         const combinedCreatedAt = `${formData.fechaCarga}T${formData.horaCarga}`;
         const dateError = validateRecordDate(combinedCreatedAt);
         if (dateError) {
-            alert(dateError);
+            showAlert(dateError);
             return;
         }
 
         if (!formData.clienteOrigen || !formData.productoDevuelto || !formData.cantidadBultos || !formData.motivoDevolucion || !formData.inspeccionCalidad || !formData.disposicionFinal || !formData.responsable) {
-            alert('Por favor, complete todos los campos obligatorios marcados con *');
+            showAlert('Por favor, complete todos los campos obligatorios marcados con *');
             return;
         }
 
@@ -127,7 +143,7 @@ const Devoluciones = () => {
             const resData = response.data;
             setSuccessId(resData.record.id);
             setShowSuccessModal(true);
-            
+
             const constraints = getDateConstraints();
             setFormData({
                 fechaCarga: constraints.todayStr,
@@ -144,7 +160,7 @@ const Devoluciones = () => {
             });
         } catch (error) {
             console.error('Error submitting return form:', error);
-            alert('Error al guardar en el servidor.');
+            showAlert('Error al guardar en el servidor.', 'Error de Servidor', 'error');
         } finally {
             setSubmitting(false);
         }
@@ -154,9 +170,9 @@ const Devoluciones = () => {
         <div className="card-anim" style={{ maxWidth: '800px', margin: '0 auto' }}>
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-                <Button 
-                    variant="ghost" 
-                    onClick={() => navigate('/')} 
+                <Button
+                    variant="ghost"
+                    onClick={() => navigate('/')}
                     style={{ width: '40px', height: '40px', borderRadius: '50%', padding: 0 }}
                 >
                     <ArrowLeft size={20} />
@@ -248,7 +264,7 @@ const Devoluciones = () => {
                             label="Producto / Material Devuelto *"
                             type="text"
                             name="productoDevuelto"
-                            placeholder="Ej: Galletitas Don Yeyo Dulces 400g"
+                            placeholder={`Ej: Galletitas ${import.meta.env.VITE_COMPANY_NAME_SHORT || 'marca'} Dulces 400g`}
                             value={formData.productoDevuelto}
                             onChange={handleChange}
                             required
@@ -332,17 +348,17 @@ const Devoluciones = () => {
 
                 {/* Submit Actions */}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '24px' }}>
-                    <Button 
-                        type="button" 
-                        variant="outline" 
+                    <Button
+                        type="button"
+                        variant="outline"
                         onClick={() => navigate('/')}
                         disabled={submitting}
                     >
                         Cancelar
                     </Button>
-                    <Button 
-                        type="submit" 
-                        variant="primary" 
+                    <Button
+                        type="submit"
+                        variant="primary"
                         className={submitting ? 'btn-loading' : ''}
                         disabled={submitting}
                         style={{ background: '#3b82f6', color: '#fff' }}
@@ -353,8 +369,8 @@ const Devoluciones = () => {
             </form>
 
             {/* Success Modal */}
-            <Modal 
-                isOpen={showSuccessModal} 
+            <Modal
+                isOpen={showSuccessModal}
                 onClose={() => setShowSuccessModal(false)}
                 title="Inspección de Devolución Registrada"
                 showFooter={false}
@@ -374,14 +390,14 @@ const Devoluciones = () => {
                         </strong>
                     </p>
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             onClick={() => setShowSuccessModal(false)}
                         >
                             Cargar Otra
                         </Button>
-                        <Button 
-                            variant="primary" 
+                        <Button
+                            variant="primary"
                             onClick={() => navigate('/')}
                         >
                             Ir al Dashboard
@@ -389,6 +405,16 @@ const Devoluciones = () => {
                     </div>
                 </div>
             </Modal>
+
+            <Modal
+                isOpen={alertModal.isOpen}
+                onClose={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
+                title={alertModal.title}
+                message={alertModal.message}
+                type={alertModal.type}
+                confirmLabel="Entendido"
+                showCancel={false}
+            />
         </div>
     );
 };

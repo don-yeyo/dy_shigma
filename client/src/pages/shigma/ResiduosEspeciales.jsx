@@ -14,9 +14,25 @@ const ResiduosEspeciales = () => {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successId, setSuccessId] = useState('');
     const [operadores, setOperadores] = useState([]);
-    
+
+    const [alertModal, setAlertModal] = useState({
+        isOpen: false,
+        title: 'Validación',
+        message: '',
+        type: 'warning'
+    });
+
+    const showAlert = (message, title = 'Validación', type = 'warning') => {
+        setAlertModal({
+            isOpen: true,
+            title,
+            message,
+            type
+        });
+    };
+
     const { todayStr, nowTimeStr, minDateStr, maxDateStr } = getDateConstraints();
-    
+
     const [formData, setFormData] = useState({
         fechaCarga: todayStr,
         horaCarga: nowTimeStr,
@@ -78,7 +94,7 @@ const ResiduosEspeciales = () => {
             const response = await SHIGMAService.getOperadoresByForm('residuos-especiales');
             const ops = response.data;
             setOperadores(ops);
-            
+
             const lastOperator = localStorage.getItem('shigma_last_operator_residuos-especiales');
             if (lastOperator) {
                 const exists = ops.some(op => op.apellidoNombre === lastOperator);
@@ -115,16 +131,16 @@ const ResiduosEspeciales = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         const combinedCreatedAt = `${formData.fechaCarga}T${formData.horaCarga}`;
         const dateError = validateRecordDate(combinedCreatedAt);
         if (dateError) {
-            alert(dateError);
+            showAlert(dateError);
             return;
         }
 
         if (!formData.tipoResiduoEspecial || !formData.cantidad || !formData.sectorOrigen || !formData.tipoEnvase || !formData.categoriaPeligro || !formData.responsable) {
-            alert('Por favor, complete todos los campos obligatorios marcados con *');
+            showAlert('Por favor, complete todos los campos obligatorios marcados con *');
             return;
         }
 
@@ -140,7 +156,7 @@ const ResiduosEspeciales = () => {
             const resData = response.data;
             setSuccessId(resData.record.id);
             setShowSuccessModal(true);
-            
+
             const constraints = getDateConstraints();
             setFormData({
                 fechaCarga: constraints.todayStr,
@@ -157,7 +173,7 @@ const ResiduosEspeciales = () => {
             });
         } catch (error) {
             console.error('Error submitting special waste:', error);
-            alert('Error al guardar en el servidor.');
+            showAlert('Error al guardar en el servidor.', 'Error de Servidor', 'error');
         } finally {
             setSubmitting(false);
         }
@@ -167,9 +183,9 @@ const ResiduosEspeciales = () => {
         <div className="card-anim" style={{ maxWidth: '800px', margin: '0 auto' }}>
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-                <Button 
-                    variant="ghost" 
-                    onClick={() => navigate('/')} 
+                <Button
+                    variant="ghost"
+                    onClick={() => navigate('/')}
                     style={{ width: '40px', height: '40px', borderRadius: '50%', padding: 0 }}
                 >
                     <ArrowLeft size={20} />
@@ -343,17 +359,17 @@ const ResiduosEspeciales = () => {
 
                 {/* Submit Actions */}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '24px' }}>
-                    <Button 
-                        type="button" 
-                        variant="outline" 
+                    <Button
+                        type="button"
+                        variant="outline"
                         onClick={() => navigate('/')}
                         disabled={submitting}
                     >
                         Cancelar
                     </Button>
-                    <Button 
-                        type="submit" 
-                        variant="primary" 
+                    <Button
+                        type="submit"
+                        variant="primary"
                         className={submitting ? 'btn-loading' : ''}
                         disabled={submitting}
                         style={{ background: 'var(--warning)', color: '#fff' }}
@@ -364,8 +380,8 @@ const ResiduosEspeciales = () => {
             </form>
 
             {/* Success Modal */}
-            <Modal 
-                isOpen={showSuccessModal} 
+            <Modal
+                isOpen={showSuccessModal}
                 onClose={() => setShowSuccessModal(false)}
                 title="Registro de Residuo Especial"
                 showFooter={false}
@@ -385,14 +401,14 @@ const ResiduosEspeciales = () => {
                         </strong>
                     </p>
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             onClick={() => setShowSuccessModal(false)}
                         >
                             Cargar Otro
                         </Button>
-                        <Button 
-                            variant="primary" 
+                        <Button
+                            variant="primary"
                             onClick={() => navigate('/')}
                         >
                             Ir al Dashboard
@@ -400,6 +416,16 @@ const ResiduosEspeciales = () => {
                     </div>
                 </div>
             </Modal>
+
+            <Modal
+                isOpen={alertModal.isOpen}
+                onClose={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
+                title={alertModal.title}
+                message={alertModal.message}
+                type={alertModal.type}
+                confirmLabel="Entendido"
+                showCancel={false}
+            />
         </div>
     );
 };

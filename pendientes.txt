@@ -1,0 +1,18 @@
+permitir modificar registros hasta N dias para atras y X cantidad de veces
+
+agregar mails de usuarios administradores por variable de entorno separados por comas
+
+agregar version de la app
+
+ver cuales desplegables deberian ser tablas maestras
+
+revisar vistas mobile
+
+emails
+
+notificaciones
+
+gestion de usuarios que modulos puede gestionar y cuales emails recibe
+
+
+

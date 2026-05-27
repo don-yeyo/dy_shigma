@@ -13,6 +13,9 @@ const EconomiaCircular = () => {
     const [submitting, setSubmitting] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successId, setSuccessId] = useState('');
+    const [alertModal, setAlertModal] = useState({ isOpen: false, title: '', message: '' });
+
+    const showAlert = (title, message) => setAlertModal({ isOpen: true, title, message });
     
     const { todayStr, nowTimeStr, minDateStr, maxDateStr } = getDateConstraints();
     
@@ -91,12 +94,24 @@ const EconomiaCircular = () => {
         const combinedCreatedAt = `${formData.fechaCarga}T${formData.horaCarga}`;
         const dateError = validateRecordDate(combinedCreatedAt);
         if (dateError) {
-            alert(dateError);
+            showAlert('Fecha inválida', dateError);
             return;
         }
 
-        if (!formData.materialRevalorizado || !formData.cantidad || !formData.destinoReinsercion || !formData.ahorroEstimado) {
-            alert('Por favor, complete todos los campos obligatorios marcados con *');
+        if (!formData.materialRevalorizado) {
+            showAlert('Campo requerido', 'Seleccione el Material Revalorizado.');
+            return;
+        }
+        if (!formData.cantidad) {
+            showAlert('Campo requerido', 'Ingrese la Cantidad del material.');
+            return;
+        }
+        if (!formData.destinoReinsercion) {
+            showAlert('Campo requerido', 'Seleccione el Destino / Reinserción.');
+            return;
+        }
+        if (!formData.ahorroEstimado) {
+            showAlert('Campo requerido', 'Ingrese el Ahorro Estimado.');
             return;
         }
 
@@ -129,7 +144,7 @@ const EconomiaCircular = () => {
             });
         } catch (error) {
             console.error('Error submitting circular economy form:', error);
-            alert('Error al guardar el registro en el servidor.');
+            showAlert('Error del servidor', 'No se pudo guardar el registro. Por favor, intente nuevamente.');
         } finally {
             setSubmitting(false);
         }
@@ -344,6 +359,22 @@ const EconomiaCircular = () => {
                     </Button>
                 </div>
             </form>
+
+            {/* Alert Modal */}
+            <Modal
+                isOpen={alertModal.isOpen}
+                onClose={() => setAlertModal({ isOpen: false, title: '', message: '' })}
+                title={alertModal.title}
+                showFooter={false}
+            >
+                <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                    <div style={{ color: 'var(--dy-red)', marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    </div>
+                    <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '1rem' }}>{alertModal.message}</p>
+                    <Button variant="primary" onClick={() => setAlertModal({ isOpen: false, title: '', message: '' })} style={{ background: 'var(--dy-red)' }}>Entendido</Button>
+                </div>
+            </Modal>
 
             {/* Success Modal */}
             <Modal 

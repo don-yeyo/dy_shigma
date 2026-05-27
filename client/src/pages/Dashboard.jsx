@@ -6,11 +6,28 @@ import {
 } from 'lucide-react';
 import { SHIGMAService } from '../services/api';
 import { Button } from '../components/Button';
+import Modal from '../components/Modal';
 
 const Dashboard = () => {
     const navigate = useNavigate();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
+    
+    const [alertModal, setAlertModal] = useState({
+        isOpen: false,
+        title: 'Advertencia de Filtrado',
+        message: '',
+        type: 'warning'
+    });
+
+    const showAlert = (message, title = 'Advertencia de Filtrado', type = 'warning') => {
+        setAlertModal({
+            isOpen: true,
+            title,
+            message,
+            type
+        });
+    };
 
     const getFormattedDate = (date) => {
         const y = date.getFullYear();
@@ -67,12 +84,12 @@ const Dashboard = () => {
         const selectedHasta = new Date(`${fechaHasta}T23:59:59`);
         
         if (selectedHasta > maxLimit) {
-            alert('La fecha de fin no puede superar más de 3 días en el futuro.');
+            showAlert('La fecha de fin no puede superar más de 3 días en el futuro.');
             return;
         }
         
         if (fechaDesde > fechaHasta) {
-            alert('La fecha de inicio no puede ser posterior a la fecha de fin.');
+            showAlert('La fecha de inicio no puede ser posterior a la fecha de fin.');
             return;
         }
         
@@ -161,7 +178,7 @@ const Dashboard = () => {
                     Dashboard SHIGMA<span style={{ color: 'var(--dy-red)' }}>.</span>
                 </h1>
                 <p style={{ color: 'var(--text-muted)', marginTop: '8px', fontSize: '1.1rem' }}>
-                    Sistema de Gestión de Seguridad, Higiene y Medioambiente de Don Yeyo S.A.
+                    Sistema de Gestión de Seguridad, Higiene y Medioambiente de {import.meta.env.VITE_COMPANY_NAME || 'la empresa'}.
                 </p>
             </header>
 
@@ -424,11 +441,21 @@ const Dashboard = () => {
                 textAlign: 'center'
             }}>
                 <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                    <strong>SHIGMA</strong> — Sistema Integral de Trazabilidad Ambiental de Don Yeyo S.A.
+                    <strong>SHIGMA</strong> — Sistema Integral de Trazabilidad Ambiental de {import.meta.env.VITE_COMPANY_NAME || 'la empresa'}.
                     <br />
                     Herramienta de control operativa certificada bajo normativas de Seguridad e Higiene y Economía Circular.
                 </p>
             </div>
+
+            <Modal
+                isOpen={alertModal.isOpen}
+                onClose={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
+                title={alertModal.title}
+                message={alertModal.message}
+                type={alertModal.type}
+                confirmLabel="Entendido"
+                showCancel={false}
+            />
         </div>
     );
 };

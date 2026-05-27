@@ -345,7 +345,7 @@ const shigmaController = {
                 queryParams.push(`${fechaHasta} 23:59:59`);
             }
 
-            // Consultas optimizadas paralelas en MySQL
+            // Consultas optimizadas paralelas en MySQL con copia segura de parámetros
             const [
                 [[{ totalKgComunes }]],
                 [[{ totalKgEspeciales }]],
@@ -356,13 +356,13 @@ const shigmaController = {
                 [rcRows],
                 [ultimosTratamientos]
             ] = await Promise.all([
-                db.query(`SELECT COALESCE(SUM(peso), 0) AS totalKgComunes FROM residuos_comunes${whereClause}`, queryParams),
-                db.query(`SELECT COALESCE(SUM(cantidad), 0) AS totalKgEspeciales FROM residuos_especiales${whereClause}`, queryParams),
-                db.query(`SELECT COALESCE(SUM(cantidad_reparados), 0) AS totalPalletsReparados, COALESCE(SUM(cantidad_descartados), 0) AS totalPalletsDescartados FROM pallets${whereClause}`, queryParams),
-                db.query(`SELECT COALESCE(SUM(consumo_agua), 0) AS totalLitrosAgua, COALESCE(SUM(plantas_agregadas), 0) AS totalPlantaciones FROM espacios_verdes${whereClause}`, queryParams),
-                db.query(`SELECT COUNT(*) AS totalDevoluciones FROM devoluciones${whereClause}`, queryParams),
-                db.query(`SELECT COALESCE(SUM(ahorro_estimado), 0) AS totalAhorroCircular, COALESCE(SUM(co2_evitado), 0) AS totalCO2Reducido FROM economia_circular${whereClause}`, queryParams),
-                db.query(`SELECT tipo_residuo, peso, clasificacion_inorganico, materiales_recuperados FROM residuos_comunes${whereClause}`, queryParams),
+                db.query(`SELECT COALESCE(SUM(peso), 0) AS totalKgComunes FROM residuos_comunes${whereClause}`, [...queryParams]),
+                db.query(`SELECT COALESCE(SUM(cantidad), 0) AS totalKgEspeciales FROM residuos_especiales${whereClause}`, [...queryParams]),
+                db.query(`SELECT COALESCE(SUM(cantidad_reparados), 0) AS totalPalletsReparados, COALESCE(SUM(cantidad_descartados), 0) AS totalPalletsDescartados FROM pallets${whereClause}`, [...queryParams]),
+                db.query(`SELECT COALESCE(SUM(consumo_agua), 0) AS totalLitrosAgua, COALESCE(SUM(plantas_agregadas), 0) AS totalPlantaciones FROM espacios_verdes${whereClause}`, [...queryParams]),
+                db.query(`SELECT COUNT(*) AS totalDevoluciones FROM devoluciones${whereClause}`, [...queryParams]),
+                db.query(`SELECT COALESCE(SUM(ahorro_estimado), 0) AS totalAhorroCircular, COALESCE(SUM(co2_evitado), 0) AS totalCO2Reducido FROM economia_circular${whereClause}`, [...queryParams]),
+                db.query(`SELECT tipo_residuo, peso, clasificacion_inorganico, materiales_recuperados FROM residuos_comunes${whereClause}`, [...queryParams]),
                 db.query(`SELECT * FROM tratamientos ORDER BY created_at DESC LIMIT 5`)
             ]);
 
@@ -401,7 +401,7 @@ const shigmaController = {
                     }
                 }
                 
-                if (r.tipo_residuo === 'Inorgánicos marca Don Yeyo') {
+                if (r.tipo_residuo === `Inorgánicos marca ${process.env.COMPANY_NAME_SHORT || 'Don Yeyo'}`) {
                     plasticoKg += peso;
                 }
             });

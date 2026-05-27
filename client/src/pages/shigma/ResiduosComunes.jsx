@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
+import {
     Trash2, ArrowLeft, Send, CheckCircle, AlertTriangle, Layers, Boxes, Scale, ChevronRight
 } from 'lucide-react';
 import { Card, Input, Select, Textarea, Switch } from '../../components/FormElements';
@@ -143,20 +143,20 @@ const ResiduosComunes = () => {
     const navigate = useNavigate();
     const { theme } = useTheme();
     const isDark = theme === 'dark';
-    
+
     const [submitting, setSubmitting] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successId, setSuccessId] = useState('');
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [consentChecked, setConsentChecked] = useState(false);
     const [showConsentError, setShowConsentError] = useState(false);
-    
+
     // Bateas State para disponible
     const [bateas, setBateas] = useState([]);
-    
+
     // Operadores State para menú desplegable
     const [operadores, setOperadores] = useState([]);
-    
+
     // Modal de Advertencia por capacidad superada
     const [warningModalData, setWarningModalData] = useState({
         isOpen: false,
@@ -164,6 +164,22 @@ const ResiduosComunes = () => {
         pesoIngresado: '',
         disponible: 0
     });
+
+    const [alertModal, setAlertModal] = useState({
+        isOpen: false,
+        title: 'Validación',
+        message: '',
+        type: 'warning'
+    });
+
+    const showAlert = (message, title = 'Validación', type = 'warning') => {
+        setAlertModal({
+            isOpen: true,
+            title,
+            message,
+            type
+        });
+    };
 
     const { todayStr, nowTimeStr, minDateStr, maxDateStr } = getDateConstraints();
 
@@ -199,8 +215,10 @@ const ResiduosComunes = () => {
         { id: 'PE', label: 'Pellegrini' }
     ];
 
+    const COMPANY_SHORT = import.meta.env.VITE_COMPANY_NAME_SHORT || 'Don Yeyo';
+
     const tiposResiduo = [
-        { id: 'Inorgánicos marca Don Yeyo', label: 'Inorgánicos marca Don Yeyo' },
+        { id: `Inorgánicos marca ${COMPANY_SHORT}`, label: `Inorgánicos marca ${COMPANY_SHORT}` },
         { id: 'Inorgánicos Generales', label: 'Inorgánicos Generales' },
         { id: 'Orgánicos', label: 'Orgánicos' }
     ];
@@ -252,7 +270,7 @@ const ResiduosComunes = () => {
     // Obtener los destinos para el Select: Filtrados por tipo de residuo (Organicos / Inorganicos)
     const getDestinoOptions = () => {
         if (!formData.tipoResiduo) return [];
-        
+
         let filteredBateas = [];
         if (formData.tipoResiduo === 'Orgánicos') {
             // Filtrar y mostrar sólo bateas destinadas a Orgánicos
@@ -281,10 +299,10 @@ const ResiduosComunes = () => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        
+
         setFormData(prev => {
             const updated = { ...prev, [name]: value };
-            
+
             // Si cambia el tipo de residuo, reseteamos el destino para evitar inconsistencias
             if (name === 'tipoResiduo') {
                 updated.destino = '';
@@ -311,7 +329,7 @@ const ResiduosComunes = () => {
         setFormData(prev => {
             const newClasif = checked ? 'Recuperable' : 'Irrecuperables';
             let newPeso = prev.peso;
-            
+
             if (newClasif === 'Recuperable') {
                 // Calcular peso sumando materiales en Kilos
                 let totalKilos = 0;
@@ -347,7 +365,7 @@ const ResiduosComunes = () => {
         // No permitir números negativos: eliminar el signo menos
         if (typeof val === 'string') {
             val = val.replace(/-/g, '');
-            
+
             // Si es Cajones y la unidad seleccionada es Unidades, no permitir decimales
             if (material === 'Cajones' && formData.materialesRecuperados[material].unidad === 'Unidades') {
                 const dotIndex = val.indexOf('.');
@@ -377,7 +395,7 @@ const ResiduosComunes = () => {
                     cantidad: val
                 }
             };
-            
+
             // Calcular automáticamente el Peso del Lote (solo sumando los que están en Kilos)
             let totalKilos = 0;
             Object.entries(updatedMaterials).forEach(([mat, data]) => {
@@ -424,26 +442,26 @@ const ResiduosComunes = () => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        
+
         const isRecuperable = formData.tipoResiduo === 'Inorgánicos Generales' && formData.clasificacionInorganico === 'Recuperable';
 
         // 0. Fecha y Hora de la Carga (Validación con límites)
         const combinedCreatedAt = `${formData.fechaCarga}T${formData.horaCarga}`;
         const dateError = validateRecordDate(combinedCreatedAt);
         if (dateError) {
-            alert(dateError);
+            showAlert(dateError);
             return;
         }
 
         // 1. Planta Generadora (Arriba Izquierda)
         if (!formData.sector) {
-            alert('Por favor, seleccione la Planta Generadora.');
+            showAlert('Por favor, seleccione la Planta Generadora.');
             return;
         }
 
         // 2. Tipo de Residuo (Arriba Derecha)
         if (!formData.tipoResiduo) {
-            alert('Por favor, seleccione el Tipo de Residuo.');
+            showAlert('Por favor, seleccione el Tipo de Residuo.');
             return;
         }
 
@@ -451,7 +469,7 @@ const ResiduosComunes = () => {
         if (isRecuperable) {
             const tieneMaterial = Object.values(formData.materialesRecuperados).some(data => data.cantidad && parseFloat(data.cantidad) > 0);
             if (!tieneMaterial) {
-                alert('Por favor, indique la cantidad de al menos uno de los materiales recuperables.');
+                showAlert('Por favor, indique la cantidad de al menos uno de los materiales recuperables.');
                 return;
             }
         }
@@ -459,18 +477,18 @@ const ResiduosComunes = () => {
         // 4. Cantidad y Destino (Abajo, de izquierda a derecha)
         if (!isRecuperable) {
             if (!formData.peso) {
-                alert('Por favor, ingrese la Cantidad en Kilos.');
+                showAlert('Por favor, ingrese la Cantidad en Kilos.');
                 return;
             }
             if (!formData.destino) {
-                alert('Por favor, seleccione el Destino (Batea).');
+                showAlert('Por favor, seleccione el Destino (Batea).');
                 return;
             }
         }
 
         // 5. Operador (Más abajo)
         if (!formData.responsable) {
-            alert('Por favor, seleccione el Operador.');
+            showAlert('Por favor, seleccione el Operador.');
             return;
         }
 
@@ -559,7 +577,7 @@ const ResiduosComunes = () => {
             const resData = response.data;
             setSuccessId(resData.record.id);
             setShowSuccessModal(true);
-            
+
             // Reset form
             const constraints = getDateConstraints();
             setFormData({
@@ -585,7 +603,7 @@ const ResiduosComunes = () => {
             fetchBateasData();
         } catch (error) {
             console.error('Error submitting form:', error);
-            alert('Error al guardar el registro en el servidor.');
+            showAlert('Error al guardar el registro en el servidor.', 'Error de Servidor', 'error');
         } finally {
             setSubmitting(false);
         }
@@ -599,9 +617,9 @@ const ResiduosComunes = () => {
         <div className="card-anim" style={{ maxWidth: '800px', margin: '0 auto' }}>
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-                <Button 
-                    variant="ghost" 
-                    onClick={() => navigate('/')} 
+                <Button
+                    variant="ghost"
+                    onClick={() => navigate('/')}
                     style={{ width: '40px', height: '40px', borderRadius: '50%', padding: 0 }}
                 >
                     <ArrowLeft size={20} />
@@ -623,7 +641,7 @@ const ResiduosComunes = () => {
                         <Layers size={18} style={{ color: 'var(--dy-red)' }} />
                         Datos del Lote
                     </div>
-                    
+
                     {/* Fecha y Hora de la Carga (Separadas en grilla responsive, con Autofoco) */}
                     <div className="form-grid" style={{ marginBottom: '24px' }}>
                         <div>
@@ -679,7 +697,7 @@ const ResiduosComunes = () => {
                             />
                         </div>
                     </div>
-                    
+
                     <div className="form-grid">
                         <Select
                             label="Planta Generadora *"
@@ -705,9 +723,9 @@ const ResiduosComunes = () => {
                     {/* CONDICIONAL: Inorgánicos Generales */}
                     {formData.tipoResiduo === 'Inorgánicos Generales' && (
                         <div className="card-anim" style={{
-                            background: 'var(--surface-hover)', 
-                            padding: '20px', 
-                            borderRadius: '16px', 
+                            background: 'var(--surface-hover)',
+                            padding: '20px',
+                            borderRadius: '16px',
                             border: '1px solid var(--border)',
                             marginBottom: '20px',
                             marginTop: '8px'
@@ -727,17 +745,17 @@ const ResiduosComunes = () => {
                                     <h4 style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                         <Boxes size={16} /> Clasificación de Materiales Recuperables
                                     </h4>
-                                    
+
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                         {materialesDisponibles.map(mat => {
                                             const isCajones = mat === 'Cajones';
                                             const currentMatData = formData.materialesRecuperados[mat];
-                                            
+
                                             return (
-                                                <div key={mat} style={{ 
-                                                    display: 'grid', 
-                                                    gridTemplateColumns: '120px 1fr 110px', 
-                                                    alignItems: 'center', 
+                                                <div key={mat} style={{
+                                                    display: 'grid',
+                                                    gridTemplateColumns: '120px 1fr 110px',
+                                                    alignItems: 'center',
                                                     gap: '12px',
                                                     background: 'var(--surface)',
                                                     padding: '10px 16px',
@@ -793,8 +811,8 @@ const ResiduosComunes = () => {
                                                                         e.preventDefault();
                                                                     }
                                                                 }}
-                                                                style={{ 
-                                                                    flex: 1, 
+                                                                style={{
+                                                                    flex: 1,
                                                                     width: '108px', // Ancho aumentado para soportar hasta 1,000,000.0 sin desbordarse
                                                                     padding: '4px 8px',
                                                                     border: '1px solid var(--border)',
@@ -840,7 +858,7 @@ const ResiduosComunes = () => {
                                                         {isCajones ? (
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                                                 <span style={{ fontSize: '0.75rem', color: currentMatData.unidad === 'Kilos' ? 'var(--primary)' : 'var(--text-muted)', fontWeight: '700' }}>Kilos</span>
-                                                                <div 
+                                                                <div
                                                                     onClick={() => handleMaterialUnitChange(mat, currentMatData.unidad === 'Kilos')}
                                                                     style={{
                                                                         width: '30px', height: '16px',
@@ -904,14 +922,14 @@ const ResiduosComunes = () => {
                                     const disponible = Math.max(0, selectedBateaObj.capacidad - selectedBateaObj.pesoAcumulado);
                                     const porcentaje = selectedBateaObj.porcentaje;
                                     const color = getCapacityColor(porcentaje);
-                                    
+
                                     return (
-                                        <div className="card-anim" style={{ 
-                                            marginTop: '-4px', 
+                                        <div className="card-anim" style={{
+                                            marginTop: '-4px',
                                             marginBottom: '16px',
-                                            padding: '12px 16px', 
-                                            borderRadius: '12px', 
-                                            background: 'var(--surface-hover)', 
+                                            padding: '12px 16px',
+                                            borderRadius: '12px',
+                                            background: 'var(--surface-hover)',
                                             border: '1px solid var(--border)',
                                             display: 'flex',
                                             flexDirection: 'column',
@@ -961,17 +979,17 @@ const ResiduosComunes = () => {
 
                 {/* Submit Actions */}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '24px' }}>
-                    <Button 
-                        type="button" 
-                        variant="outline" 
+                    <Button
+                        type="button"
+                        variant="outline"
                         onClick={() => navigate('/')}
                         disabled={submitting}
                     >
                         Cancelar
                     </Button>
-                    <Button 
-                        type="submit" 
-                        variant="primary" 
+                    <Button
+                        type="submit"
+                        variant="primary"
                         className={submitting ? 'btn-loading' : ''}
                         disabled={submitting}
                         style={{ background: 'var(--success)' }}
@@ -982,8 +1000,8 @@ const ResiduosComunes = () => {
             </form>
 
             {/* Modal de Confirmación de Registro Exitoso */}
-            <Modal 
-                isOpen={showSuccessModal} 
+            <Modal
+                isOpen={showSuccessModal}
                 onClose={() => setShowSuccessModal(false)}
                 title="Registro Completado"
                 showFooter={false}
@@ -1003,14 +1021,14 @@ const ResiduosComunes = () => {
                         </strong>
                     </p>
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             onClick={() => setShowSuccessModal(false)}
                         >
                             Cargar Otro
                         </Button>
-                        <Button 
-                            variant="primary" 
+                        <Button
+                            variant="primary"
                             onClick={() => navigate('/')}
                         >
                             Ir al Dashboard
@@ -1035,13 +1053,13 @@ const ResiduosComunes = () => {
                             ¡Límite de Capacidad Superado!
                         </h3>
                         <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.875rem', lineHeight: '1.4' }}>
-                            La batea <strong>{warningModalData.bateaNombre}</strong> solo tiene <strong>{warningModalData.disponible.toLocaleString()} kg</strong> libres. 
+                            La batea <strong>{warningModalData.bateaNombre}</strong> solo tiene <strong>{warningModalData.disponible.toLocaleString()} kg</strong> libres.
                             Estás intentando ingresar <strong>{warningModalData.pesoIngresado} kg</strong>.
                         </p>
-                        <div style={{ 
-                            padding: '10px 12px', 
-                            background: 'var(--surface-hover)', 
-                            border: '1px solid var(--border)', 
+                        <div style={{
+                            padding: '10px 12px',
+                            background: 'var(--surface-hover)',
+                            border: '1px solid var(--border)',
                             borderRadius: '8px',
                             fontSize: '0.8rem',
                             color: 'var(--text)',
@@ -1051,16 +1069,16 @@ const ResiduosComunes = () => {
                             Realice el despacho de vaciado en <strong>Gestión de Bateas</strong> o distribuya los residuos en otro destino.
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                            <Button 
-                                variant="outline" 
+                            <Button
+                                variant="outline"
                                 onClick={() => setWarningModalData(prev => ({ ...prev, isOpen: false }))}
                                 style={{ flex: '1 1 140px', minWidth: '120px' }}
                             >
                                 Ajustar Pesaje
                             </Button>
-                            <Button 
+                            <Button
                                 type="button"
-                                variant="primary" 
+                                variant="primary"
                                 style={{ background: 'var(--dy-red)', flex: '1 1 140px', minWidth: '120px' }}
                                 onClick={() => {
                                     setWarningModalData(prev => ({ ...prev, isOpen: false }));
@@ -1171,7 +1189,7 @@ const ResiduosComunes = () => {
                         </div>
 
                         {/* Checkbox de Consentimiento */}
-                        <div 
+                        <div
                             onClick={() => {
                                 const newChecked = !consentChecked;
                                 setConsentChecked(newChecked);
@@ -1179,37 +1197,37 @@ const ResiduosComunes = () => {
                                     setShowConsentError(false);
                                 }
                             }}
-                            style={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '12px', 
-                                padding: '12px 16px', 
-                                background: consentChecked ? 'rgba(16, 185, 129, 0.08)' : 'var(--surface-hover)', 
-                                border: consentChecked ? '1px solid var(--success)' : '1px solid var(--border)', 
-                                borderRadius: '12px', 
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                                padding: '12px 16px',
+                                background: consentChecked ? 'rgba(16, 185, 129, 0.08)' : 'var(--surface-hover)',
+                                border: consentChecked ? '1px solid var(--success)' : '1px solid var(--border)',
+                                borderRadius: '12px',
                                 cursor: 'pointer',
                                 transition: 'all 0.2s ease',
                                 marginBottom: '24px'
                             }}
                         >
-                            <input 
-                                type="checkbox" 
+                            <input
+                                type="checkbox"
                                 id="consent-check"
                                 checked={consentChecked}
-                                onChange={(e) => e.stopPropagation()} 
-                                style={{ 
-                                    width: '18px', 
-                                    height: '18px', 
+                                onChange={(e) => e.stopPropagation()}
+                                style={{
+                                    width: '18px',
+                                    height: '18px',
                                     accentColor: 'var(--success)',
-                                    cursor: 'pointer' 
+                                    cursor: 'pointer'
                                 }}
                             />
-                            <label 
-                                htmlFor="consent-check" 
-                                style={{ 
-                                    fontSize: '0.875rem', 
-                                    color: consentChecked ? 'var(--text)' : 'var(--text-muted)', 
-                                    fontWeight: '700', 
+                            <label
+                                htmlFor="consent-check"
+                                style={{
+                                    fontSize: '0.875rem',
+                                    color: consentChecked ? 'var(--text)' : 'var(--text-muted)',
+                                    fontWeight: '700',
                                     cursor: 'pointer',
                                     userSelect: 'none'
                                 }}
@@ -1220,11 +1238,11 @@ const ResiduosComunes = () => {
 
                         {/* Mensaje de validación de consentimiento */}
                         {showConsentError && (
-                            <div style={{ 
-                                color: 'var(--error)', 
-                                fontSize: '0.85rem', 
-                                fontWeight: '700', 
-                                marginBottom: '12px', 
+                            <div style={{
+                                color: 'var(--error)',
+                                fontSize: '0.85rem',
+                                fontWeight: '700',
+                                marginBottom: '12px',
                                 textAlign: 'right',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -1237,20 +1255,20 @@ const ResiduosComunes = () => {
 
                         {/* Botones de Acción */}
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px' }}>
-                            <Button 
+                            <Button
                                 type="button"
-                                variant="outline" 
+                                variant="outline"
                                 onClick={() => setShowConfirmModal(false)}
                             >
                                 Volver a Editar
                             </Button>
-                            <Button 
+                            <Button
                                 type="button"
-                                variant="primary" 
+                                variant="primary"
                                 disabled={submitting}
                                 onClick={handleConfirmClick}
-                                style={{ 
-                                    background: consentChecked ? 'var(--success)' : 'var(--border)', 
+                                style={{
+                                    background: consentChecked ? 'var(--success)' : 'var(--border)',
                                     color: consentChecked ? '#fff' : 'var(--text-muted)',
                                     cursor: consentChecked ? 'pointer' : 'not-allowed'
                                 }}
@@ -1261,6 +1279,16 @@ const ResiduosComunes = () => {
                     </div>
                 </Modal>
             )}
+
+            <Modal
+                isOpen={alertModal.isOpen}
+                onClose={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
+                title={alertModal.title}
+                message={alertModal.message}
+                type={alertModal.type}
+                confirmLabel="Entendido"
+                showCancel={false}
+            />
         </div>
     );
 };

@@ -190,7 +190,7 @@ class FinnegansService {
 
             return data.map(d => ({
                 id: d.TRANSACCIONID || d.IDENTIFICACIONEXTERNA || d.NROINTERNO,
-                cliente: d.ORGANIZACION || d.CLIENTE || 'Cliente Don Yeyo',
+                cliente: d.ORGANIZACION || d.CLIENTE || `Cliente ${process.env.COMPANY_NAME_SHORT || 'SHIGMA'}`,
                 pedidoTipo: d.TRANSACCIONSUBTIPOCODIGO || 'REMVTA',
                 pedidoNro: d.IDENTIFICACIONEXTERNA || d.COMPROBANTE,
                 comprobante: d.IDENTIFICACIONEXTERNA || d.COMPROBANTE,

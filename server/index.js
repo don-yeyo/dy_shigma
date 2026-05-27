@@ -45,7 +45,7 @@ app.use('/api/system', systemRoutes);
 app.use('/api/shigma', shigmaRoutes);
 
 app.get('/', (req, res) => {
-    res.json({ message: 'SHIGMA API - Seguridad, Higiene y Medioambiente - Don Yeyo S.A.' });
+    res.json({ message: `SHIGMA API - Seguridad, Higiene y Medioambiente - ${process.env.COMPANY_NAME || 'SHIGMA'}` });
 });
 
 // Error handling
