@@ -153,6 +153,9 @@ const ResiduosComunes = () => {
     // Bateas State para disponible
     const [bateas, setBateas] = useState([]);
     
+    // Operadores State para menú desplegable
+    const [operadores, setOperadores] = useState([]);
+    
     // Modal de Advertencia por capacidad superada
     const [warningModalData, setWarningModalData] = useState({
         isOpen: false,
@@ -174,7 +177,7 @@ const ResiduosComunes = () => {
         },
         peso: '',
         destino: '',
-        responsable: 'Gabriel Tonelli',
+        responsable: '', // Vacío por defecto, cargado dinámicamente
         observaciones: ''
     });
 
@@ -202,8 +205,36 @@ const ResiduosComunes = () => {
         }
     };
 
+    // Cargar Operadores autorizados desde el backend con lógica de recuerdo validado
+    const fetchOperadoresData = async () => {
+        try {
+            const response = await SHIGMAService.getOperadoresByForm('residuos-comunes');
+            const ops = response.data;
+            setOperadores(ops);
+
+            // Verificar si hay un operador recordado en el dispositivo
+            const lastOperator = localStorage.getItem('shigma_last_operator_residuos-comunes');
+            if (lastOperator) {
+                // Corroborar que el operador recordado siga activo/asignado en los datos del backend
+                const exists = ops.some(op => op.apellidoNombre === lastOperator);
+                if (exists) {
+                    setFormData(prev => ({
+                        ...prev,
+                        responsable: lastOperator
+                    }));
+                } else {
+                    // Si ya no es válido, eliminar de localStorage para limpiar inconsistencias
+                    localStorage.removeItem('shigma_last_operator_residuos-comunes');
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching operators list:', error);
+        }
+    };
+
     useEffect(() => {
         fetchBateasData();
+        fetchOperadoresData();
     }, []);
 
     // Obtener los destinos para el Select: Filtrados por tipo de residuo (Organicos / Inorganicos)
@@ -251,6 +282,15 @@ const ResiduosComunes = () => {
             }
             return updated;
         });
+
+        // Guardar a nivel dispositivo el último operador seleccionado en RINE
+        if (name === 'responsable') {
+            if (value) {
+                localStorage.setItem('shigma_last_operator_residuos-comunes', value);
+            } else {
+                localStorage.removeItem('shigma_last_operator_residuos-comunes');
+            }
+        }
     };
 
     // Recalcular peso inmediatamente al seleccionar/deseleccionar el switch de Recuperable
@@ -802,13 +842,14 @@ const ResiduosComunes = () => {
                         </div>
                     )}
 
-                    <Input
-                        label="Responsable del Registro"
-                        type="text"
+                    <Select
+                        label="Operador *"
                         name="responsable"
                         value={formData.responsable}
                         onChange={handleChange}
-                        disabled
+                        options={operadores.map(op => ({ id: op.apellidoNombre, label: op.apellidoNombre }))}
+                        includePlaceholder={true}
+                        required
                     />
 
                     <Textarea

@@ -52,6 +52,10 @@ export const SHIGMAService = {
         api.post(`/shigma/bateas/${bateaId}/restart`, data),
     getBateaSalidas: () =>
         api.get('/shigma/bateas/salidas'),
+    
+    // Operadores API
+    getOperadoresByForm: (formType) =>
+        api.get(`/shigma/operadores/${formType}`),
 };
 
 export default api;

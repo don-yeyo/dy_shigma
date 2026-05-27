@@ -417,6 +417,28 @@ const shigmaController = {
             console.error('Error en getDashboardStats:', error);
             res.status(500).json({ error: 'Error al calcular estadísticas del dashboard.' });
         }
+    },
+
+    // Obtener operadores activos asignados a un tipo de formulario específico
+    getOperadoresByForm: async (req, res) => {
+        try {
+            const { formType } = req.params;
+            
+            const [rows] = await db.query(`
+                SELECT o.id, o.apellido_nombre, o.legajo
+                FROM operadores o
+                JOIN operadores_formularios of ON o.id = of.operador_id
+                WHERE of.formulario_tipo = ? AND o.activo = 1
+                ORDER BY o.apellido_nombre ASC
+            `, [formType]);
+
+            const mapped = rows.map(r => toCamelCaseObj(r));
+
+            res.json(mapped);
+        } catch (error) {
+            console.error(`Error en getOperadoresByForm para ${req.params.formType}:`, error);
+            res.status(500).json({ error: 'Error al obtener operadores desde la base de datos.' });
+        }
     }
 };
 
