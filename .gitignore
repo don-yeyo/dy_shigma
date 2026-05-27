@@ -1,0 +1,15 @@
+node_modules/
+
+.env
+.DS_Store
+dist/
+build/
+*.log
+client/package-lock.json
+package-lock.json
+server/package-lock.json
+
+# Documentación interna y credenciales (solo local)
+docs/
+server/txts/
+server/data/*.json

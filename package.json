@@ -1,0 +1,16 @@
+{
+  "name": "dy-shigma",
+  "version": "0.1.0",
+  "description": "SHIGMA - Sistema de Gestión de Seguridad, Higiene Industrial y Medio Ambiente de Don Yeyo S.A.",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "install-all": "npm install && npm install --prefix server && npm install --prefix client",
+    "server": "npm run dev --prefix server",
+    "client": "npm run dev --prefix client",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

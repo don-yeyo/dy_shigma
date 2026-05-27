@@ -1,0 +1,25 @@
+# Tareas del Proyecto: SHIGMA
+
+- `[x]` Copiar archivos base de `dy_finnegans_addons` a `dy_shigma`
+- `[x]` Inicializar Git en el nuevo repositorio y crear `.gitignore`
+- `[x]` Configurar variables de entorno (`.env` y `.env.template`)
+- `[x]` Configurar Backend Express con persistencia de archivos JSON (`server/data/`)
+  - `[x]` Crear controlador `shigmaController.js`
+  - `[x]` Crear ruta `shigma.js`
+  - `[x]` Integrar en `server/index.js`
+- `[x]` Configurar Frontend React
+  - `[x]` Renombrar la aplicación a **SHIGMA** en `Header.jsx`, `App.jsx` y login
+  - `[x]` Adaptar `Drawer.jsx` con los nuevos accesos directos
+  - `[x]` Adaptar y rediseñar el `Dashboard.jsx` con métricas y accesos premium
+  - `[x]` Crear formularios en `client/src/pages/shigma/`:
+    - `[x]` `ResiduosComunes.jsx`
+    - `[x]` `ResiduosEspeciales.jsx`
+    - `[x]` `Devoluciones.jsx`
+    - `[x]` `Tratamiento.jsx`
+    - `[x]` `EconomiaCircular.jsx`
+    - `[x]` `Pallets.jsx`
+    - `[x]` `EspaciosVerdes.jsx`
+  - `[x]` Crear pantalla `HistorialTrazabilidad.jsx`
+  - `[x]` Actualizar enrutador en `App.jsx` con todas las páginas nuevas
+- `[x]` Documentar el proyecto en el archivo `README.md`
+- `[x]` Realizar pruebas y verificación final de la ejecución de la aplicación concurrente

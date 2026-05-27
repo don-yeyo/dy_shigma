@@ -1,0 +1,8 @@
+{
+  "ignore": [
+    "txts/*",
+    "arba_last_response.txt",
+    "node_modules"
+  ],
+  "delay": "500"
+}
