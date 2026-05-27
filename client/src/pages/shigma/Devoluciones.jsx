@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CornerUpLeft, ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import { Card, Input, Select, Textarea } from '../../components/FormElements';
 import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
 import { SHIGMAService } from '../../services/api';
+import { getLocalISOString, validateRecordDate } from '../../utils/dateUtils';
 
 
 const Devoluciones = () => {
@@ -15,6 +16,7 @@ const Devoluciones = () => {
     const [operadores, setOperadores] = useState([]);
     
     const [formData, setFormData] = useState({
+        createdAt: getLocalISOString(),
         clienteOrigen: '',
         productoDevuelto: '',
         cantidadBultos: '',
@@ -25,6 +27,13 @@ const Devoluciones = () => {
         responsable: '',
         observaciones: ''
     });
+
+    const dateInputRef = useRef(null);
+    useEffect(() => {
+        if (dateInputRef.current) {
+            dateInputRef.current.focus();
+        }
+    }, []);
 
     const motivos = [
         { id: 'Vencimiento de producto', label: 'Vencimiento de producto' },
@@ -90,6 +99,12 @@ const Devoluciones = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
+        const dateError = validateRecordDate(formData.createdAt);
+        if (dateError) {
+            alert(dateError);
+            return;
+        }
+
         if (!formData.clienteOrigen || !formData.productoDevuelto || !formData.cantidadBultos || !formData.motivoDevolucion || !formData.inspeccionCalidad || !formData.disposicionFinal || !formData.responsable) {
             alert('Por favor, complete todos los campos obligatorios marcados con *');
             return;
@@ -107,6 +122,7 @@ const Devoluciones = () => {
             setSuccessId(resData.record.id);
             setShowSuccessModal(true);
             setFormData({
+                createdAt: getLocalISOString(),
                 clienteOrigen: '',
                 productoDevuelto: '',
                 cantidadBultos: '',
@@ -150,6 +166,35 @@ const Devoluciones = () => {
                 <Card style={{ borderLeft: '4px solid #3b82f6' }}>
                     <div className="form-section-title" style={{ color: '#3b82f6', borderColor: 'rgba(59, 130, 246, 0.2)' }}>
                         Datos del Lote Devuelto
+                    </div>
+
+                    {/* Fecha y Hora de la Carga (Primer campo, con Autofoco) */}
+                    <div style={{ marginBottom: '24px' }}>
+                        <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
+                            Fecha y Hora de la Carga *
+                        </label>
+                        <input
+                            ref={dateInputRef}
+                            type="datetime-local"
+                            name="createdAt"
+                            value={formData.createdAt}
+                            onChange={(e) => {
+                                const { name, value } = e.target;
+                                setFormData(prev => ({ ...prev, [name]: value }));
+                            }}
+                            style={{
+                                width: '100%',
+                                padding: '12px 16px',
+                                borderRadius: 'var(--radius)',
+                                border: '1px solid var(--border)',
+                                backgroundColor: 'var(--surface)',
+                                color: 'var(--text)',
+                                fontSize: '0.95rem',
+                                outline: 'none',
+                                transition: 'all 0.2s'
+                            }}
+                            required
+                        />
                     </div>
 
                     <div className="form-grid">

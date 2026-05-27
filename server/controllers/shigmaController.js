@@ -159,8 +159,10 @@ const shigmaController = {
                 usuario: recordData.usuario || 'Gabriel Tonelli'
             };
 
-            // Eliminar createdAt para que MySQL use el DEFAULT CURRENT_TIMESTAMP local (GMT-3)
-            delete insertData.createdAt;
+            // Si no se envía fecha/hora de carga, la eliminamos para que MySQL use el DEFAULT CURRENT_TIMESTAMP local (GMT-3)
+            if (!insertData.createdAt) {
+                delete insertData.createdAt;
+            }
 
             // Convertir a snake_case para la base de datos
             const dbPayload = toSnakeCaseObj(insertData);
@@ -328,6 +330,21 @@ const shigmaController = {
     // Obtener métricas agrupadas de rendimiento para el Dashboard
     getDashboardStats: async (req, res) => {
         try {
+            const { fechaDesde, fechaHasta } = req.query;
+            let whereClause = '';
+            const queryParams = [];
+
+            if (fechaDesde && fechaHasta) {
+                whereClause = ' WHERE created_at >= ? AND created_at <= ?';
+                queryParams.push(`${fechaDesde} 00:00:00`, `${fechaHasta} 23:59:59`);
+            } else if (fechaDesde) {
+                whereClause = ' WHERE created_at >= ?';
+                queryParams.push(`${fechaDesde} 00:00:00`);
+            } else if (fechaHasta) {
+                whereClause = ' WHERE created_at <= ?';
+                queryParams.push(`${fechaHasta} 23:59:59`);
+            }
+
             // Consultas optimizadas paralelas en MySQL
             const [
                 [[{ totalKgComunes }]],
@@ -339,13 +356,13 @@ const shigmaController = {
                 [rcRows],
                 [ultimosTratamientos]
             ] = await Promise.all([
-                db.query(`SELECT COALESCE(SUM(peso), 0) AS totalKgComunes FROM residuos_comunes`),
-                db.query(`SELECT COALESCE(SUM(cantidad), 0) AS totalKgEspeciales FROM residuos_especiales`),
-                db.query(`SELECT COALESCE(SUM(cantidad_reparados), 0) AS totalPalletsReparados, COALESCE(SUM(cantidad_descartados), 0) AS totalPalletsDescartados FROM pallets`),
-                db.query(`SELECT COALESCE(SUM(consumo_agua), 0) AS totalLitrosAgua, COALESCE(SUM(plantas_agregadas), 0) AS totalPlantaciones FROM espacios_verdes`),
-                db.query(`SELECT COUNT(*) AS totalDevoluciones FROM devoluciones`),
-                db.query(`SELECT COALESCE(SUM(ahorro_estimado), 0) AS totalAhorroCircular, COALESCE(SUM(co2_evitado), 0) AS totalCO2Reducido FROM economia_circular`),
-                db.query(`SELECT tipo_residuo, peso, clasificacion_inorganico, materiales_recuperados FROM residuos_comunes`),
+                db.query(`SELECT COALESCE(SUM(peso), 0) AS totalKgComunes FROM residuos_comunes${whereClause}`, queryParams),
+                db.query(`SELECT COALESCE(SUM(cantidad), 0) AS totalKgEspeciales FROM residuos_especiales${whereClause}`, queryParams),
+                db.query(`SELECT COALESCE(SUM(cantidad_reparados), 0) AS totalPalletsReparados, COALESCE(SUM(cantidad_descartados), 0) AS totalPalletsDescartados FROM pallets${whereClause}`, queryParams),
+                db.query(`SELECT COALESCE(SUM(consumo_agua), 0) AS totalLitrosAgua, COALESCE(SUM(plantas_agregadas), 0) AS totalPlantaciones FROM espacios_verdes${whereClause}`, queryParams),
+                db.query(`SELECT COUNT(*) AS totalDevoluciones FROM devoluciones${whereClause}`, queryParams),
+                db.query(`SELECT COALESCE(SUM(ahorro_estimado), 0) AS totalAhorroCircular, COALESCE(SUM(co2_evitado), 0) AS totalCO2Reducido FROM economia_circular${whereClause}`, queryParams),
+                db.query(`SELECT tipo_residuo, peso, clasificacion_inorganico, materiales_recuperados FROM residuos_comunes${whereClause}`, queryParams),
                 db.query(`SELECT * FROM tratamientos ORDER BY created_at DESC LIMIT 5`)
             ]);
 

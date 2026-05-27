@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Package, ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import { Card, Input, Select, Textarea } from '../../components/FormElements';
 import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
 import { SHIGMAService } from '../../services/api';
+import { getLocalISOString, validateRecordDate } from '../../utils/dateUtils';
 
 
 const Pallets = () => {
@@ -15,6 +16,7 @@ const Pallets = () => {
     const [operadores, setOperadores] = useState([]);
     
     const [formData, setFormData] = useState({
+        createdAt: getLocalISOString(),
         tipoPallet: '',
         cantidadIngresados: '',
         cantidadReparados: '',
@@ -24,6 +26,13 @@ const Pallets = () => {
         responsable: '',
         observaciones: ''
     });
+
+    const dateInputRef = useRef(null);
+    useEffect(() => {
+        if (dateInputRef.current) {
+            dateInputRef.current.focus();
+        }
+    }, []);
 
     const tipos = [
         { id: 'Estándar ARLOG (1200x1000)', label: 'Estándar ARLOG (1200x1000 mm)' },
@@ -75,6 +84,12 @@ const Pallets = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
+        const dateError = validateRecordDate(formData.createdAt);
+        if (dateError) {
+            alert(dateError);
+            return;
+        }
+
         if (!formData.tipoPallet || !formData.cantidadIngresados || !formData.cantidadReparados || !formData.cantidadDescartados || !formData.cantidadCircular || !formData.responsable) {
             alert('Por favor, complete todos los campos obligatorios marcados con *');
             return;
@@ -104,6 +119,7 @@ const Pallets = () => {
             setSuccessId(resData.record.id);
             setShowSuccessModal(true);
             setFormData({
+                createdAt: getLocalISOString(),
                 tipoPallet: '',
                 cantidadIngresados: '',
                 cantidadReparados: '',
@@ -146,6 +162,32 @@ const Pallets = () => {
                 <Card style={{ borderLeft: '4px solid #14b8a6' }}>
                     <div className="form-section-title" style={{ color: '#14b8a6', borderColor: 'rgba(20, 184, 166, 0.2)' }}>
                         Inventario y Clasificación de Pallets
+                    </div>
+
+                    {/* Fecha y Hora de la Carga (Primer campo, con Autofoco) */}
+                    <div style={{ marginBottom: '24px' }}>
+                        <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
+                            Fecha y Hora de la Carga *
+                        </label>
+                        <input
+                            ref={dateInputRef}
+                            type="datetime-local"
+                            name="createdAt"
+                            value={formData.createdAt}
+                            onChange={handleChange}
+                            style={{
+                                width: '100%',
+                                padding: '12px 16px',
+                                borderRadius: 'var(--radius)',
+                                border: '1px solid var(--border)',
+                                backgroundColor: 'var(--surface)',
+                                color: 'var(--text)',
+                                fontSize: '0.95rem',
+                                outline: 'none',
+                                transition: 'all 0.2s'
+                            }}
+                            required
+                        />
                     </div>
 
                     <div className="form-grid">

@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Leaf, ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import { Card, Input, Select, Textarea } from '../../components/FormElements';
 import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
 import { SHIGMAService } from '../../services/api';
+import { getLocalISOString, validateRecordDate } from '../../utils/dateUtils';
 
 
 const EspaciosVerdes = () => {
@@ -15,6 +16,7 @@ const EspaciosVerdes = () => {
     const [operadores, setOperadores] = useState([]);
     
     const [formData, setFormData] = useState({
+        createdAt: getLocalISOString(),
         espacioVerde: '',
         tareaRealizada: '',
         consumoAgua: '',
@@ -25,6 +27,13 @@ const EspaciosVerdes = () => {
         responsable: '',
         observaciones: ''
     });
+
+    const dateInputRef = useRef(null);
+    useEffect(() => {
+        if (dateInputRef.current) {
+            dateInputRef.current.focus();
+        }
+    }, []);
 
     const espacios = [
         { id: 'Jardín Frontal de Administración', label: 'Jardín Frontal de Administración' },
@@ -92,6 +101,12 @@ const EspaciosVerdes = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
+        const dateError = validateRecordDate(formData.createdAt);
+        if (dateError) {
+            alert(dateError);
+            return;
+        }
+
         if (!formData.espacioVerde || !formData.tareaRealizada || !formData.consumoAgua || !formData.estadoSalud || !formData.responsable) {
             alert('Por favor, complete todos los campos obligatorios marcados con *');
             return;
@@ -109,6 +124,7 @@ const EspaciosVerdes = () => {
             setSuccessId(resData.record.id);
             setShowSuccessModal(true);
             setFormData({
+                createdAt: getLocalISOString(),
                 espacioVerde: '',
                 tareaRealizada: '',
                 consumoAgua: '',
@@ -152,6 +168,32 @@ const EspaciosVerdes = () => {
                 <Card style={{ borderLeft: '4px solid #84cc16' }}>
                     <div className="form-section-title" style={{ color: '#84cc16', borderColor: 'rgba(132, 204, 22, 0.2)' }}>
                         Gestión Ambiental de Zonas Verdes
+                    </div>
+
+                    {/* Fecha y Hora de la Carga (Primer campo, con Autofoco) */}
+                    <div style={{ marginBottom: '24px' }}>
+                        <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
+                            Fecha y Hora de la Carga *
+                        </label>
+                        <input
+                            ref={dateInputRef}
+                            type="datetime-local"
+                            name="createdAt"
+                            value={formData.createdAt}
+                            onChange={handleChange}
+                            style={{
+                                width: '100%',
+                                padding: '12px 16px',
+                                borderRadius: 'var(--radius)',
+                                border: '1px solid var(--border)',
+                                backgroundColor: 'var(--surface)',
+                                color: 'var(--text)',
+                                fontSize: '0.95rem',
+                                outline: 'none',
+                                transition: 'all 0.2s'
+                            }}
+                            required
+                        />
                     </div>
 
                     <div className="form-grid">

@@ -5,26 +5,79 @@ import {
     Recycle, Package, Leaf, ArrowRight, Activity, TrendingUp, DollarSign, Calendar, Scale
 } from 'lucide-react';
 import { SHIGMAService } from '../services/api';
+import { Button } from '../components/Button';
 
 const Dashboard = () => {
     const navigate = useNavigate();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchStats = async () => {
-            try {
-                const response = await SHIGMAService.getStats();
-                setStats(response.data);
-            } catch (error) {
-                console.error('Error fetching dashboard stats:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
+    const getFormattedDate = (date) => {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    };
 
-        fetchStats();
+    const getInitialDates = () => {
+        const today = new Date();
+        const defaultDaysBack = parseInt(import.meta.env.VITE_DASHBOARD_DEFAULT_DAYS_BACK || '30', 10);
+        
+        const since = new Date();
+        since.setDate(today.getDate() - defaultDaysBack);
+        
+        return {
+            sinceStr: getFormattedDate(since),
+            todayStr: getFormattedDate(today),
+            maxStr: (() => {
+                const maxDate = new Date();
+                maxDate.setDate(today.getDate() + 3);
+                return getFormattedDate(maxDate);
+            })()
+        };
+    };
+
+    const { sinceStr, todayStr, maxStr } = getInitialDates();
+    const [fechaDesde, setFechaDesde] = useState(sinceStr);
+    const [fechaHasta, setFechaHasta] = useState(todayStr);
+
+    const fetchStats = async (desde = fechaDesde, hasta = fechaHasta) => {
+        setLoading(true);
+        try {
+            const response = await SHIGMAService.getStats(desde, hasta);
+            setStats(response.data);
+        } catch (error) {
+            console.error('Error fetching dashboard stats:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchStats(sinceStr, todayStr);
     }, []);
+
+    const handleApplyFilter = (e) => {
+        if (e) e.preventDefault();
+        
+        const maxLimit = new Date();
+        maxLimit.setDate(maxLimit.getDate() + 3);
+        maxLimit.setHours(23, 59, 59, 999);
+        
+        const selectedHasta = new Date(`${fechaHasta}T23:59:59`);
+        
+        if (selectedHasta > maxLimit) {
+            alert('La fecha de fin no puede superar más de 3 días en el futuro.');
+            return;
+        }
+        
+        if (fechaDesde > fechaHasta) {
+            alert('La fecha de inicio no puede ser posterior a la fecha de fin.');
+            return;
+        }
+        
+        fetchStats(fechaDesde, fechaHasta);
+    };
 
 
     const modules = [
@@ -111,6 +164,76 @@ const Dashboard = () => {
                     Sistema de Gestión de Seguridad, Higiene y Medioambiente de Don Yeyo S.A.
                 </p>
             </header>
+
+            {/* Barra de Filtro de Fechas */}
+            <form onSubmit={handleApplyFilter} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px',
+                padding: '16px 24px',
+                borderRadius: '16px',
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                marginBottom: '32px',
+                flexWrap: 'wrap'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '200px', flex: '1 1 200px' }}>
+                    <Calendar size={18} style={{ color: 'var(--text-muted)' }} />
+                    <span style={{ fontWeight: '700', fontSize: '0.85rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                        Rango de Análisis:
+                    </span>
+                </div>
+                
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', flex: '3 1 400px', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 180px' }}>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Desde:</span>
+                        <input 
+                            type="date" 
+                            value={fechaDesde} 
+                            onChange={(e) => setFechaDesde(e.target.value)}
+                            style={{
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                border: '1px solid var(--border)',
+                                backgroundColor: 'var(--surface-hover)',
+                                color: 'var(--text)',
+                                fontSize: '0.9rem',
+                                outline: 'none',
+                                flex: 1
+                            }}
+                        />
+                    </div>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 180px' }}>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Hasta:</span>
+                        <input 
+                            type="date" 
+                            value={fechaHasta} 
+                            max={maxStr}
+                            onChange={(e) => setFechaHasta(e.target.value)}
+                            style={{
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                border: '1px solid var(--border)',
+                                backgroundColor: 'var(--surface-hover)',
+                                color: 'var(--text)',
+                                fontSize: '0.9rem',
+                                outline: 'none',
+                                flex: 1
+                            }}
+                        />
+                    </div>
+                    
+                    <Button 
+                        type="submit" 
+                        variant="primary" 
+                        style={{ padding: '8px 20px', fontSize: '0.9rem', minHeight: '38px', background: 'var(--dy-blue)', color: '#fff' }}
+                        disabled={loading}
+                    >
+                        {loading ? 'Filtrando...' : 'Aplicar Filtro'}
+                    </Button>
+                </div>
+            </form>
 
             {/* KPI Cards Grid */}
             <div style={{

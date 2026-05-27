@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw, ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import { Card, Input, Select, Textarea } from '../../components/FormElements';
 import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
 import { SHIGMAService } from '../../services/api';
+import { getLocalISOString, validateRecordDate } from '../../utils/dateUtils';
 
 
 const Tratamiento = () => {
@@ -15,6 +16,7 @@ const Tratamiento = () => {
     const [operadores, setOperadores] = useState([]);
     
     const [formData, setFormData] = useState({
+        createdAt: getLocalISOString(),
         procesoTratamiento: '',
         materialEntrada: '',
         cantidadProcesada: '',
@@ -23,6 +25,13 @@ const Tratamiento = () => {
         subproductoObtenido: '',
         observaciones: ''
     });
+
+    const dateInputRef = useRef(null);
+    useEffect(() => {
+        if (dateInputRef.current) {
+            dateInputRef.current.focus();
+        }
+    }, []);
 
     const procesos = [
         { id: 'Compactado Hidráulico', label: 'Compactado Hidráulico' },
@@ -98,6 +107,12 @@ const Tratamiento = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
+        const dateError = validateRecordDate(formData.createdAt);
+        if (dateError) {
+            alert(dateError);
+            return;
+        }
+
         if (!formData.procesoTratamiento || !formData.materialEntrada || !formData.cantidadProcesada || !formData.maquinaUtilizada || !formData.subproductoObtenido || !formData.operador) {
             alert('Por favor, complete todos los campos obligatorios marcados con *');
             return;
@@ -114,6 +129,7 @@ const Tratamiento = () => {
             setSuccessId(resData.record.id);
             setShowSuccessModal(true);
             setFormData({
+                createdAt: getLocalISOString(),
                 procesoTratamiento: '',
                 materialEntrada: '',
                 cantidadProcesada: '',
@@ -155,6 +171,35 @@ const Tratamiento = () => {
                 <Card style={{ borderLeft: '4px solid #a855f7' }}>
                     <div className="form-section-title" style={{ color: '#a855f7', borderColor: 'rgba(168, 85, 247, 0.2)' }}>
                         Operación de Planta de Tratamiento
+                    </div>
+
+                    {/* Fecha y Hora de la Carga (Primer campo, con Autofoco) */}
+                    <div style={{ marginBottom: '24px' }}>
+                        <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
+                            Fecha y Hora de la Carga *
+                        </label>
+                        <input
+                            ref={dateInputRef}
+                            type="datetime-local"
+                            name="createdAt"
+                            value={formData.createdAt}
+                            onChange={(e) => {
+                                const { name, value } = e.target;
+                                setFormData(prev => ({ ...prev, [name]: value }));
+                            }}
+                            style={{
+                                width: '100%',
+                                padding: '12px 16px',
+                                borderRadius: 'var(--radius)',
+                                border: '1px solid var(--border)',
+                                backgroundColor: 'var(--surface)',
+                                color: 'var(--text)',
+                                fontSize: '0.95rem',
+                                outline: 'none',
+                                transition: 'all 0.2s'
+                            }}
+                            required
+                        />
                     </div>
 
                     <div className="form-grid">

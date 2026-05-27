@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Recycle, ArrowLeft, Send, CheckCircle, Award } from 'lucide-react';
 import { Card, Input, Select, Textarea } from '../../components/FormElements';
 import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
 import { SHIGMAService } from '../../services/api';
+import { getLocalISOString, validateRecordDate } from '../../utils/dateUtils';
 
 
 const EconomiaCircular = () => {
@@ -14,6 +15,7 @@ const EconomiaCircular = () => {
     const [successId, setSuccessId] = useState('');
     
     const [formData, setFormData] = useState({
+        createdAt: getLocalISOString(),
         materialRevalorizado: '',
         cantidad: '',
         unidad: 'kg',
@@ -23,6 +25,13 @@ const EconomiaCircular = () => {
         responsable: 'Gabriel Tonelli',
         observaciones: ''
     });
+
+    const dateInputRef = useRef(null);
+    useEffect(() => {
+        if (dateInputRef.current) {
+            dateInputRef.current.focus();
+        }
+    }, []);
 
     const materiales = [
         { id: 'Compost orgánico maduro', label: 'Compost orgánico (masa/comedor)' },
@@ -76,6 +85,12 @@ const EconomiaCircular = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
+        const dateError = validateRecordDate(formData.createdAt);
+        if (dateError) {
+            alert(dateError);
+            return;
+        }
+
         if (!formData.materialRevalorizado || !formData.cantidad || !formData.destinoReinsercion || !formData.ahorroEstimado) {
             alert('Por favor, complete todos los campos obligatorios marcados con *');
             return;
@@ -93,6 +108,7 @@ const EconomiaCircular = () => {
             setSuccessId(resData.record.id);
             setShowSuccessModal(true);
             setFormData({
+                createdAt: getLocalISOString(),
                 materialRevalorizado: '',
                 cantidad: '',
                 unidad: 'kg',
@@ -135,6 +151,32 @@ const EconomiaCircular = () => {
                 <Card style={{ borderLeft: '4px solid var(--dy-red)' }}>
                     <div className="form-section-title" style={{ color: 'var(--dy-red)', borderColor: 'rgba(228, 5, 33, 0.2)' }}>
                         Reinserción y Valorización Ecológica
+                    </div>
+
+                    {/* Fecha y Hora de la Carga (Primer campo, con Autofoco) */}
+                    <div style={{ marginBottom: '24px' }}>
+                        <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
+                            Fecha y Hora de la Carga *
+                        </label>
+                        <input
+                            ref={dateInputRef}
+                            type="datetime-local"
+                            name="createdAt"
+                            value={formData.createdAt}
+                            onChange={handleChange}
+                            style={{
+                                width: '100%',
+                                padding: '12px 16px',
+                                borderRadius: 'var(--radius)',
+                                border: '1px solid var(--border)',
+                                backgroundColor: 'var(--surface)',
+                                color: 'var(--text)',
+                                fontSize: '0.95rem',
+                                outline: 'none',
+                                transition: 'all 0.2s'
+                            }}
+                            required
+                        />
                     </div>
 
                     <div className="form-grid">

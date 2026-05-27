@@ -36,8 +36,8 @@ export const SystemService = {
 };
 
 export const SHIGMAService = {
-    getStats: () =>
-        api.get('/shigma/stats'),
+    getStats: (fechaDesde, fechaHasta) =>
+        api.get('/shigma/stats', { params: { fechaDesde, fechaHasta } }),
     getAllRecords: () =>
         api.get('/shigma/records'),
     getRecordsByForm: (formType) =>
