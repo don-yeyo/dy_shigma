@@ -5,7 +5,7 @@ import { Card, Input, Select, Textarea } from '../../components/FormElements';
 import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
 import { SHIGMAService } from '../../services/api';
-import { getLocalISOString, validateRecordDate } from '../../utils/dateUtils';
+import { getLocalISOString, validateRecordDate, getDateConstraints } from '../../utils/dateUtils';
 
 
 const Devoluciones = () => {
@@ -15,8 +15,11 @@ const Devoluciones = () => {
     const [successId, setSuccessId] = useState('');
     const [operadores, setOperadores] = useState([]);
     
+    const { todayStr, nowTimeStr, minDateStr, maxDateStr } = getDateConstraints();
+    
     const [formData, setFormData] = useState({
-        createdAt: getLocalISOString(),
+        fechaCarga: todayStr,
+        horaCarga: nowTimeStr,
         clienteOrigen: '',
         productoDevuelto: '',
         cantidadBultos: '',
@@ -99,7 +102,8 @@ const Devoluciones = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        const dateError = validateRecordDate(formData.createdAt);
+        const combinedCreatedAt = `${formData.fechaCarga}T${formData.horaCarga}`;
+        const dateError = validateRecordDate(combinedCreatedAt);
         if (dateError) {
             alert(dateError);
             return;
@@ -112,8 +116,10 @@ const Devoluciones = () => {
 
         setSubmitting(true);
         try {
+            const { fechaCarga, horaCarga, ...rest } = formData;
             const response = await SHIGMAService.createRecord('devoluciones', {
-                ...formData,
+                ...rest,
+                createdAt: combinedCreatedAt,
                 cantidadBultos: parseInt(formData.cantidadBultos),
                 pesoEstimado: formData.pesoEstimado ? parseFloat(formData.pesoEstimado) : 0
             });
@@ -121,8 +127,11 @@ const Devoluciones = () => {
             const resData = response.data;
             setSuccessId(resData.record.id);
             setShowSuccessModal(true);
+            
+            const constraints = getDateConstraints();
             setFormData({
-                createdAt: getLocalISOString(),
+                fechaCarga: constraints.todayStr,
+                horaCarga: constraints.nowTimeStr,
                 clienteOrigen: '',
                 productoDevuelto: '',
                 cantidadBultos: '',
@@ -168,33 +177,60 @@ const Devoluciones = () => {
                         Datos del Lote Devuelto
                     </div>
 
-                    {/* Fecha y Hora de la Carga (Primer campo, con Autofoco) */}
-                    <div style={{ marginBottom: '24px' }}>
-                        <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
-                            Fecha y Hora de la Carga *
-                        </label>
-                        <input
-                            ref={dateInputRef}
-                            type="datetime-local"
-                            name="createdAt"
-                            value={formData.createdAt}
-                            onChange={(e) => {
-                                const { name, value } = e.target;
-                                setFormData(prev => ({ ...prev, [name]: value }));
-                            }}
-                            style={{
-                                width: '100%',
-                                padding: '12px 16px',
-                                borderRadius: 'var(--radius)',
-                                border: '1px solid var(--border)',
-                                backgroundColor: 'var(--surface)',
-                                color: 'var(--text)',
-                                fontSize: '0.95rem',
-                                outline: 'none',
-                                transition: 'all 0.2s'
-                            }}
-                            required
-                        />
+                    {/* Fecha y Hora de la Carga (Separadas en grilla responsive, con Autofoco) */}
+                    <div className="form-grid" style={{ marginBottom: '24px' }}>
+                        <div>
+                            <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
+                                Fecha de la Carga *
+                            </label>
+                            <input
+                                ref={dateInputRef}
+                                type="date"
+                                name="fechaCarga"
+                                value={formData.fechaCarga}
+                                onChange={handleChange}
+                                min={minDateStr}
+                                max={maxDateStr}
+                                onKeyDown={(e) => e.preventDefault()}
+                                onClick={(e) => e.target.showPicker && e.target.showPicker()}
+                                style={{
+                                    width: '100%',
+                                    padding: '12px 16px',
+                                    borderRadius: 'var(--radius)',
+                                    border: '1px solid var(--border)',
+                                    backgroundColor: 'var(--surface)',
+                                    color: 'var(--text)',
+                                    fontSize: '0.95rem',
+                                    outline: 'none',
+                                    transition: 'all 0.2s',
+                                    cursor: 'pointer'
+                                }}
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
+                                Hora de la Carga *
+                            </label>
+                            <input
+                                type="time"
+                                name="horaCarga"
+                                value={formData.horaCarga}
+                                onChange={handleChange}
+                                style={{
+                                    width: '100%',
+                                    padding: '12px 16px',
+                                    borderRadius: 'var(--radius)',
+                                    border: '1px solid var(--border)',
+                                    backgroundColor: 'var(--surface)',
+                                    color: 'var(--text)',
+                                    fontSize: '0.95rem',
+                                    outline: 'none',
+                                    transition: 'all 0.2s'
+                                }}
+                                required
+                            />
+                        </div>
                     </div>
 
                     <div className="form-grid">

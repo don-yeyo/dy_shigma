@@ -8,7 +8,7 @@ import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
 import { SHIGMAService } from '../../services/api';
 import { useTheme } from '../../config/ThemeContext';
-import { getLocalISOString, validateRecordDate } from '../../utils/dateUtils';
+import { getLocalISOString, validateRecordDate, getDateConstraints } from '../../utils/dateUtils';
 
 // Componente premium de Input Numérico con botones de +/- integrados
 const NumberInput = ({ label, value, onChange, min = 0, step = 1, name, placeholder, required, disabled }) => {
@@ -165,8 +165,11 @@ const ResiduosComunes = () => {
         disponible: 0
     });
 
+    const { todayStr, nowTimeStr, minDateStr, maxDateStr } = getDateConstraints();
+
     const [formData, setFormData] = useState({
-        createdAt: getLocalISOString(),
+        fechaCarga: todayStr,
+        horaCarga: nowTimeStr,
         sector: '', // Planta Generadora
         tipoResiduo: '',
         clasificacionInorganico: 'Irrecuperables', // Irrecuperables o Recuperable
@@ -425,7 +428,8 @@ const ResiduosComunes = () => {
         const isRecuperable = formData.tipoResiduo === 'Inorgánicos Generales' && formData.clasificacionInorganico === 'Recuperable';
 
         // 0. Fecha y Hora de la Carga (Validación con límites)
-        const dateError = validateRecordDate(formData.createdAt);
+        const combinedCreatedAt = `${formData.fechaCarga}T${formData.horaCarga}`;
+        const dateError = validateRecordDate(combinedCreatedAt);
         if (dateError) {
             alert(dateError);
             return;
@@ -524,7 +528,7 @@ const ResiduosComunes = () => {
 
             // Crear payload estructurado
             let payload = {
-                createdAt: formData.createdAt,
+                createdAt: `${formData.fechaCarga}T${formData.horaCarga}`,
                 sector: formData.sector,
                 tipoResiduo: formData.tipoResiduo,
                 peso: parseFloat(finalPeso),
@@ -557,8 +561,10 @@ const ResiduosComunes = () => {
             setShowSuccessModal(true);
             
             // Reset form
+            const constraints = getDateConstraints();
             setFormData({
-                createdAt: getLocalISOString(),
+                fechaCarga: constraints.todayStr,
+                horaCarga: constraints.nowTimeStr,
                 sector: '',
                 tipoResiduo: '',
                 clasificacionInorganico: 'Irrecuperables',
@@ -571,7 +577,7 @@ const ResiduosComunes = () => {
                 },
                 peso: '',
                 destino: '',
-                responsable: 'Gabriel Tonelli',
+                responsable: localStorage.getItem('shigma_last_operator_residuos-comunes') || '',
                 observaciones: ''
             });
 
@@ -618,30 +624,60 @@ const ResiduosComunes = () => {
                         Datos del Lote
                     </div>
                     
-                    {/* Fecha y Hora de la Carga (Primer campo, con Autofoco) */}
-                    <div style={{ marginBottom: '24px' }}>
-                        <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
-                            Fecha y Hora de la Carga *
-                        </label>
-                        <input
-                            ref={dateInputRef}
-                            type="datetime-local"
-                            name="createdAt"
-                            value={formData.createdAt}
-                            onChange={handleChange}
-                            style={{
-                                width: '100%',
-                                padding: '12px 16px',
-                                borderRadius: 'var(--radius)',
-                                border: '1px solid var(--border)',
-                                backgroundColor: 'var(--surface)',
-                                color: 'var(--text)',
-                                fontSize: '0.95rem',
-                                outline: 'none',
-                                transition: 'all 0.2s'
-                            }}
-                            required
-                        />
+                    {/* Fecha y Hora de la Carga (Separadas en grilla responsive, con Autofoco) */}
+                    <div className="form-grid" style={{ marginBottom: '24px' }}>
+                        <div>
+                            <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
+                                Fecha de la Carga *
+                            </label>
+                            <input
+                                ref={dateInputRef}
+                                type="date"
+                                name="fechaCarga"
+                                value={formData.fechaCarga}
+                                onChange={handleChange}
+                                min={minDateStr}
+                                max={maxDateStr}
+                                onKeyDown={(e) => e.preventDefault()}
+                                onClick={(e) => e.target.showPicker && e.target.showPicker()}
+                                style={{
+                                    width: '100%',
+                                    padding: '12px 16px',
+                                    borderRadius: 'var(--radius)',
+                                    border: '1px solid var(--border)',
+                                    backgroundColor: 'var(--surface)',
+                                    color: 'var(--text)',
+                                    fontSize: '0.95rem',
+                                    outline: 'none',
+                                    transition: 'all 0.2s',
+                                    cursor: 'pointer'
+                                }}
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
+                                Hora de la Carga *
+                            </label>
+                            <input
+                                type="time"
+                                name="horaCarga"
+                                value={formData.horaCarga}
+                                onChange={handleChange}
+                                style={{
+                                    width: '100%',
+                                    padding: '12px 16px',
+                                    borderRadius: 'var(--radius)',
+                                    border: '1px solid var(--border)',
+                                    backgroundColor: 'var(--surface)',
+                                    color: 'var(--text)',
+                                    fontSize: '0.95rem',
+                                    outline: 'none',
+                                    transition: 'all 0.2s'
+                                }}
+                                required
+                            />
+                        </div>
                     </div>
                     
                     <div className="form-grid">

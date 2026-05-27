@@ -86,6 +86,9 @@ Copiar las plantillas `.env.template` correspondientes a `.env` tanto en la carp
 | `VITE_MOCK_AUTH` | Permite iniciar sesión localmente con un perfil simulado | `true` |
 | `VITE_MOCK_AUTH_EMAIL` | Correo del usuario MOCK | `gabrielt@donyeyo.com.ar` |
 | `VITE_MOCK_AUTH_NAME` | Nombre del usuario MOCK | `Gabriel Tonelli` |
+| `VITE_DASHBOARD_DEFAULT_DAYS_BACK` | Cantidad de días hacia atrás a analizar por defecto al cargar el Dashboard | `30` |
+| `VITE_MAX_PAST_DAYS_REGISTRATION` | Cantidad máxima de días en el pasado que se permite registrar en formularios | `5` |
+| `VITE_MAX_FUTURE_DAYS_REGISTRATION` | Cantidad máxima de días en el futuro que se permite registrar en formularios | `3` |
 
 ---
 
