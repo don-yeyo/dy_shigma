@@ -21,6 +21,7 @@ import EconomiaCircular from './pages/shigma/EconomiaCircular';
 import Pallets from './pages/shigma/Pallets';
 import EspaciosVerdes from './pages/shigma/EspaciosVerdes';
 import HistorialTrazabilidad from './pages/shigma/HistorialTrazabilidad';
+import GestionBateas from './pages/shigma/GestionBateas';
 
 import logo from './assets/logo-don-yeyo-png-sin-fondo.png';
 import microsoftLogo from './assets/microsoft-logo.png';
@@ -190,6 +191,7 @@ function App() {
 
                                 {/* SHIGMA Routes */}
                                 <Route path="/residuos-comunes" element={<ResiduosComunes />} />
+                                <Route path="/gestion-bateas" element={<GestionBateas />} />
                                 <Route path="/residuos-especiales" element={<ResiduosEspeciales />} />
                                 <Route path="/devoluciones" element={<Devoluciones />} />
                                 <Route path="/tratamiento" element={<Tratamiento />} />

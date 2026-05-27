@@ -293,8 +293,8 @@ input:focus, select:focus {
 .drawer {
   position: fixed;
   top: 0;
-  left: -300px;
-  width: 300px;
+  left: -360px;
+  width: 360px;
   height: 100vh;
   background: var(--surface);
   z-index: 201;
@@ -889,4 +889,14 @@ input:focus, select:focus {
   width: 100%;
   align-items: center;
   margin-top: 24px;
+}
+
+/* Ocultar incrementadores nativos de inputs numéricos en navegadores */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+input[type=number] {
+  -moz-appearance: textfield;
 }

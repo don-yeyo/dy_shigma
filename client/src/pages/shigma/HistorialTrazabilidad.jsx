@@ -52,7 +52,7 @@ const HistorialTrazabilidad = () => {
 
     const formTypes = [
         { id: 'all', label: 'Todos los Formularios' },
-        { id: 'residuos-comunes', label: 'Residuos Comunes' },
+        { id: 'residuos-comunes', label: 'Residuos No Especiales (RINE)' },
         { id: 'residuos-especiales', label: 'Residuos Especiales' },
         { id: 'devoluciones', label: 'Devoluciones' },
         { id: 'tratamiento', label: 'Tratamiento' },
@@ -93,10 +93,26 @@ const HistorialTrazabilidad = () => {
         const details = [];
 
         if (record.formType === 'residuos-comunes') {
-            details.push({ label: 'Sector Generador', value: record.sector });
+            details.push({ label: 'Planta Generadora', value: record.sector === 'ER' ? 'Elguea Roman' : record.sector === 'HY' ? 'Hipólito Yrigoyen' : record.sector === 'PE' ? 'Pellegrini' : record.sector });
             details.push({ label: 'Tipo de Residuo', value: record.tipoResiduo });
+            
+            if (record.tipoResiduo === 'Inorgánicos Generales') {
+                details.push({ label: 'Clasificación', value: record.clasificacionInorganico || 'Irrecuperables' });
+                
+                if (record.clasificacionInorganico === 'Recuperable' && record.materialesRecuperados) {
+                    const matsText = Object.entries(record.materialesRecuperados)
+                        .map(([mat, data]) => `${mat}: ${data.cantidad} ${data.unidad}`)
+                        .join(', ');
+                    details.push({ label: 'Materiales Recuperables', value: matsText || 'Ninguno' });
+                }
+            }
+            
             details.push({ label: 'Peso del Lote', value: `${record.peso} kg` });
-            details.push({ label: 'Destino / Depósito', value: record.destino });
+            details.push({ label: 'Destino', value: record.destino });
+            details.push({ 
+                label: 'Estado de Batea', 
+                value: record.bateaSalidaId ? `Despachado en Salida ${record.bateaSalidaId} (Pendiente)` : 'En batea activa' 
+            });
         } else if (record.formType === 'residuos-especiales') {
             details.push({ label: 'Tipo Especial', value: record.tipoResiduoEspecial });
             details.push({ label: 'Categoría Peligro', value: record.categoriaPeligro });

@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
     X, Settings, LayoutDashboard, History, Trash2, 
-    ShieldAlert, CornerUpLeft, RefreshCw, Recycle, Package, Leaf 
+    ShieldAlert, CornerUpLeft, RefreshCw, Recycle, Package, Leaf, Scale 
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -15,7 +15,8 @@ const Drawer = ({ isOpen, onClose }) => {
     ];
 
     const formItems = [
-        { icon: <Trash2 size={18} />, label: 'Residuos Comunes', path: '/residuos-comunes' },
+        { icon: <Trash2 size={18} />, label: 'Residuos No Especiales (RINE)', path: '/residuos-comunes' },
+        { icon: <Scale size={18} />, label: 'Gestión de Bateas', path: '/gestion-bateas' },
         { icon: <ShieldAlert size={18} />, label: 'Residuos Especiales', path: '/residuos-especiales' },
         { icon: <CornerUpLeft size={18} />, label: 'Devoluciones', path: '/devoluciones' },
         { icon: <RefreshCw size={18} />, label: 'Tratamiento', path: '/tratamiento' },
@@ -49,7 +50,8 @@ const Drawer = ({ isOpen, onClose }) => {
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                     marginBottom: '4px',
-                    fontSize: '0.9rem'
+                    fontSize: '0.9rem',
+                    whiteSpace: 'nowrap'
                 }}
             >
                 <span style={{ 

@@ -14,4 +14,9 @@ router.get('/records/:formType', shigmaController.getRecordsByForm);
 // Crear un registro en un formulario específico
 router.post('/records/:formType', shigmaController.createRecord);
 
+// Rutas de Bateas
+router.get('/bateas', shigmaController.getBateasStatus);
+router.post('/bateas/:bateaId/restart', shigmaController.restartBatea);
+router.get('/bateas/salidas', shigmaController.getBateaSalidas);
+
 module.exports = router;

@@ -44,6 +44,14 @@ export const SHIGMAService = {
         api.get(`/shigma/records/${formType}`),
     createRecord: (formType, data) =>
         api.post(`/shigma/records/${formType}`, data),
+    
+    // Bateas API
+    getBateasStatus: () =>
+        api.get('/shigma/bateas'),
+    restartBatea: (bateaId, data) =>
+        api.post(`/shigma/bateas/${bateaId}/restart`, data),
+    getBateaSalidas: () =>
+        api.get('/shigma/bateas/salidas'),
 };
 
 export default api;

@@ -1,25 +1,23 @@
 # Tareas del Proyecto: SHIGMA
 
-- `[x]` Copiar archivos base de `dy_finnegans_addons` a `dy_shigma`
-- `[x]` Inicializar Git en el nuevo repositorio y crear `.gitignore`
-- `[x]` Configurar variables de entorno (`.env` y `.env.template`)
-- `[x]` Configurar Backend Express con persistencia de archivos JSON (`server/data/`)
-  - `[x]` Crear controlador `shigmaController.js`
-  - `[x]` Crear ruta `shigma.js`
-  - `[x]` Integrar en `server/index.js`
-- `[x]` Configurar Frontend React
-  - `[x]` Renombrar la aplicación a **SHIGMA** en `Header.jsx`, `App.jsx` y login
-  - `[x]` Adaptar `Drawer.jsx` con los nuevos accesos directos
-  - `[x]` Adaptar y rediseñar el `Dashboard.jsx` con métricas y accesos premium
-  - `[x]` Crear formularios en `client/src/pages/shigma/`:
-    - `[x]` `ResiduosComunes.jsx`
-    - `[x]` `ResiduosEspeciales.jsx`
-    - `[x]` `Devoluciones.jsx`
-    - `[x]` `Tratamiento.jsx`
-    - `[x]` `EconomiaCircular.jsx`
-    - `[x]` `Pallets.jsx`
-    - `[x]` `EspaciosVerdes.jsx`
-  - `[x]` Crear pantalla `HistorialTrazabilidad.jsx`
-  - `[x]` Actualizar enrutador en `App.jsx` con todas las páginas nuevas
-- `[x]` Documentar el proyecto en el archivo `README.md`
-- `[x]` Realizar pruebas y verificación final de la ejecución de la aplicación concurrente
+- `[x]` Configuración de Entorno e Infraestructura
+  - `[x]` Instalar dependencia `mysql2` en el servidor
+  - `[x]` Crear script de base de datos `server/shigma_setup.sql`
+  - `[x]` Actualizar `.env` y `.env.template` del servidor con variables de MySQL, VAPID y Feature Flags
+  - `[x]` Actualizar `.env` y `.env.template` del cliente con Azure AD, Google Login y Version Check
+- `[x]` Conexión de Base de Datos y Zona Horaria (GMT-3)
+  - `[x]` Crear `server/config/db.js` con el pool de conexiones and el hook `acquire` de zona horaria
+- `[x]` Refactorización del Backend (`shigmaController.js`)
+  - `[x]` Importar y utilizar el pool de base de datos MySQL
+  - `[x]` Refactorizar `getAllRecords` para combinar registros de las tablas MySQL de forma concurrente
+  - `[x]` Refactorizar `getRecordsByForm` para leer de la tabla correspondiente
+  - `[x]` Refactorizar `createRecord` para insertar registros y generar IDs incrementales premium en MySQL
+  - `[x]` Refactorizar `getBateasStatus` para consultar ocupación directo de la base de datos
+  - `[x]` Refactorizar `restartBatea` con transacción segura SQL (salida + actualización de comunes)
+  - `[x]` Refactorizar `getBateaSalidas` para listar manifiestos guardados en DB
+  - `[x]` Refactorizar `getDashboardStats` para ejecutar agregaciones rápidas directo en SQL
+- `[x]` Pruebas y Verificación
+  - `[x]` Verificar inicialización del servidor y conexión exitosa del pool a RDS
+  - `[x]` Validar que el @@session.time_zone sea exactamente -03:00 en AWS RDS
+  - `[x]` Validar inserciones y lectura desde el frontend React
+  - `[x]` Generar reporte final y walkthrough.mdificación final de la ejecución de la aplicación concurrente

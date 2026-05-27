@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
     Trash2, ShieldAlert, CornerUpLeft, RefreshCw, 
-    Recycle, Package, Leaf, ArrowRight, Activity, TrendingUp, DollarSign, Calendar
+    Recycle, Package, Leaf, ArrowRight, Activity, TrendingUp, DollarSign, Calendar, Scale
 } from 'lucide-react';
 import { SHIGMAService } from '../services/api';
 
@@ -30,10 +30,17 @@ const Dashboard = () => {
     const modules = [
         {
             icon: <Trash2 size={24} />,
-            title: 'Residuos Comunes',
-            description: 'Registrar pesajes de cartón, plástico, vidrio y orgánicos generados.',
+            title: 'Residuos No Especiales (RINE)',
+            description: 'Registrar pesajes de residuos industriales no especiales generados.',
             path: '/residuos-comunes',
             color: 'var(--success)'
+        },
+        {
+            icon: <Scale size={24} />,
+            title: 'Gestión de Bateas',
+            description: 'Monitorear el nivel de llenado de las bateas y registrar manifiestos de despacho.',
+            path: '/gestion-bateas',
+            color: '#3b82f6'
         },
         {
             icon: <ShieldAlert size={24} />,
@@ -123,7 +130,7 @@ const Dashboard = () => {
                     <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: 0 }}>
                         {loading ? '...' : `${displayStats.totalKgComunes.toLocaleString()} kg`}
                     </h2>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Residuos comunes pesados</p>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>Residuos no especiales pesados</p>
                 </div>
 
                 {/* KPI 2 */}
@@ -181,7 +188,7 @@ const Dashboard = () => {
                 {/* Left Visual: Material Breakdown */}
                 <div className="glass" style={{ padding: '24px', borderRadius: '24px', border: '1px solid var(--border)', background: 'var(--surface)' }}>
                     <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '20px', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <TrendingUp size={20} /> Distribución de Reciclaje Común
+                        <TrendingUp size={20} /> Distribución de Reciclaje RINE
                     </h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         {Object.entries(displayStats.materialBreakdown).map(([material, kg]) => {

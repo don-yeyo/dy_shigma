@@ -19,12 +19,60 @@ export const Card = ({ children, className = '', style = {}, ...props }) => {
 };
 
 export const Input = ({ label, containerId, ...props }) => {
+    const isNumber = props.type === 'number';
+
+    const handleMouseDown = (e) => {
+        if (isNumber && document.activeElement !== e.target) {
+            e.preventDefault();
+            e.target.focus();
+            e.target.select();
+        }
+        if (props.onMouseDown) {
+            props.onMouseDown(e);
+        }
+    };
+
+    const handleFocus = (e) => {
+        if (isNumber) {
+            e.target.select();
+        }
+        if (props.onFocus) {
+            props.onFocus(e);
+        }
+    };
+
+    const handleKeyDown = (e) => {
+        if (isNumber && (e.key === '-' || e.key === 'e' || e.key === 'E')) {
+            e.preventDefault();
+        }
+        if (props.onKeyDown) {
+            props.onKeyDown(e);
+        }
+    };
+
+    const handleChange = (e) => {
+        if (isNumber) {
+            let val = e.target.value;
+            if (val.includes('-')) {
+                val = val.replace(/-/g, '');
+                e.target.value = val;
+            }
+        }
+        if (props.onChange) {
+            props.onChange(e);
+        }
+    };
+
     return (
         <div id={containerId} style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {label && <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '500' }}>{label}</label>}
             <input
                 style={{ width: '100%', outline: 'none' }}
                 {...props}
+                onMouseDown={handleMouseDown}
+                onFocus={handleFocus}
+                onKeyDown={handleKeyDown}
+                onChange={handleChange}
             />
         </div>
     );

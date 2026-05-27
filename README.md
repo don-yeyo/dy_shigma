@@ -9,9 +9,10 @@ SHIGMA permite registrar y auditar todos los flujos de materiales de descarte, t
 ## Stack Tecnológico
 
 - **Frontend**: React 19 + Vite (CSS Variables, Glassmorphism, animaciones fluidas, modo oscuro y claro inteligente)
-- **Backend**: Node.js + Express 5
-- **Persistencia**: Sistema de base de datos local y liviano basado en archivos JSON estructurados con autogeneración de identificadores de trazabilidad premium (ej: `SHG-RC-0001`).
-- **Seguridad**: MSAL Azure AD integrado, Google OAuth 2.0 y soporte para `Mock Auth` en modo de desarrollo local.
+- **Backend**: Node.js + Express 5 (Conexión mediante pool de `mysql2/promise`)
+- **Persistencia**: Base de datos MySQL (AWS RDS o Local) optimizada con soporte transaccional y columnas nativas `JSON` para desgloses estructurados.
+- **Zona Horaria**: Control de GMT-3 (Argentina/Buenos Aires) garantizado mediante forzado de sesión (`SET time_zone`) en cada adquisición de conexión del pool.
+- **Seguridad**: MSAL Azure AD integrado, Google OAuth 2.0 y soporte para `Mock Auth` en desarrollo local.
 
 ---
 
@@ -25,7 +26,7 @@ El panel de control principal hereda la estética premium con transparencias (gl
 
 ### 2. Formularios de Registro e Trazabilidad
 SHIGMA cuenta con 7 formularios independientes de alta fidelidad visual y validación de negocio:
-- **Residuos Comunes**: Pesaje detallado por sector generador y asignación de destino de reciclables (Contenedor Verde, Acopio General, Compostera).
+- **Residuos Industriales No Especiales (RINE)**: Registro y pesaje detallado de desperdicios orgánicos, inorgánicos de marca Don Yeyo e inorgánicos generales por planta generadora. Incluye un switch interactivo para clasificar inorgánicos como *Recuperables* con desglose por material (Cartón, Metal, Cajones, etc.) y auto-cálculo reactivo del lote. Posee integración con un **Monitor de Capacidad de Bateas**, permitiendo vaciar y reiniciar bateas (con manifiesto de salida obligatorio en estado *pendiente*).
 - **Residuos Especiales**: Control estricto de aceites usados, solventes y trapos contaminados. Incluye clasificación por **Código Y de desecho peligroso** (Y9, Y42, Y31) y conversión dinámica de unidades (kg o litros).
 - **Inspección de Devoluciones**: Control de mercadería devuelta por clientes para clasificar su destino ambiental (Compostado orgánico, reproceso, donación o destrucción directa).
 - **Tratamiento y Valorización**: Registro de procesos físicos de valorización (Compactado hidráulico, trituración de plásticos, compostado industrial) detallando máquina utilizada y subproducto obtenido.
@@ -64,10 +65,18 @@ npm run install-all
 Copiar las plantillas `.env.template` correspondientes a `.env` tanto en la carpeta `client/` como en `server/`.
 
 #### Backend (`server/.env`)
-| Variable | Descripción | Valor por Defecto |
+| Variable | Descripción | Valor por Defecto / Ejemplo |
 |---|---|---|
 | `PORT` | Puerto del servidor Express | `5000` |
-| `SHIGMA_DATA_PATH` | Carpeta de persistencia local para archivos JSON | `./data` |
+| `DB_HOST` | Endpoint del servidor de base de datos MySQL (AWS RDS o Local) | `dydb2-instance-1.cz8kik28igwg.us-east-1.rds.amazonaws.com` o `127.0.0.1` |
+| `DB_USER` | Usuario de base de datos MySQL | `DBAdmin_Acceso_A_Planta` |
+| `DB_PASS` | Contraseña del usuario de MySQL | `tu_contraseña_aqui` |
+| `DB_NAME` | Nombre de la base de datos | `Shigma` |
+| `DB_PORT` | Puerto del servicio MySQL | `3306` |
+| `DB_TIMEZONE` | Zona horaria del pool de conexiones | `-03:00` |
+| `ENABLE_GOOGLE_LOGIN` | Feature flag para login de Google | `true` |
+| `VAPID_PUBLIC_KEY` | Llave pública VAPID para notificaciones push | `BMCoIK3...` |
+| `VAPID_PRIVATE_KEY` | Llave privada VAPID para notificaciones push | `ZwsvXyu...` |
 | `AUTHORIZED_EMAILS` | Emails con permiso de acceso de administrador | `gabrielt@donyeyo.com.ar` |
 
 #### Frontend (`client/.env`)
@@ -82,14 +91,16 @@ Copiar las plantillas `.env.template` correspondientes a `.env` tanto en la carp
 
 ## Ejecución del Proyecto
 
-En la raíz de la carpeta de trabajo, ejecute el siguiente comando para lanzar ambos servicios simultáneamente (servidor Express en puerto 5000 y Vite client en puerto 5173):
+1. **Configuración de Base de Datos**:
+   Antes del primer inicio, importe el esquema de base de datos local ejecutando el archivo [shigma_setup.sql](file:///c:/Users/gabrielt/Documents/Proyectos/SeguridadHigieneMedioambiente/dy_shigma/server/shigma_setup.sql) en tu gestor de base de datos MySQL preferido (DBeaver, Workbench, etc.) dentro del esquema de base de datos configurado.
 
-```bash
-# Iniciar frontend y backend en paralelo de forma interactiva
-npm run dev
-```
+2. **Ejecución de los Servicios**:
+   En la raíz de la carpeta de trabajo, ejecute el siguiente comando para lanzar ambos servicios simultáneamente (servidor Express en puerto 5000 y Vite client en puerto 5173):
 
-El servidor web creará automáticamente el directorio configurado en `SHIGMA_DATA_PATH` para almacenar y organizar los archivos JSON de control y auditoría.
+   ```bash
+   # Iniciar frontend y backend en paralelo de forma interactiva
+   npm run dev
+   ```
 
 ---
 
