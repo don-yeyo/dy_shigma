@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Leaf, ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import { Card, Input, Select, Textarea } from '../../components/FormElements';
@@ -12,6 +12,7 @@ const EspaciosVerdes = () => {
     const [submitting, setSubmitting] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successId, setSuccessId] = useState('');
+    const [operadores, setOperadores] = useState([]);
     
     const [formData, setFormData] = useState({
         espacioVerde: '',
@@ -21,7 +22,7 @@ const EspaciosVerdes = () => {
         especieAgregada: '',
         estadoSalud: '',
         responsableTarea: 'Jardinería & Mantenimiento Don Yeyo',
-        responsable: 'Gabriel Tonelli',
+        responsable: '',
         observaciones: ''
     });
 
@@ -48,18 +49,50 @@ const EspaciosVerdes = () => {
         { id: 'Bajo Tratamiento de control biológico de Plagas', label: 'Bajo Control Biológico de Plagas' }
     ];
 
+    const fetchOperadores = async () => {
+        try {
+            const response = await SHIGMAService.getOperadoresByForm('espacios-verdes');
+            const ops = response.data;
+            setOperadores(ops);
+            
+            const lastOperator = localStorage.getItem('shigma_last_operator_espacios-verdes');
+            if (lastOperator) {
+                const exists = ops.some(op => op.apellidoNombre === lastOperator);
+                if (exists) {
+                    setFormData(prev => ({ ...prev, responsable: lastOperator }));
+                } else {
+                    localStorage.removeItem('shigma_last_operator_espacios-verdes');
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching operators:', error);
+        }
+    };
+
+    useEffect(() => {
+        fetchOperadores();
+    }, []);
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
             [name]: value
         }));
+
+        if (name === 'responsable') {
+            if (value) {
+                localStorage.setItem('shigma_last_operator_espacios-verdes', value);
+            } else {
+                localStorage.removeItem('shigma_last_operator_espacios-verdes');
+            }
+        }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        if (!formData.espacioVerde || !formData.tareaRealizada || !formData.consumoAgua || !formData.estadoSalud) {
+        if (!formData.espacioVerde || !formData.tareaRealizada || !formData.consumoAgua || !formData.estadoSalud || !formData.responsable) {
             alert('Por favor, complete todos los campos obligatorios marcados con *');
             return;
         }
@@ -83,7 +116,7 @@ const EspaciosVerdes = () => {
                 especieAgregada: '',
                 estadoSalud: '',
                 responsableTarea: 'Jardinería & Mantenimiento Don Yeyo',
-                responsable: 'Gabriel Tonelli',
+                responsable: localStorage.getItem('shigma_last_operator_espacios-verdes') || '',
                 observaciones: ''
             });
         } catch (error) {
@@ -198,13 +231,14 @@ const EspaciosVerdes = () => {
                             required
                         />
 
-                        <Input
-                            label="Supervisor de Seguridad Ambiental"
-                            type="text"
+                        <Select
+                            label="Supervisor de Seguridad Ambiental *"
                             name="responsable"
                             value={formData.responsable}
                             onChange={handleChange}
-                            disabled
+                            options={operadores.map(op => ({ id: op.apellidoNombre, label: op.apellidoNombre }))}
+                            includePlaceholder={true}
+                            required
                         />
                     </div>
 
@@ -244,6 +278,7 @@ const EspaciosVerdes = () => {
                 isOpen={showSuccessModal} 
                 onClose={() => setShowSuccessModal(false)}
                 title="Mantenimiento de Espacio Verde Registrado"
+                showFooter={false}
             >
                 <div style={{ textAlign: 'center', padding: '16px 0' }}>
                     <div style={{ color: '#84cc16', marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>

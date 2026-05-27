@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Package, ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import { Card, Input, Select, Textarea } from '../../components/FormElements';
@@ -12,6 +12,7 @@ const Pallets = () => {
     const [submitting, setSubmitting] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successId, setSuccessId] = useState('');
+    const [operadores, setOperadores] = useState([]);
     
     const [formData, setFormData] = useState({
         tipoPallet: '',
@@ -20,7 +21,7 @@ const Pallets = () => {
         cantidadDescartados: '',
         cantidadCircular: '',
         responsableReparacion: 'Taller de Pallets - Mantenimiento',
-        responsable: 'Gabriel Tonelli',
+        responsable: '',
         observaciones: ''
     });
 
@@ -31,18 +32,50 @@ const Pallets = () => {
         { id: 'Pallet de Plástico Reforzado', label: 'Pallet de Plástico Reforzado' }
     ];
 
+    const fetchOperadores = async () => {
+        try {
+            const response = await SHIGMAService.getOperadoresByForm('pallets');
+            const ops = response.data;
+            setOperadores(ops);
+            
+            const lastOperator = localStorage.getItem('shigma_last_operator_pallets');
+            if (lastOperator) {
+                const exists = ops.some(op => op.apellidoNombre === lastOperator);
+                if (exists) {
+                    setFormData(prev => ({ ...prev, responsable: lastOperator }));
+                } else {
+                    localStorage.removeItem('shigma_last_operator_pallets');
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching operators:', error);
+        }
+    };
+
+    useEffect(() => {
+        fetchOperadores();
+    }, []);
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
             [name]: value
         }));
+
+        if (name === 'responsable') {
+            if (value) {
+                localStorage.setItem('shigma_last_operator_pallets', value);
+            } else {
+                localStorage.removeItem('shigma_last_operator_pallets');
+            }
+        }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        if (!formData.tipoPallet || !formData.cantidadIngresados || !formData.cantidadReparados || !formData.cantidadDescartados || !formData.cantidadCircular) {
+        if (!formData.tipoPallet || !formData.cantidadIngresados || !formData.cantidadReparados || !formData.cantidadDescartados || !formData.cantidadCircular || !formData.responsable) {
             alert('Por favor, complete todos los campos obligatorios marcados con *');
             return;
         }
@@ -77,7 +110,7 @@ const Pallets = () => {
                 cantidadDescartados: '',
                 cantidadCircular: '',
                 responsableReparacion: 'Taller de Pallets - Mantenimiento',
-                responsable: 'Gabriel Tonelli',
+                responsable: localStorage.getItem('shigma_last_operator_pallets') || '',
                 observaciones: ''
             });
         } catch (error) {
@@ -187,13 +220,14 @@ const Pallets = () => {
                         />
                     </div>
 
-                    <Input
-                        label="Inspector Responsable"
-                        type="text"
+                    <Select
+                        label="Inspector Responsable *"
                         name="responsable"
                         value={formData.responsable}
                         onChange={handleChange}
-                        disabled
+                        options={operadores.map(op => ({ id: op.apellidoNombre, label: op.apellidoNombre }))}
+                        includePlaceholder={true}
+                        required
                     />
 
                     <Textarea
@@ -232,6 +266,7 @@ const Pallets = () => {
                 isOpen={showSuccessModal} 
                 onClose={() => setShowSuccessModal(false)}
                 title="Movimiento de Pallets Guardado"
+                showFooter={false}
             >
                 <div style={{ textAlign: 'center', padding: '16px 0' }}>
                     <div style={{ color: '#14b8a6', marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>

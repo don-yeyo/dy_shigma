@@ -17,6 +17,12 @@ router.post('/records/:formType', shigmaController.createRecord);
 // Obtener operadores asignados a un formulario específico
 router.get('/operadores/:formType', shigmaController.getOperadoresByForm);
 
+// Rutas de administración de operadores (CRUD)
+router.get('/operadores', shigmaController.getAllOperadores);
+router.post('/operadores', shigmaController.createOperador);
+router.put('/operadores/:id', shigmaController.updateOperador);
+router.delete('/operadores/:id', shigmaController.deleteOperador);
+
 // Rutas de Bateas
 router.get('/bateas', shigmaController.getBateasStatus);
 router.post('/bateas/:bateaId/restart', shigmaController.restartBatea);

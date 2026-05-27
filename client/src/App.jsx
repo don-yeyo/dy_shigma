@@ -9,7 +9,6 @@ import './index.css';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
-import RegeneracionCOT from './pages/cot/RegeneracionCOT';
 import { Button } from './components/Button';
 
 // SHIGMA Pages
@@ -22,6 +21,7 @@ import Pallets from './pages/shigma/Pallets';
 import EspaciosVerdes from './pages/shigma/EspaciosVerdes';
 import HistorialTrazabilidad from './pages/shigma/HistorialTrazabilidad';
 import GestionBateas from './pages/shigma/GestionBateas';
+import GestionOperadores from './pages/shigma/GestionOperadores';
 
 import logo from './assets/logo-don-yeyo-png-sin-fondo.png';
 import microsoftLogo from './assets/microsoft-logo.png';
@@ -186,7 +186,6 @@ function App() {
                         <Layout>
                             <Routes>
                                 <Route path="/" element={<Dashboard />} />
-                                <Route path="/regeneracion-cot" element={<RegeneracionCOT />} />
                                 <Route path="/configuracion" element={<Settings />} />
 
                                 {/* SHIGMA Routes */}
@@ -199,6 +198,7 @@ function App() {
                                 <Route path="/pallets" element={<Pallets />} />
                                 <Route path="/espacios-verdes" element={<EspaciosVerdes />} />
                                 <Route path="/historial" element={<HistorialTrazabilidad />} />
+                                <Route path="/gestion-operadores" element={<GestionOperadores />} />
                             </Routes>
                         </Layout>
                     </AuthGate>

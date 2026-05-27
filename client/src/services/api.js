@@ -56,6 +56,14 @@ export const SHIGMAService = {
     // Operadores API
     getOperadoresByForm: (formType) =>
         api.get(`/shigma/operadores/${formType}`),
+    getOperadores: () =>
+        api.get('/shigma/operadores'),
+    createOperador: (data) =>
+        api.post('/shigma/operadores', data),
+    updateOperador: (id, data) =>
+        api.put(`/shigma/operadores/${id}`, data),
+    deleteOperador: (id) =>
+        api.delete(`/shigma/operadores/${id}`),
 };
 
 export default api;

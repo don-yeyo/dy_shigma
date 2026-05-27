@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw, ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import { Card, Input, Select, Textarea } from '../../components/FormElements';
@@ -12,12 +12,13 @@ const Tratamiento = () => {
     const [submitting, setSubmitting] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successId, setSuccessId] = useState('');
+    const [operadores, setOperadores] = useState([]);
     
     const [formData, setFormData] = useState({
         procesoTratamiento: '',
         materialEntrada: '',
         cantidadProcesada: '',
-        operador: 'Gabriel Tonelli',
+        operador: '',
         maquinaUtilizada: '',
         subproductoObtenido: '',
         observaciones: ''
@@ -54,18 +55,50 @@ const Tratamiento = () => {
         { id: 'Material clasificado a granel', label: 'Material clasificado a granel' }
     ];
 
+    const fetchOperadores = async () => {
+        try {
+            const response = await SHIGMAService.getOperadoresByForm('tratamiento');
+            const ops = response.data;
+            setOperadores(ops);
+            
+            const lastOperator = localStorage.getItem('shigma_last_operator_tratamiento');
+            if (lastOperator) {
+                const exists = ops.some(op => op.apellidoNombre === lastOperator);
+                if (exists) {
+                    setFormData(prev => ({ ...prev, operador: lastOperator }));
+                } else {
+                    localStorage.removeItem('shigma_last_operator_tratamiento');
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching operators:', error);
+        }
+    };
+
+    useEffect(() => {
+        fetchOperadores();
+    }, []);
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
             [name]: value
         }));
+
+        if (name === 'operador') {
+            if (value) {
+                localStorage.setItem('shigma_last_operator_tratamiento', value);
+            } else {
+                localStorage.removeItem('shigma_last_operator_tratamiento');
+            }
+        }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        if (!formData.procesoTratamiento || !formData.materialEntrada || !formData.cantidadProcesada || !formData.maquinaUtilizada || !formData.subproductoObtenido) {
+        if (!formData.procesoTratamiento || !formData.materialEntrada || !formData.cantidadProcesada || !formData.maquinaUtilizada || !formData.subproductoObtenido || !formData.operador) {
             alert('Por favor, complete todos los campos obligatorios marcados con *');
             return;
         }
@@ -84,7 +117,7 @@ const Tratamiento = () => {
                 procesoTratamiento: '',
                 materialEntrada: '',
                 cantidadProcesada: '',
-                operador: 'Gabriel Tonelli',
+                operador: localStorage.getItem('shigma_last_operator_tratamiento') || '',
                 maquinaUtilizada: '',
                 subproductoObtenido: '',
                 observaciones: ''
@@ -177,13 +210,14 @@ const Tratamiento = () => {
                             includePlaceholder={true}
                         />
 
-                        <Input
-                            label="Operador a Cargo"
-                            type="text"
+                        <Select
+                            label="Operador a Cargo *"
                             name="operador"
                             value={formData.operador}
                             onChange={handleChange}
-                            disabled
+                            options={operadores.map(op => ({ id: op.apellidoNombre, label: op.apellidoNombre }))}
+                            includePlaceholder={true}
+                            required
                         />
                     </div>
 
@@ -223,6 +257,7 @@ const Tratamiento = () => {
                 isOpen={showSuccessModal} 
                 onClose={() => setShowSuccessModal(false)}
                 title="Tratamiento Registrado Correctamente"
+                showFooter={false}
             >
                 <div style={{ textAlign: 'center', padding: '16px 0' }}>
                     <div style={{ color: '#a855f7', marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>

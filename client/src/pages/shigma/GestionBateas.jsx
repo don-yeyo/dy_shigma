@@ -487,6 +487,7 @@ const GestionBateas = () => {
                     isOpen={showRestartModal}
                     onClose={() => setShowRestartModal(false)}
                     title={`Manifiesto de Salida - ${selectedBatea.nombre}`}
+                    showFooter={false}
                 >
                     <form onSubmit={handleRestartSubmit} style={{ padding: '8px 0' }}>
                         <div style={{ 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CornerUpLeft, ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import { Card, Input, Select, Textarea } from '../../components/FormElements';
@@ -12,6 +12,7 @@ const Devoluciones = () => {
     const [submitting, setSubmitting] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successId, setSuccessId] = useState('');
+    const [operadores, setOperadores] = useState([]);
     
     const [formData, setFormData] = useState({
         clienteOrigen: '',
@@ -21,7 +22,7 @@ const Devoluciones = () => {
         motivoDevolucion: '',
         inspeccionCalidad: '',
         disposicionFinal: '',
-        responsable: 'Gabriel Tonelli',
+        responsable: '',
         observaciones: ''
     });
 
@@ -46,18 +47,50 @@ const Devoluciones = () => {
         { id: 'Relleno Sanitario (No recuperable)', label: 'Relleno Sanitario (No recuperable)' }
     ];
 
+    const fetchOperadores = async () => {
+        try {
+            const response = await SHIGMAService.getOperadoresByForm('devoluciones');
+            const ops = response.data;
+            setOperadores(ops);
+            
+            const lastOperator = localStorage.getItem('shigma_last_operator_devoluciones');
+            if (lastOperator) {
+                const exists = ops.some(op => op.apellidoNombre === lastOperator);
+                if (exists) {
+                    setFormData(prev => ({ ...prev, responsable: lastOperator }));
+                } else {
+                    localStorage.removeItem('shigma_last_operator_devoluciones');
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching operators:', error);
+        }
+    };
+
+    useEffect(() => {
+        fetchOperadores();
+    }, []);
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
             [name]: value
         }));
+
+        if (name === 'responsable') {
+            if (value) {
+                localStorage.setItem('shigma_last_operator_devoluciones', value);
+            } else {
+                localStorage.removeItem('shigma_last_operator_devoluciones');
+            }
+        }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        if (!formData.clienteOrigen || !formData.productoDevuelto || !formData.cantidadBultos || !formData.motivoDevolucion || !formData.inspeccionCalidad || !formData.disposicionFinal) {
+        if (!formData.clienteOrigen || !formData.productoDevuelto || !formData.cantidadBultos || !formData.motivoDevolucion || !formData.inspeccionCalidad || !formData.disposicionFinal || !formData.responsable) {
             alert('Por favor, complete todos los campos obligatorios marcados con *');
             return;
         }
@@ -81,7 +114,7 @@ const Devoluciones = () => {
                 motivoDevolucion: '',
                 inspeccionCalidad: '',
                 disposicionFinal: '',
-                responsable: 'Gabriel Tonelli',
+                responsable: localStorage.getItem('shigma_last_operator_devoluciones') || '',
                 observaciones: ''
             });
         } catch (error) {
@@ -197,13 +230,14 @@ const Devoluciones = () => {
                         includePlaceholder={true}
                     />
 
-                    <Input
-                        label="Operador Inspector"
-                        type="text"
+                    <Select
+                        label="Operador Inspector *"
                         name="responsable"
                         value={formData.responsable}
                         onChange={handleChange}
-                        disabled
+                        options={operadores.map(op => ({ id: op.apellidoNombre, label: op.apellidoNombre }))}
+                        includePlaceholder={true}
+                        required
                     />
 
                     <Textarea
@@ -242,6 +276,7 @@ const Devoluciones = () => {
                 isOpen={showSuccessModal} 
                 onClose={() => setShowSuccessModal(false)}
                 title="Inspección de Devolución Registrada"
+                showFooter={false}
             >
                 <div style={{ textAlign: 'center', padding: '16px 0' }}>
                     <div style={{ color: '#3b82f6', marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>

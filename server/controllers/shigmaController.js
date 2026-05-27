@@ -427,8 +427,8 @@ const shigmaController = {
             const [rows] = await db.query(`
                 SELECT o.id, o.apellido_nombre, o.legajo
                 FROM operadores o
-                JOIN operadores_formularios of ON o.id = of.operador_id
-                WHERE of.formulario_tipo = ? AND o.activo = 1
+                JOIN operadores_formularios op_form ON o.id = op_form.operador_id
+                WHERE op_form.formulario_tipo = ? AND o.activo = 1
                 ORDER BY o.apellido_nombre ASC
             `, [formType]);
 
@@ -438,6 +438,165 @@ const shigmaController = {
         } catch (error) {
             console.error(`Error en getOperadoresByForm para ${req.params.formType}:`, error);
             res.status(500).json({ error: 'Error al obtener operadores desde la base de datos.' });
+        }
+    },
+
+    // Obtener todos los operadores con sus asignaciones (para la pantalla de administración)
+    getAllOperadores: async (req, res) => {
+        try {
+            const [rows] = await db.query(`
+                SELECT o.id, o.apellido_nombre, o.legajo, o.activo, 
+                       GROUP_CONCAT(op_form.formulario_tipo) AS formularios
+                FROM operadores o
+                LEFT JOIN operadores_formularios op_form ON o.id = op_form.operador_id
+                GROUP BY o.id
+                ORDER BY o.apellido_nombre ASC
+            `);
+
+            const mapped = rows.map(r => {
+                const camel = toCamelCaseObj(r);
+                camel.formularios = r.formularios ? r.formularios.split(',') : [];
+                camel.activo = !!r.activo;
+                return camel;
+            });
+
+            res.json(mapped);
+        } catch (error) {
+            console.error('Error en getAllOperadores:', error);
+            res.status(500).json({ error: 'Error al recuperar todos los operadores.' });
+        }
+    },
+
+    // Crear un nuevo operador con sus asignaciones de forma transaccional
+    createOperador: async (req, res) => {
+        const connection = await db.getConnection();
+        try {
+            await connection.beginTransaction();
+
+            const { apellidoNombre, legajo, activo, formularios } = req.body;
+            if (!apellidoNombre || !legajo) {
+                await connection.rollback();
+                return res.status(400).json({ error: 'El nombre y el legajo son campos obligatorios.' });
+            }
+
+            // Validar legajo único
+            const [existing] = await connection.query('SELECT id FROM operadores WHERE legajo = ?', [legajo]);
+            if (existing.length > 0) {
+                await connection.rollback();
+                return res.status(400).json({ error: `El legajo '${legajo}' ya se encuentra registrado.` });
+            }
+
+            const activoVal = activo !== undefined ? (activo ? 1 : 0) : 1;
+
+            const [result] = await connection.query(
+                'INSERT INTO operadores (apellido_nombre, legajo, activo) VALUES (?, ?, ?)',
+                [apellidoNombre, legajo, activoVal]
+            );
+            const operadorId = result.insertId;
+
+            if (formularios && Array.isArray(formularios) && formularios.length > 0) {
+                const insertValues = formularios.map(formType => [operadorId, formType]);
+                await connection.query(
+                    'INSERT INTO operadores_formularios (operador_id, formulario_tipo) VALUES ?',
+                    [insertValues]
+                );
+            }
+
+            await connection.commit();
+
+            res.status(201).json({
+                message: 'Operador creado con éxito.',
+                operador: {
+                    id: operadorId,
+                    apellidoNombre,
+                    legajo,
+                    activo: !!activoVal,
+                    formularios: formularios || []
+                }
+            });
+        } catch (error) {
+            await connection.rollback();
+            console.error('Error en createOperador:', error);
+            res.status(500).json({ error: 'Error al crear el operador en la base de datos.' });
+        } finally {
+            connection.release();
+        }
+    },
+
+    // Actualizar un operador y sus asignaciones transaccionalmente
+    updateOperador: async (req, res) => {
+        const connection = await db.getConnection();
+        try {
+            await connection.beginTransaction();
+
+            const { id } = req.params;
+            const { apellidoNombre, legajo, activo, formularios } = req.body;
+
+            if (!apellidoNombre || !legajo) {
+                await connection.rollback();
+                return res.status(400).json({ error: 'El nombre y el legajo son campos obligatorios.' });
+            }
+
+            // Validar legajo duplicado por otro operador
+            const [existing] = await connection.query('SELECT id FROM operadores WHERE legajo = ? AND id != ?', [legajo, id]);
+            if (existing.length > 0) {
+                await connection.rollback();
+                return res.status(400).json({ error: `El legajo '${legajo}' ya está siendo utilizado por otro operador.` });
+            }
+
+            const activoVal = activo !== undefined ? (activo ? 1 : 0) : 1;
+
+            await connection.query(
+                'UPDATE operadores SET apellido_nombre = ?, legajo = ?, activo = ? WHERE id = ?',
+                [apellidoNombre, legajo, activoVal, id]
+            );
+
+            // Eliminar asignaciones viejas e insertar nuevas
+            await connection.query('DELETE FROM operadores_formularios WHERE operador_id = ?', [id]);
+
+            if (formularios && Array.isArray(formularios) && formularios.length > 0) {
+                const insertValues = formularios.map(formType => [id, formType]);
+                await connection.query(
+                    'INSERT INTO operadores_formularios (operador_id, formulario_tipo) VALUES ?',
+                    [insertValues]
+                );
+            }
+
+            await connection.commit();
+
+            res.json({
+                message: 'Operador actualizado con éxito.',
+                operador: {
+                    id: parseInt(id),
+                    apellidoNombre,
+                    legajo,
+                    activo: !!activoVal,
+                    formularios: formularios || []
+                }
+            });
+        } catch (error) {
+            await connection.rollback();
+            console.error('Error en updateOperador:', error);
+            res.status(500).json({ error: 'Error al actualizar el operador en la base de datos.' });
+        } finally {
+            connection.release();
+        }
+    },
+
+    // Eliminar un operador de la base de datos (con ON DELETE CASCADE)
+    deleteOperador: async (req, res) => {
+        try {
+            const { id } = req.params;
+
+            const [result] = await db.query('DELETE FROM operadores WHERE id = ?', [id]);
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'Operador no encontrado.' });
+            }
+
+            res.json({ message: 'Operador eliminado con éxito.' });
+        } catch (error) {
+            console.error('Error en deleteOperador:', error);
+            res.status(500).json({ error: 'Error al eliminar el operador de la base de datos.' });
         }
     }
 };

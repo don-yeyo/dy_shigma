@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
     X, Settings, LayoutDashboard, History, Trash2, 
-    ShieldAlert, CornerUpLeft, RefreshCw, Recycle, Package, Leaf, Scale 
+    ShieldAlert, CornerUpLeft, RefreshCw, Recycle, Package, Leaf, Scale, Users
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -12,6 +12,7 @@ const Drawer = ({ isOpen, onClose }) => {
     const mainItems = [
         { icon: <LayoutDashboard size={18} />, label: 'Dashboard', path: '/' },
         { icon: <History size={18} />, label: 'Historial / Auditoría', path: '/historial' },
+        { icon: <Users size={18} />, label: 'Gestión de Operadores', path: '/gestion-operadores' },
     ];
 
     const formItems = [

@@ -415,25 +415,43 @@ const ResiduosComunes = () => {
         
         const isRecuperable = formData.tipoResiduo === 'Inorgánicos Generales' && formData.clasificacionInorganico === 'Recuperable';
 
-        // Validación básica
-        if (!formData.sector || !formData.tipoResiduo) {
-            alert('Por favor, complete todos los campos obligatorios.');
+        // 1. Planta Generadora (Arriba Izquierda)
+        if (!formData.sector) {
+            alert('Por favor, seleccione la Planta Generadora.');
             return;
         }
 
-        // Si NO es recuperable, Cantidad y Destino son obligatorios
-        if (!isRecuperable && (!formData.peso || !formData.destino)) {
-            alert('Por favor, complete todos los campos obligatorios (Cantidad y Destino).');
+        // 2. Tipo de Residuo (Arriba Derecha)
+        if (!formData.tipoResiduo) {
+            alert('Por favor, seleccione el Tipo de Residuo.');
             return;
         }
 
-        // Si es Recuperable, validar que se haya cargado al menos un material
+        // 3. Clasificación de Materiales Recuperables (Centro)
         if (isRecuperable) {
             const tieneMaterial = Object.values(formData.materialesRecuperados).some(data => data.cantidad && parseFloat(data.cantidad) > 0);
             if (!tieneMaterial) {
                 alert('Por favor, indique la cantidad de al menos uno de los materiales recuperables.');
                 return;
             }
+        }
+
+        // 4. Cantidad y Destino (Abajo, de izquierda a derecha)
+        if (!isRecuperable) {
+            if (!formData.peso) {
+                alert('Por favor, ingrese la Cantidad en Kilos.');
+                return;
+            }
+            if (!formData.destino) {
+                alert('Por favor, seleccione el Destino (Batea).');
+                return;
+            }
+        }
+
+        // 5. Operador (Más abajo)
+        if (!formData.responsable) {
+            alert('Por favor, seleccione el Operador.');
+            return;
         }
 
         // VALIDACIÓN DE CAPACIDAD DE BATEA (Sólo si NO es recuperable, ya que los recuperables no van a batea)
@@ -888,6 +906,7 @@ const ResiduosComunes = () => {
                 isOpen={showSuccessModal} 
                 onClose={() => setShowSuccessModal(false)}
                 title="Registro Completado"
+                showFooter={false}
             >
                 <div style={{ textAlign: 'center', padding: '16px 0' }}>
                     <div style={{ color: 'var(--success)', marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
@@ -925,43 +944,44 @@ const ResiduosComunes = () => {
                 <Modal
                     isOpen={warningModalData.isOpen}
                     onClose={() => setWarningModalData(prev => ({ ...prev, isOpen: false }))}
-                    title="Advertencia: Capacidad de Batea Superada"
+                    title="Advertencia: Capacidad Superada"
+                    showFooter={false}
                 >
-                    <div style={{ textAlign: 'center', padding: '16px 0' }}>
-                        <div style={{ color: 'var(--error)', marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
-                            <AlertTriangle size={64} />
+                    <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                        <div style={{ color: 'var(--error)', marginBottom: '12px', display: 'flex', justifyContent: 'center' }}>
+                            <AlertTriangle size={48} />
                         </div>
-                        <h3 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '8px', color: 'var(--primary)' }}>
+                        <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '6px', color: 'var(--primary)' }}>
                             ¡Límite de Capacidad Superado!
                         </h3>
-                        <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '0.95rem', lineHeight: '1.5' }}>
-                            La batea seleccionada (<strong>{warningModalData.bateaNombre}</strong>) solo cuenta con <strong>{warningModalData.disponible.toLocaleString()} kg</strong> de espacio disponible. 
-                            <br />
-                            Estás intentando registrar un lote de <strong>{warningModalData.pesoIngresado} kg</strong>, lo cual superaría el límite físico de almacenamiento.
+                        <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.875rem', lineHeight: '1.4' }}>
+                            La batea <strong>{warningModalData.bateaNombre}</strong> solo tiene <strong>{warningModalData.disponible.toLocaleString()} kg</strong> libres. 
+                            Estás intentando ingresar <strong>{warningModalData.pesoIngresado} kg</strong>.
                         </p>
                         <div style={{ 
-                            padding: '12px', 
+                            padding: '10px 12px', 
                             background: 'var(--surface-hover)', 
                             border: '1px solid var(--border)', 
-                            borderRadius: '12px',
-                            fontSize: '0.85rem',
+                            borderRadius: '8px',
+                            fontSize: '0.8rem',
                             color: 'var(--text)',
-                            marginBottom: '24px',
+                            marginBottom: '16px',
                             lineHeight: '1.4'
                         }}>
-                            Por favor, realice el despacho de vaciado en **Gestión de Bateas** o distribuya los residuos seleccionando otra batea como destino.
+                            Realice el despacho de vaciado en <strong>Gestión de Bateas</strong> o distribuya los residuos en otro destino.
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
                             <Button 
                                 variant="outline" 
                                 onClick={() => setWarningModalData(prev => ({ ...prev, isOpen: false }))}
+                                style={{ flex: '1 1 140px', minWidth: '120px' }}
                             >
                                 Ajustar Pesaje
                             </Button>
                             <Button 
                                 type="button"
                                 variant="primary" 
-                                style={{ background: 'var(--dy-red)' }}
+                                style={{ background: 'var(--dy-red)', flex: '1 1 140px', minWidth: '120px' }}
                                 onClick={() => {
                                     setWarningModalData(prev => ({ ...prev, isOpen: false }));
                                     navigate('/gestion-bateas');

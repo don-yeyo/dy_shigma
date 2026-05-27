@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldAlert, ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import { Card, Input, Select, Textarea } from '../../components/FormElements';
@@ -12,6 +12,7 @@ const ResiduosEspeciales = () => {
     const [submitting, setSubmitting] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successId, setSuccessId] = useState('');
+    const [operadores, setOperadores] = useState([]);
     
     const [formData, setFormData] = useState({
         tipoResiduoEspecial: '',
@@ -21,7 +22,7 @@ const ResiduosEspeciales = () => {
         tipoEnvase: '',
         categoriaPeligro: '',
         certificadoAcopio: '',
-        responsable: 'Gabriel Tonelli',
+        responsable: '',
         observaciones: ''
     });
 
@@ -60,18 +61,50 @@ const ResiduosEspeciales = () => {
         { id: 'Clase 9 (Residuos Varios)', label: 'Clase 9 - Sustancias peligrosas diversas' }
     ];
 
+    const fetchOperadores = async () => {
+        try {
+            const response = await SHIGMAService.getOperadoresByForm('residuos-especiales');
+            const ops = response.data;
+            setOperadores(ops);
+            
+            const lastOperator = localStorage.getItem('shigma_last_operator_residuos-especiales');
+            if (lastOperator) {
+                const exists = ops.some(op => op.apellidoNombre === lastOperator);
+                if (exists) {
+                    setFormData(prev => ({ ...prev, responsable: lastOperator }));
+                } else {
+                    localStorage.removeItem('shigma_last_operator_residuos-especiales');
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching operators:', error);
+        }
+    };
+
+    useEffect(() => {
+        fetchOperadores();
+    }, []);
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
             [name]: value
         }));
+
+        if (name === 'responsable') {
+            if (value) {
+                localStorage.setItem('shigma_last_operator_residuos-especiales', value);
+            } else {
+                localStorage.removeItem('shigma_last_operator_residuos-especiales');
+            }
+        }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        if (!formData.tipoResiduoEspecial || !formData.cantidad || !formData.sectorOrigen || !formData.tipoEnvase || !formData.categoriaPeligro) {
+        if (!formData.tipoResiduoEspecial || !formData.cantidad || !formData.sectorOrigen || !formData.tipoEnvase || !formData.categoriaPeligro || !formData.responsable) {
             alert('Por favor, complete todos los campos obligatorios marcados con *');
             return;
         }
@@ -94,7 +127,7 @@ const ResiduosEspeciales = () => {
                 tipoEnvase: '',
                 categoriaPeligro: '',
                 certificadoAcopio: '',
-                responsable: 'Gabriel Tonelli',
+                responsable: localStorage.getItem('shigma_last_operator_residuos-especiales') || '',
                 observaciones: ''
             });
         } catch (error) {
@@ -208,13 +241,14 @@ const ResiduosEspeciales = () => {
                         />
                     </div>
 
-                    <Input
-                        label="Operador / Inspector Responsable"
-                        type="text"
+                    <Select
+                        label="Operador / Inspector Responsable *"
                         name="responsable"
                         value={formData.responsable}
                         onChange={handleChange}
-                        disabled
+                        options={operadores.map(op => ({ id: op.apellidoNombre, label: op.apellidoNombre }))}
+                        includePlaceholder={true}
+                        required
                     />
 
                     <Textarea
@@ -253,6 +287,7 @@ const ResiduosEspeciales = () => {
                 isOpen={showSuccessModal} 
                 onClose={() => setShowSuccessModal(false)}
                 title="Registro de Residuo Especial"
+                showFooter={false}
             >
                 <div style={{ textAlign: 'center', padding: '16px 0' }}>
                     <div style={{ color: 'var(--warning)', marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
