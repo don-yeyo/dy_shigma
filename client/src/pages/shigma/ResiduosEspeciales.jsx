@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShieldAlert, ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import { Card, Input, Select, Textarea } from '../../components/FormElements';
 import { Button } from '../../components/Button';
@@ -9,7 +9,8 @@ import { getLocalISOString, validateRecordDate, getDateConstraints } from '../..
 
 
 const ResiduosEspeciales = () => {
-    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const editId = searchParams.get('edit');
     const [submitting, setSubmitting] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successId, setSuccessId] = useState('');
@@ -113,6 +114,41 @@ const ResiduosEspeciales = () => {
         fetchOperadores();
     }, []);
 
+    useEffect(() => {
+        if (editId) {
+            const loadRecord = async () => {
+                try {
+                    const response = await SHIGMAService.getRecordsByForm('residuos-especiales');
+                    const record = response.data.find(r => r.id === editId);
+                    if (record) {
+                        const dateObj = new Date(record.createdAt || record.fecha);
+                        const fechaCarga = dateObj.toISOString().split('T')[0];
+                        const horaCarga = dateObj.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+                        setFormData({
+                            fechaCarga,
+                            horaCarga,
+                            tipoResiduoEspecial: record.tipoResiduoEspecial || '',
+                            cantidad: String(record.cantidad) || '',
+                            unidad: record.unidad || 'kg',
+                            sectorOrigen: record.sectorOrigen || '',
+                            tipoEnvase: record.tipoEnvase || '',
+                            categoriaPeligro: record.categoriaPeligro || '',
+                            certificadoAcopio: record.certificadoAcopio || '',
+                            responsable: record.responsable || '',
+                            observaciones: record.observaciones || ''
+                        });
+                    } else {
+                        showAlert('No se encontró el registro a editar.', 'Error', 'error');
+                    }
+                } catch (err) {
+                    console.error('Error loading record:', err);
+                    showAlert('Error al cargar el registro para editar.', 'Error', 'error');
+                }
+            };
+            loadRecord();
+        }
+    }, [editId]);
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
@@ -147,30 +183,37 @@ const ResiduosEspeciales = () => {
         setSubmitting(true);
         try {
             const { fechaCarga, horaCarga, ...rest } = formData;
-            const response = await SHIGMAService.createRecord('residuos-especiales', {
+            const payload = {
                 ...rest,
                 createdAt: combinedCreatedAt,
                 cantidad: parseFloat(formData.cantidad)
-            });
+            };
 
-            const resData = response.data;
-            setSuccessId(resData.record.id);
-            setShowSuccessModal(true);
+            if (editId) {
+                await SHIGMAService.updateRecord('residuos-especiales', editId, payload);
+                setSuccessId(editId);
+                setShowSuccessModal(true);
+            } else {
+                const response = await SHIGMAService.createRecord('residuos-especiales', payload);
+                const resData = response.data;
+                setSuccessId(resData.record.id);
+                setShowSuccessModal(true);
 
-            const constraints = getDateConstraints();
-            setFormData({
-                fechaCarga: constraints.todayStr,
-                horaCarga: constraints.nowTimeStr,
-                tipoResiduoEspecial: '',
-                cantidad: '',
-                unidad: 'kg',
-                sectorOrigen: '',
-                tipoEnvase: '',
-                categoriaPeligro: '',
-                certificadoAcopio: '',
-                responsable: localStorage.getItem('shigma_last_operator_residuos-especiales') || '',
-                observaciones: ''
-            });
+                const constraints = getDateConstraints();
+                setFormData({
+                    fechaCarga: constraints.todayStr,
+                    horaCarga: constraints.nowTimeStr,
+                    tipoResiduoEspecial: '',
+                    cantidad: '',
+                    unidad: 'kg',
+                    sectorOrigen: '',
+                    tipoEnvase: '',
+                    categoriaPeligro: '',
+                    certificadoAcopio: '',
+                    responsable: localStorage.getItem('shigma_last_operator_residuos-especiales') || '',
+                    observaciones: ''
+                });
+            }
         } catch (error) {
             console.error('Error submitting special waste:', error);
             showAlert('Error al guardar en el servidor.', 'Error de Servidor', 'error');
@@ -192,10 +235,10 @@ const ResiduosEspeciales = () => {
                 </Button>
                 <div>
                     <h1 style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--primary)' }}>
-                        Residuos Especiales / Peligrosos<span style={{ color: 'var(--dy-red)' }}>.</span>
+                        {editId ? 'Modificar' : 'Registrar'} Residuos Especiales / Peligrosos<span style={{ color: 'var(--dy-red)' }}>.</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
-                        Registro de aceites, solventes, absorbentes y baterías bajo normas de ecotoxidad y seguridad.
+                        {editId ? `Editando registro ${editId} del historial.` : 'Registro de aceites, solventes, absorbentes y baterías bajo normas de ecotoxidad y seguridad.'}
                     </p>
                 </div>
             </div>
@@ -374,7 +417,7 @@ const ResiduosEspeciales = () => {
                         disabled={submitting}
                         style={{ background: 'var(--warning)', color: '#fff' }}
                     >
-                        <Send size={18} /> {submitting ? 'Guardando...' : 'Registrar Acopio Peligroso'}
+                        <Send size={18} /> {submitting ? 'Guardando...' : editId ? 'Guardar Cambios' : 'Registrar Acopio Peligroso'}
                     </Button>
                 </div>
             </form>
@@ -382,8 +425,11 @@ const ResiduosEspeciales = () => {
             {/* Success Modal */}
             <Modal
                 isOpen={showSuccessModal}
-                onClose={() => setShowSuccessModal(false)}
-                title="Registro de Residuo Especial"
+                onClose={() => {
+                    setShowSuccessModal(false);
+                    if (editId) navigate('/historial');
+                }}
+                title={editId ? "Registro Modificado" : "Registro de Residuo Especial"}
                 showFooter={false}
             >
                 <div style={{ textAlign: 'center', padding: '16px 0' }}>
@@ -391,28 +437,41 @@ const ResiduosEspeciales = () => {
                         <ShieldAlert size={64} />
                     </div>
                     <h3 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '8px', color: 'var(--primary)' }}>
-                        ¡Lote Acopiado Exitosamente!
+                        {editId ? "¡Registro Modificado Exitosamente!" : "¡Lote Acopiado Exitosamente!"}
                     </h3>
                     <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
-                        El residuo especial se ha ingresado con éxito al sistema de trazabilidad peligrosa bajo el ID único:
+                        {editId 
+                            ? "La modificación se ha guardado correctamente en la base de datos de trazabilidad bajo el ID único:" 
+                            : "El residuo especial se ha ingresado con éxito al sistema de trazabilidad peligrosa bajo el ID único:"}
                         <br />
                         <strong style={{ color: 'var(--text)', fontSize: '1.1rem', display: 'inline-block', marginTop: '8px', padding: '6px 12px', background: 'var(--surface-hover)', borderRadius: '8px', border: '1px solid var(--border)' }}>
                             {successId}
                         </strong>
                     </p>
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
-                        <Button
-                            variant="outline"
-                            onClick={() => setShowSuccessModal(false)}
-                        >
-                            Cargar Otro
-                        </Button>
-                        <Button
-                            variant="primary"
-                            onClick={() => navigate('/')}
-                        >
-                            Ir al Dashboard
-                        </Button>
+                        {editId ? (
+                            <Button
+                                variant="primary"
+                                onClick={() => navigate('/historial')}
+                            >
+                                Volver al Historial
+                            </Button>
+                        ) : (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setShowSuccessModal(false)}
+                                >
+                                    Cargar Otro
+                                </Button>
+                                <Button
+                                    variant="primary"
+                                    onClick={() => navigate('/')}
+                                >
+                                    Ir al Dashboard
+                                </Button>
+                            </>
+                        )}
                     </div>
                 </div>
             </Modal>

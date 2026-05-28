@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { RefreshCw, ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import { Card, Input, Select, Textarea } from '../../components/FormElements';
 import { Button } from '../../components/Button';
@@ -10,6 +10,8 @@ import { getLocalISOString, validateRecordDate, getDateConstraints } from '../..
 
 const Tratamiento = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const editId = searchParams.get('edit');
     const [submitting, setSubmitting] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successId, setSuccessId] = useState('');
@@ -94,6 +96,39 @@ const Tratamiento = () => {
         fetchOperadores();
     }, []);
 
+    useEffect(() => {
+        if (editId) {
+            const loadRecord = async () => {
+                try {
+                    const response = await SHIGMAService.getRecordsByForm('tratamiento');
+                    const record = response.data.find(r => r.id === editId);
+                    if (record) {
+                        const dateObj = new Date(record.createdAt || record.fecha);
+                        const fechaCarga = dateObj.toISOString().split('T')[0];
+                        const horaCarga = dateObj.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+                        setFormData({
+                            fechaCarga,
+                            horaCarga,
+                            procesoTratamiento: record.procesoTratamiento || '',
+                            materialEntrada: record.materialEntrada || '',
+                            cantidadProcesada: String(record.cantidadProcesada) || '',
+                            operador: record.operador || '',
+                            maquinaUtilizada: record.maquinaUtilizada || '',
+                            subproductoObtenido: record.subproductoObtenido || '',
+                            observaciones: record.observaciones || ''
+                        });
+                    } else {
+                        showAlert('Error', 'No se encontró el registro a editar.');
+                    }
+                } catch (err) {
+                    console.error('Error loading record:', err);
+                    showAlert('Error', 'Error al cargar el registro para editar.');
+                }
+            };
+            loadRecord();
+        }
+    }, [editId]);
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
@@ -148,28 +183,36 @@ const Tratamiento = () => {
         setSubmitting(true);
         try {
             const { fechaCarga, horaCarga, ...rest } = formData;
-            const response = await SHIGMAService.createRecord('tratamiento', {
+            const payload = {
                 ...rest,
                 createdAt: combinedCreatedAt,
                 cantidadProcesada: parseFloat(formData.cantidadProcesada)
-            });
+            };
 
-            const resData = response.data;
-            setSuccessId(resData.record.id);
-            setShowSuccessModal(true);
-            
-            const constraints = getDateConstraints();
-            setFormData({
-                fechaCarga: constraints.todayStr,
-                horaCarga: constraints.nowTimeStr,
-                procesoTratamiento: '',
-                materialEntrada: '',
-                cantidadProcesada: '',
-                operador: localStorage.getItem('shigma_last_operator_tratamiento') || '',
-                maquinaUtilizada: '',
-                subproductoObtenido: '',
-                observaciones: ''
-            });
+            if (editId) {
+                await SHIGMAService.updateRecord('tratamiento', editId, payload);
+                setSuccessId(editId);
+                setShowSuccessModal(true);
+            } else {
+                const response = await SHIGMAService.createRecord('tratamiento', payload);
+
+                const resData = response.data;
+                setSuccessId(resData.record.id);
+                setShowSuccessModal(true);
+                
+                const constraints = getDateConstraints();
+                setFormData({
+                    fechaCarga: constraints.todayStr,
+                    horaCarga: constraints.nowTimeStr,
+                    procesoTratamiento: '',
+                    materialEntrada: '',
+                    cantidadProcesada: '',
+                    operador: localStorage.getItem('shigma_last_operator_tratamiento') || '',
+                    maquinaUtilizada: '',
+                    subproductoObtenido: '',
+                    observaciones: ''
+                });
+            }
         } catch (error) {
             console.error('Error submitting treatment form:', error);
             showAlert('Error del servidor', 'No se pudo guardar el registro. Por favor, intente nuevamente.');
@@ -191,10 +234,10 @@ const Tratamiento = () => {
                 </Button>
                 <div>
                     <h1 style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--primary)' }}>
-                        Tratamiento y Valorización de Residuos<span style={{ color: 'var(--dy-red)' }}>.</span>
+                        {editId ? 'Modificar' : 'Tratamiento y'} Valorización de Residuos<span style={{ color: 'var(--dy-red)' }}>.</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
-                        Registro de procesos internos de compactación, trituración y compostado para maximizar el reciclaje.
+                        {editId ? `Editando registro ${editId} del historial.` : 'Registro de procesos internos de compactación, trituración y compostado para maximizar el reciclaje.'}
                     </p>
                 </div>
             </div>
@@ -351,7 +394,7 @@ const Tratamiento = () => {
                         disabled={submitting}
                         style={{ background: '#a855f7', color: '#fff' }}
                     >
-                        <Send size={18} /> {submitting ? 'Guardando...' : 'Registrar Tratamiento'}
+                        <Send size={18} /> {submitting ? 'Guardando...' : editId ? 'Guardar Cambios' : 'Registrar Tratamiento'}
                     </Button>
                 </div>
             </form>
@@ -375,8 +418,11 @@ const Tratamiento = () => {
             {/* Success Modal */}
             <Modal 
                 isOpen={showSuccessModal} 
-                onClose={() => setShowSuccessModal(false)}
-                title="Tratamiento Registrado Correctamente"
+                onClose={() => {
+                    setShowSuccessModal(false);
+                    if (editId) navigate('/historial');
+                }}
+                title={editId ? "Registro Modificado" : "Tratamiento Registrado Correctamente"}
                 showFooter={false}
             >
                 <div style={{ textAlign: 'center', padding: '16px 0' }}>
@@ -384,28 +430,41 @@ const Tratamiento = () => {
                         <RefreshCw size={64} />
                     </div>
                     <h3 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '8px', color: 'var(--primary)' }}>
-                        ¡Proceso Registrado!
+                        {editId ? "¡Modificación Guardada!" : "¡Proceso Registrado!"}
                     </h3>
                     <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
-                        El tratamiento de valorización de residuos se ha ingresado con éxito a la base de datos con el ID único:
+                        {editId 
+                            ? "El tratamiento de valorización de residuos se ha actualizado con éxito en la base de datos con el ID único:"
+                            : "El tratamiento de valorización de residuos se ha ingresado con éxito a la base de datos con el ID único:"}
                         <br />
                         <strong style={{ color: 'var(--text)', fontSize: '1.1rem', display: 'inline-block', marginTop: '8px', padding: '6px 12px', background: 'var(--surface-hover)', borderRadius: '8px', border: '1px solid var(--border)' }}>
                             {successId}
                         </strong>
                     </p>
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
-                        <Button 
-                            variant="outline" 
-                            onClick={() => setShowSuccessModal(false)}
-                        >
-                            Cargar Otro
-                        </Button>
-                        <Button 
-                            variant="primary" 
-                            onClick={() => navigate('/')}
-                        >
-                            Ir al Dashboard
-                        </Button>
+                        {editId ? (
+                            <Button
+                                variant="primary"
+                                onClick={() => navigate('/historial')}
+                            >
+                                Volver al Historial
+                            </Button>
+                        ) : (
+                            <>
+                                <Button 
+                                    variant="outline" 
+                                    onClick={() => setShowSuccessModal(false)}
+                                >
+                                    Cargar Otro
+                                </Button>
+                                <Button 
+                                    variant="primary" 
+                                    onClick={() => navigate('/')}
+                                >
+                                    Ir al Dashboard
+                                </Button>
+                            </>
+                        )}
                     </div>
                 </div>
             </Modal>

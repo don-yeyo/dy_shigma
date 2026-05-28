@@ -63,12 +63,12 @@ async function runTests() {
       throw new Error(`ID incorrecto para Economía Circular: ${ecId}`);
     }
 
-    // 4. Obtener todos los registros (Historial / Auditoría)
+    // 4. Obtener todos los registros (Historial de Registros)
     console.log("\n[TEST 4] Consultando Historial de Trazabilidad Completo...");
     const historyRes = await axios.get(`${baseUrl}/records`);
     const records = historyRes.data;
     console.log(`Registros totales en historial: ${records.length}`);
-    
+
     // Verificar que los 3 registros creados estén presentes
     const ids = records.map(r => r.id);
     console.log("IDs encontrados en historial:", ids);
@@ -83,14 +83,14 @@ async function runTests() {
     const statsRes = await axios.get(`${baseUrl}/stats`);
     const stats = statsRes.data;
     console.log("Estadísticas de Negocio Consolidadas:", stats);
-    
+
     // Verificar agregaciones
     if (stats.totalKgComunes === 120.5) {
       console.log("✔ Agregación de Residuos Comunes correcta (120.5 kg).");
     } else {
       throw new Error(`Agregación de peso común incorrecta: ${stats.totalKgComunes}`);
     }
-    
+
     if (stats.totalKgEspeciales === 80) {
       console.log("✔ Agregación de Residuos Especiales correcta (80 L).");
     } else {

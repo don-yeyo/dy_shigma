@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CornerUpLeft, ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import { Card, Input, Select, Textarea } from '../../components/FormElements';
 import { Button } from '../../components/Button';
@@ -10,6 +10,8 @@ import { getLocalISOString, validateRecordDate, getDateConstraints } from '../..
 
 const Devoluciones = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const editId = searchParams.get('edit');
     const [submitting, setSubmitting] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successId, setSuccessId] = useState('');
@@ -99,6 +101,41 @@ const Devoluciones = () => {
         fetchOperadores();
     }, []);
 
+    useEffect(() => {
+        if (editId) {
+            const loadRecord = async () => {
+                try {
+                    const response = await SHIGMAService.getRecordsByForm('devoluciones');
+                    const record = response.data.find(r => r.id === editId);
+                    if (record) {
+                        const dateObj = new Date(record.createdAt || record.fecha);
+                        const fechaCarga = dateObj.toISOString().split('T')[0];
+                        const horaCarga = dateObj.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+                        setFormData({
+                            fechaCarga,
+                            horaCarga,
+                            clienteOrigen: record.clienteOrigen || '',
+                            productoDevuelto: record.productoDevuelto || '',
+                            cantidadBultos: String(record.cantidadBultos) || '',
+                            pesoEstimado: record.pesoEstimado ? String(record.pesoEstimado) : '',
+                            motivoDevolucion: record.motivoDevolucion || '',
+                            inspeccionCalidad: record.inspeccionCalidad || '',
+                            disposicionFinal: record.disposicionFinal || '',
+                            responsable: record.responsable || '',
+                            observaciones: record.observaciones || ''
+                        });
+                    } else {
+                        showAlert('No se encontró el registro a editar.', 'Error', 'error');
+                    }
+                } catch (err) {
+                    console.error('Error loading record:', err);
+                    showAlert('Error al cargar el registro para editar.', 'Error', 'error');
+                }
+            };
+            loadRecord();
+        }
+    }, [editId]);
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
@@ -133,31 +170,39 @@ const Devoluciones = () => {
         setSubmitting(true);
         try {
             const { fechaCarga, horaCarga, ...rest } = formData;
-            const response = await SHIGMAService.createRecord('devoluciones', {
+            const payload = {
                 ...rest,
                 createdAt: combinedCreatedAt,
                 cantidadBultos: parseInt(formData.cantidadBultos),
                 pesoEstimado: formData.pesoEstimado ? parseFloat(formData.pesoEstimado) : 0
-            });
+            };
 
-            const resData = response.data;
-            setSuccessId(resData.record.id);
-            setShowSuccessModal(true);
+            if (editId) {
+                await SHIGMAService.updateRecord('devoluciones', editId, payload);
+                setSuccessId(editId);
+                setShowSuccessModal(true);
+            } else {
+                const response = await SHIGMAService.createRecord('devoluciones', payload);
 
-            const constraints = getDateConstraints();
-            setFormData({
-                fechaCarga: constraints.todayStr,
-                horaCarga: constraints.nowTimeStr,
-                clienteOrigen: '',
-                productoDevuelto: '',
-                cantidadBultos: '',
-                pesoEstimado: '',
-                motivoDevolucion: '',
-                inspeccionCalidad: '',
-                disposicionFinal: '',
-                responsable: localStorage.getItem('shigma_last_operator_devoluciones') || '',
-                observaciones: ''
-            });
+                const resData = response.data;
+                setSuccessId(resData.record.id);
+                setShowSuccessModal(true);
+
+                const constraints = getDateConstraints();
+                setFormData({
+                    fechaCarga: constraints.todayStr,
+                    horaCarga: constraints.nowTimeStr,
+                    clienteOrigen: '',
+                    productoDevuelto: '',
+                    cantidadBultos: '',
+                    pesoEstimado: '',
+                    motivoDevolucion: '',
+                    inspeccionCalidad: '',
+                    disposicionFinal: '',
+                    responsable: localStorage.getItem('shigma_last_operator_devoluciones') || '',
+                    observaciones: ''
+                });
+            }
         } catch (error) {
             console.error('Error submitting return form:', error);
             showAlert('Error al guardar en el servidor.', 'Error de Servidor', 'error');
@@ -179,10 +224,10 @@ const Devoluciones = () => {
                 </Button>
                 <div>
                     <h1 style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--primary)' }}>
-                        Clasificación de Devoluciones<span style={{ color: 'var(--dy-red)' }}>.</span>
+                        {editId ? 'Modificar' : 'Clasificación de'} Devoluciones<span style={{ color: 'var(--dy-red)' }}>.</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
-                        Clasificación e inspección de mercadería retornada para canalizar su reciclaje, compostaje o reutilización.
+                        {editId ? `Editando registro ${editId} del historial.` : 'Clasificación e inspección de mercadería retornada para canalizar su reciclaje, compostaje o reutilización.'}
                     </p>
                 </div>
             </div>
@@ -363,7 +408,7 @@ const Devoluciones = () => {
                         disabled={submitting}
                         style={{ background: '#3b82f6', color: '#fff' }}
                     >
-                        <Send size={18} /> {submitting ? 'Guardando...' : 'Registrar Inspección'}
+                        <Send size={18} /> {submitting ? 'Guardando...' : editId ? 'Guardar Cambios' : 'Registrar Inspección'}
                     </Button>
                 </div>
             </form>
@@ -371,8 +416,11 @@ const Devoluciones = () => {
             {/* Success Modal */}
             <Modal
                 isOpen={showSuccessModal}
-                onClose={() => setShowSuccessModal(false)}
-                title="Inspección de Devolución Registrada"
+                onClose={() => {
+                    setShowSuccessModal(false);
+                    if (editId) navigate('/historial');
+                }}
+                title={editId ? "Registro Modificado" : "Inspección de Devolución Registrada"}
                 showFooter={false}
             >
                 <div style={{ textAlign: 'center', padding: '16px 0' }}>
@@ -380,28 +428,41 @@ const Devoluciones = () => {
                         <CornerUpLeft size={64} />
                     </div>
                     <h3 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '8px', color: 'var(--primary)' }}>
-                        ¡Devolución Clasificada!
+                        {editId ? "¡Modificación Guardada!" : "¡Devolución Clasificada!"}
                     </h3>
                     <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
-                        La inspección y el destino ecológico del lote devuelto han sido registrados en la trazabilidad con el ID:
+                        {editId 
+                            ? "La inspección y el destino ecológico del lote devuelto han sido actualizados con éxito en el historial de trazabilidad con el ID:"
+                            : "La inspección y el destino ecológico del lote devuelto han sido registrados en la trazabilidad con el ID:"}
                         <br />
                         <strong style={{ color: 'var(--text)', fontSize: '1.1rem', display: 'inline-block', marginTop: '8px', padding: '6px 12px', background: 'var(--surface-hover)', borderRadius: '8px', border: '1px solid var(--border)' }}>
                             {successId}
                         </strong>
                     </p>
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
-                        <Button
-                            variant="outline"
-                            onClick={() => setShowSuccessModal(false)}
-                        >
-                            Cargar Otra
-                        </Button>
-                        <Button
-                            variant="primary"
-                            onClick={() => navigate('/')}
-                        >
-                            Ir al Dashboard
-                        </Button>
+                        {editId ? (
+                            <Button
+                                variant="primary"
+                                onClick={() => navigate('/historial')}
+                            >
+                                Volver al Historial
+                            </Button>
+                        ) : (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setShowSuccessModal(false)}
+                                >
+                                    Cargar Otra
+                                </Button>
+                                <Button
+                                    variant="primary"
+                                    onClick={() => navigate('/')}
+                                >
+                                    Ir al Dashboard
+                                </Button>
+                            </>
+                        )}
                     </div>
                 </div>
             </Modal>

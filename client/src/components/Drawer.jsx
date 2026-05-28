@@ -1,30 +1,41 @@
 import React from 'react';
-import { 
-    X, Settings, LayoutDashboard, History, Trash2, 
-    ShieldAlert, CornerUpLeft, RefreshCw, Recycle, Package, Leaf, Scale, Users
+import {
+    X, Settings, LayoutDashboard, History, Trash2,
+    ShieldAlert, CornerUpLeft, RefreshCw, Recycle, Package, Leaf, Scale, Users,
+    ShieldCheck
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../config/AuthContext';
 
 const Drawer = ({ isOpen, onClose }) => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { user, hasRole, hasModulo } = useAuth();
 
     const mainItems = [
+        // Dashboard y Historial accesibles para todos
         { icon: <LayoutDashboard size={18} />, label: 'Dashboard', path: '/' },
-        { icon: <History size={18} />, label: 'Historial / Auditoría', path: '/historial' },
-        { icon: <Users size={18} />, label: 'Gestión de Operadores', path: '/gestion-operadores' },
+        { icon: <History size={18} />, label: 'Historial de Registros', path: '/historial' },
+        // Gestión de Operadores según módulo
+        ...(hasModulo('gestion-operadores') ? [
+            { icon: <Users size={18} />, label: 'Gestión de Operadores', path: '/gestion-operadores' },
+        ] : []),
     ];
 
     const formItems = [
-        { icon: <Trash2 size={18} />, label: 'Residuos No Especiales (RINE)', path: '/residuos-comunes' },
-        { icon: <Scale size={18} />, label: 'Gestión de Bateas', path: '/gestion-bateas' },
-        { icon: <ShieldAlert size={18} />, label: 'Residuos Especiales', path: '/residuos-especiales' },
-        { icon: <CornerUpLeft size={18} />, label: 'Devoluciones', path: '/devoluciones' },
-        { icon: <RefreshCw size={18} />, label: 'Tratamiento', path: '/tratamiento' },
-        { icon: <Recycle size={18} />, label: 'Economía Circular', path: '/economia-circular' },
-        { icon: <Package size={18} />, label: 'Gestión de Pallets', path: '/pallets' },
-        { icon: <Leaf size={18} />, label: 'Espacios Verdes', path: '/espacios-verdes' },
-    ];
+        { icon: <Trash2 size={18} />, label: 'Residuos No Especiales (RINE)', path: '/residuos-comunes', modulo: 'residuos-comunes' },
+        { icon: <Scale size={18} />, label: 'Gestión de Bateas', path: '/gestion-bateas', modulo: 'gestion-bateas' },
+        { icon: <ShieldAlert size={18} />, label: 'Residuos Especiales', path: '/residuos-especiales', modulo: 'residuos-especiales' },
+        { icon: <CornerUpLeft size={18} />, label: 'Devoluciones', path: '/devoluciones', modulo: 'devoluciones' },
+        { icon: <RefreshCw size={18} />, label: 'Tratamiento', path: '/tratamiento', modulo: 'tratamiento' },
+        { icon: <Recycle size={18} />, label: 'Economía Circular', path: '/economia-circular', modulo: 'economia-circular' },
+        { icon: <Package size={18} />, label: 'Gestión de Pallets', path: '/pallets', modulo: 'pallets' },
+        { icon: <Leaf size={18} />, label: 'Espacios Verdes', path: '/espacios-verdes', modulo: 'espacios-verdes' },
+    ].filter(item => hasModulo(item.modulo));
+
+    const adminItems = hasRole('sysadmin') ? [
+        { icon: <ShieldCheck size={18} />, label: 'Gestión de Usuarios', path: '/gestion-usuarios' },
+    ] : [];
 
     const handleClick = (path) => {
         navigate(path);
@@ -55,11 +66,11 @@ const Drawer = ({ isOpen, onClose }) => {
                     whiteSpace: 'nowrap'
                 }}
             >
-                <span style={{ 
-                    color: isActive ? 'var(--dy-red)' : 'var(--text-muted)', 
-                    marginRight: '12px', 
-                    display: 'flex', 
-                    alignItems: 'center' 
+                <span style={{
+                    color: isActive ? 'var(--dy-red)' : 'var(--text-muted)',
+                    marginRight: '12px',
+                    display: 'flex',
+                    alignItems: 'center'
                 }}>
                     {item.icon}
                 </span>
@@ -68,14 +79,20 @@ const Drawer = ({ isOpen, onClose }) => {
         );
     };
 
+    const rolLabel = {
+        sysadmin: 'Administrador',
+        supervisor: 'Supervisor',
+        registrador: 'Registrador'
+    }[user?.rol] || '';
+
     return (
         <>
             <div
                 className={`drawer-overlay ${isOpen ? 'open' : ''}`}
                 onClick={onClose}
             />
-            <div className={`drawer ${isOpen ? 'open' : ''} glass`} style={{ 
-                display: 'flex', 
+            <div className={`drawer ${isOpen ? 'open' : ''} glass`} style={{
+                display: 'flex',
                 flexDirection: 'column',
                 height: '100vh',
                 paddingBottom: '20px'
@@ -89,39 +106,59 @@ const Drawer = ({ isOpen, onClose }) => {
                 </div>
 
                 {/* Navigation (Scrollable) */}
-                <div style={{ 
-                    flex: 1, 
-                    overflowY: 'auto', 
+                <div style={{
+                    flex: 1,
+                    overflowY: 'auto',
                     paddingRight: '4px',
                     marginBottom: '20px'
                 }}>
                     {/* Sección Principal */}
-                    <div style={{ marginBottom: '20px' }}>
-                        <p style={{ 
-                            fontSize: '0.75rem', 
-                            fontWeight: 700, 
-                            color: 'var(--text-muted)', 
-                            textTransform: 'uppercase', 
-                            letterSpacing: '1px',
-                            marginBottom: '8px',
-                            paddingLeft: '8px'
-                        }}>General</p>
-                        {mainItems.map(renderLink)}
-                    </div>
+                    {mainItems.length > 0 && (
+                        <div style={{ marginBottom: '20px' }}>
+                            <p style={{
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                color: 'var(--text-muted)',
+                                textTransform: 'uppercase',
+                                letterSpacing: '1px',
+                                marginBottom: '8px',
+                                paddingLeft: '8px'
+                            }}>General</p>
+                            {mainItems.map(renderLink)}
+                        </div>
+                    )}
 
                     {/* Sección Formularios */}
-                    <div style={{ marginBottom: '20px' }}>
-                        <p style={{ 
-                            fontSize: '0.75rem', 
-                            fontWeight: 700, 
-                            color: 'var(--text-muted)', 
-                            textTransform: 'uppercase', 
-                            letterSpacing: '1px',
-                            marginBottom: '8px',
-                            paddingLeft: '8px'
-                        }}>Registros Reciclado</p>
-                        {formItems.map(renderLink)}
-                    </div>
+                    {formItems.length > 0 && (
+                        <div style={{ marginBottom: '20px' }}>
+                            <p style={{
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                color: 'var(--text-muted)',
+                                textTransform: 'uppercase',
+                                letterSpacing: '1px',
+                                marginBottom: '8px',
+                                paddingLeft: '8px'
+                            }}>Registros Reciclado</p>
+                            {formItems.map(renderLink)}
+                        </div>
+                    )}
+
+                    {/* Sección Admin */}
+                    {adminItems.length > 0 && (
+                        <div style={{ marginBottom: '20px' }}>
+                            <p style={{
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                color: 'var(--text-muted)',
+                                textTransform: 'uppercase',
+                                letterSpacing: '1px',
+                                marginBottom: '8px',
+                                paddingLeft: '8px'
+                            }}>Administración</p>
+                            {adminItems.map(renderLink)}
+                        </div>
+                    )}
 
                     {/* Separador */}
                     <div style={{ height: '1px', background: 'var(--border)', margin: '16px 0' }} />
@@ -130,8 +167,39 @@ const Drawer = ({ isOpen, onClose }) => {
                     {renderLink({ icon: <Settings size={18} />, label: 'Configuración', path: '/configuracion' })}
                 </div>
 
-                {/* Footer */}
+                {/* Footer con info del usuario */}
                 <div style={{ flexShrink: 0, borderTop: '1px solid var(--border)', paddingTop: '16px', marginTop: 'auto' }}>
+                    {user && (
+                        <div style={{ marginBottom: '8px' }}>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text)', fontWeight: 600, marginBottom: '2px' }}>
+                                {user.name}
+                            </p>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '2px' }}>
+                                {user.email}
+                            </p>
+                            <span style={{
+                                display: 'inline-block',
+                                fontSize: '0.65rem',
+                                fontWeight: 700,
+                                padding: '2px 8px',
+                                borderRadius: '999px',
+                                background: user.rol === 'sysadmin'
+                                    ? 'rgba(228, 5, 33, 0.12)'
+                                    : user.rol === 'supervisor'
+                                        ? 'rgba(59, 130, 246, 0.12)'
+                                        : 'rgba(34, 197, 94, 0.12)',
+                                color: user.rol === 'sysadmin'
+                                    ? 'var(--dy-red)'
+                                    : user.rol === 'supervisor'
+                                        ? '#3b82f6'
+                                        : '#22c55e',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px'
+                            }}>
+                                {rolLabel}
+                            </span>
+                        </div>
+                    )}
                     <p style={{ fontSize: '0.8rem', color: 'var(--drawer-footer)', fontWeight: 700, letterSpacing: '0.5px' }}>DON YEYO S.A.</p>
                     <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>SHIGMA v{__APP_VERSION__}</p>
                 </div>

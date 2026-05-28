@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Package, ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import { Card, Input, Select, Textarea } from '../../components/FormElements';
 import { Button } from '../../components/Button';
@@ -10,6 +10,8 @@ import { getLocalISOString, validateRecordDate, getDateConstraints } from '../..
 
 const Pallets = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const editId = searchParams.get('edit');
     const [submitting, setSubmitting] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successId, setSuccessId] = useState('');
@@ -70,6 +72,40 @@ const Pallets = () => {
     useEffect(() => {
         fetchOperadores();
     }, []);
+
+    useEffect(() => {
+        if (editId) {
+            const loadRecord = async () => {
+                try {
+                    const response = await SHIGMAService.getRecordsByForm('pallets');
+                    const record = response.data.find(r => r.id === editId);
+                    if (record) {
+                        const dateObj = new Date(record.createdAt || record.fecha);
+                        const fechaCarga = dateObj.toISOString().split('T')[0];
+                        const horaCarga = dateObj.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+                        setFormData({
+                            fechaCarga,
+                            horaCarga,
+                            tipoPallet: record.tipoPallet || '',
+                            cantidadIngresados: String(record.cantidadIngresados) || '',
+                            cantidadReparados: String(record.cantidadReparados) || '',
+                            cantidadDescartados: String(record.cantidadDescartados) || '',
+                            cantidadCircular: String(record.cantidadCircular) || '',
+                            responsableReparacion: record.responsableReparacion || 'Taller de Pallets - Mantenimiento',
+                            responsable: record.responsable || '',
+                            observaciones: record.observaciones || ''
+                        });
+                    } else {
+                        showAlert('Error', 'No se encontró el registro a editar.');
+                    }
+                } catch (err) {
+                    console.error('Error loading record:', err);
+                    showAlert('Error', 'Error al cargar el registro para editar.');
+                }
+            };
+            loadRecord();
+        }
+    }, [editId]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -135,32 +171,40 @@ const Pallets = () => {
         setSubmitting(true);
         try {
             const { fechaCarga, horaCarga, ...rest } = formData;
-            const response = await SHIGMAService.createRecord('pallets', {
+            const payload = {
                 ...rest,
                 createdAt: combinedCreatedAt,
                 cantidadIngresados: ingresados,
                 cantidadReparados: reparados,
                 cantidadDescartados: descartados,
                 cantidadCircular: circular
-            });
+            };
 
-            const resData = response.data;
-            setSuccessId(resData.record.id);
-            setShowSuccessModal(true);
-            
-            const constraints = getDateConstraints();
-            setFormData({
-                fechaCarga: constraints.todayStr,
-                horaCarga: constraints.nowTimeStr,
-                tipoPallet: '',
-                cantidadIngresados: '',
-                cantidadReparados: '',
-                cantidadDescartados: '',
-                cantidadCircular: '',
-                responsableReparacion: 'Taller de Pallets - Mantenimiento',
-                responsable: localStorage.getItem('shigma_last_operator_pallets') || '',
-                observaciones: ''
-            });
+            if (editId) {
+                await SHIGMAService.updateRecord('pallets', editId, payload);
+                setSuccessId(editId);
+                setShowSuccessModal(true);
+            } else {
+                const response = await SHIGMAService.createRecord('pallets', payload);
+
+                const resData = response.data;
+                setSuccessId(resData.record.id);
+                setShowSuccessModal(true);
+                
+                const constraints = getDateConstraints();
+                setFormData({
+                    fechaCarga: constraints.todayStr,
+                    horaCarga: constraints.nowTimeStr,
+                    tipoPallet: '',
+                    cantidadIngresados: '',
+                    cantidadReparados: '',
+                    cantidadDescartados: '',
+                    cantidadCircular: '',
+                    responsableReparacion: 'Taller de Pallets - Mantenimiento',
+                    responsable: localStorage.getItem('shigma_last_operator_pallets') || '',
+                    observaciones: ''
+                });
+            }
         } catch (error) {
             console.error('Error submitting pallets form:', error);
             showAlert('Error del servidor', 'No se pudo guardar el registro. Por favor, intente nuevamente.');
@@ -182,10 +226,10 @@ const Pallets = () => {
                 </Button>
                 <div>
                     <h1 style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--primary)' }}>
-                        Control de Stock y Pallets<span style={{ color: 'var(--dy-red)' }}>.</span>
+                        {editId ? 'Modificar' : 'Control de'} Stock y Pallets<span style={{ color: 'var(--dy-red)' }}>.</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
-                        Registro de ingreso, reparación y reciclaje de pallets de madera para logística circular.
+                        {editId ? `Editando registro ${editId} del historial.` : 'Registro de ingreso, reparación y reciclaje de pallets de madera para logística circular.'}
                     </p>
                 </div>
             </div>
@@ -360,7 +404,7 @@ const Pallets = () => {
                         disabled={submitting}
                         style={{ background: '#14b8a6', color: '#fff' }}
                     >
-                        <Send size={18} /> {submitting ? 'Guardando...' : 'Registrar Movimiento'}
+                        <Send size={18} /> {submitting ? 'Guardando...' : editId ? 'Guardar Cambios' : 'Registrar Movimiento'}
                     </Button>
                 </div>
             </form>
@@ -384,8 +428,11 @@ const Pallets = () => {
             {/* Success Modal */}
             <Modal 
                 isOpen={showSuccessModal} 
-                onClose={() => setShowSuccessModal(false)}
-                title="Movimiento de Pallets Guardado"
+                onClose={() => {
+                    setShowSuccessModal(false);
+                    if (editId) navigate('/historial');
+                }}
+                title={editId ? "Registro Modificado" : "Movimiento de Pallets Guardado"}
                 showFooter={false}
             >
                 <div style={{ textAlign: 'center', padding: '16px 0' }}>
@@ -393,28 +440,41 @@ const Pallets = () => {
                         <Package size={64} />
                     </div>
                     <h3 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '8px', color: 'var(--primary)' }}>
-                        ¡Movimiento Registrado!
+                        {editId ? "¡Modificación Guardada!" : "¡Movimiento Registrado!"}
                     </h3>
                     <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
-                        El control de pallets de madera ha sido ingresado al sistema de trazabilidad con el ID único:
+                        {editId 
+                            ? "El control de pallets de madera ha sido actualizado con éxito en el sistema de trazabilidad con el ID único:"
+                            : "El control de pallets de madera ha sido ingresado al sistema de trazabilidad con el ID único:"}
                         <br />
                         <strong style={{ color: 'var(--text)', fontSize: '1.1rem', display: 'inline-block', marginTop: '8px', padding: '6px 12px', background: 'var(--surface-hover)', borderRadius: '8px', border: '1px solid var(--border)' }}>
                             {successId}
                         </strong>
                     </p>
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
-                        <Button 
-                            variant="outline" 
-                            onClick={() => setShowSuccessModal(false)}
-                        >
-                            Cargar Otro
-                        </Button>
-                        <Button 
-                            variant="primary" 
-                            onClick={() => navigate('/')}
-                        >
-                            Ir al Dashboard
-                        </Button>
+                        {editId ? (
+                            <Button
+                                variant="primary"
+                                onClick={() => navigate('/historial')}
+                            >
+                                Volver al Historial
+                            </Button>
+                        ) : (
+                            <>
+                                <Button 
+                                    variant="outline" 
+                                    onClick={() => setShowSuccessModal(false)}
+                                >
+                                    Cargar Otro
+                                </Button>
+                                <Button 
+                                    variant="primary" 
+                                    onClick={() => navigate('/')}
+                                >
+                                    Ir al Dashboard
+                                </Button>
+                            </>
+                        )}
                     </div>
                 </div>
             </Modal>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { ThemeProvider, useTheme } from "./config/ThemeContext";
 import { AuthProvider, useAuth } from './config/AuthContext';
 import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
@@ -22,11 +22,131 @@ import EspaciosVerdes from './pages/shigma/EspaciosVerdes';
 import HistorialTrazabilidad from './pages/shigma/HistorialTrazabilidad';
 import GestionBateas from './pages/shigma/GestionBateas';
 import GestionOperadores from './pages/shigma/GestionOperadores';
+import GestionUsuarios from './pages/GestionUsuarios';
 
 import logo from './assets/logo-don-yeyo-png-sin-fondo.png';
 import microsoftLogo from './assets/microsoft-logo.png';
 import googleLogo from './assets/google-logo.svg';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, ShieldAlert, ArrowLeft } from 'lucide-react';
+
+// ── Componente de Acceso Restringido ──────────────────────────────────────────
+const AccessDenied = () => {
+    const navigate = useNavigate();
+    const { user } = useAuth();
+
+    const handleGoBack = () => {
+        if (user?.rol === 'sysadmin' || user?.rol === 'supervisor') {
+            navigate('/');
+        } else if (user?.modulos && user.modulos.length > 0) {
+            navigate(`/${user.modulos[0]}`);
+        } else {
+            navigate('/configuracion');
+        }
+    };
+
+    return (
+        <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '70vh',
+            padding: '24px',
+            textAlign: 'center',
+        }}>
+            <div className="card" style={{
+                maxWidth: '460px',
+                padding: '40px 32px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                boxShadow: 'var(--shadow-lg)',
+                border: '1px solid var(--border)',
+                background: 'var(--surface)',
+                borderRadius: '16px'
+            }}>
+                <div style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '50%',
+                    background: 'rgba(228, 5, 33, 0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--dy-red)',
+                    marginBottom: '24px',
+                }}>
+                    <ShieldAlert size={36} />
+                </div>
+
+                <h1 style={{
+                    fontSize: '1.4rem',
+                    fontWeight: 800,
+                    color: 'var(--header-text)',
+                    margin: '0 0 12px 0',
+                }}>
+                    Acceso Restringido
+                </h1>
+
+                <p style={{
+                    color: 'var(--text-muted)',
+                    fontSize: '0.95rem',
+                    lineHeight: '1.5',
+                    margin: '0 0 28px 0',
+                }}>
+                    No tenés los permisos o el módulo asignado necesario para acceder a esta sección del sistema. Si considerás que es un error, por favor contactate con el administrador.
+                </p>
+
+                <button
+                    onClick={handleGoBack}
+                    style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '10px 24px',
+                        borderRadius: '12px',
+                        border: 'none',
+                        background: 'var(--dy-red)',
+                        color: '#fff',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        fontSize: '0.9rem',
+                        transition: 'opacity 0.2s',
+                    }}
+                >
+                    <ArrowLeft size={16} /> Volver a mi Sección
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// ── Guardián de Rutas (Roles y Módulos) ─────────────────────────────────────────
+const RouteGuard = ({ children, allowedRoles, requiredModulo }) => {
+    const { hasRole, hasModulo, loading } = useAuth();
+
+    if (loading) {
+        return (
+            <div style={{ height: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="card loading-card">Cargando permisos...</div>
+            </div>
+        );
+    }
+
+    let hasAccess = true;
+    if (allowedRoles && allowedRoles.length > 0) {
+        hasAccess = hasRole(...allowedRoles);
+    }
+    if (hasAccess && requiredModulo) {
+        hasAccess = hasModulo(requiredModulo);
+    }
+
+    if (!hasAccess) {
+        return <AccessDenied />;
+    }
+
+    return children;
+};
 
 const AuthGate = ({ children }) => {
     const { isAuthenticated, loading, login, loginGoogle, logout, authError } = useAuth();
@@ -189,16 +309,57 @@ function App() {
                                 <Route path="/configuracion" element={<Settings />} />
 
                                 {/* SHIGMA Routes */}
-                                <Route path="/residuos-comunes" element={<ResiduosComunes />} />
-                                <Route path="/gestion-bateas" element={<GestionBateas />} />
-                                <Route path="/residuos-especiales" element={<ResiduosEspeciales />} />
-                                <Route path="/devoluciones" element={<Devoluciones />} />
-                                <Route path="/tratamiento" element={<Tratamiento />} />
-                                <Route path="/economia-circular" element={<EconomiaCircular />} />
-                                <Route path="/pallets" element={<Pallets />} />
-                                <Route path="/espacios-verdes" element={<EspaciosVerdes />} />
+                                <Route path="/residuos-comunes" element={
+                                    <RouteGuard requiredModulo="residuos-comunes">
+                                        <ResiduosComunes />
+                                    </RouteGuard>
+                                } />
+                                <Route path="/gestion-bateas" element={
+                                    <RouteGuard requiredModulo="gestion-bateas">
+                                        <GestionBateas />
+                                    </RouteGuard>
+                                } />
+                                <Route path="/residuos-especiales" element={
+                                    <RouteGuard requiredModulo="residuos-especiales">
+                                        <ResiduosEspeciales />
+                                    </RouteGuard>
+                                } />
+                                <Route path="/devoluciones" element={
+                                    <RouteGuard requiredModulo="devoluciones">
+                                        <Devoluciones />
+                                    </RouteGuard>
+                                } />
+                                <Route path="/tratamiento" element={
+                                    <RouteGuard requiredModulo="tratamiento">
+                                        <Tratamiento />
+                                    </RouteGuard>
+                                } />
+                                <Route path="/economia-circular" element={
+                                    <RouteGuard requiredModulo="economia-circular">
+                                        <EconomiaCircular />
+                                    </RouteGuard>
+                                } />
+                                <Route path="/pallets" element={
+                                    <RouteGuard requiredModulo="pallets">
+                                        <Pallets />
+                                    </RouteGuard>
+                                } />
+                                <Route path="/espacios-verdes" element={
+                                    <RouteGuard requiredModulo="espacios-verdes">
+                                        <EspaciosVerdes />
+                                    </RouteGuard>
+                                } />
                                 <Route path="/historial" element={<HistorialTrazabilidad />} />
-                                <Route path="/gestion-operadores" element={<GestionOperadores />} />
+                                <Route path="/gestion-operadores" element={
+                                    <RouteGuard requiredModulo="gestion-operadores">
+                                        <GestionOperadores />
+                                    </RouteGuard>
+                                } />
+                                <Route path="/gestion-usuarios" element={
+                                    <RouteGuard allowedRoles={['sysadmin']}>
+                                        <GestionUsuarios />
+                                    </RouteGuard>
+                                } />
                             </Routes>
                         </Layout>
                     </AuthGate>

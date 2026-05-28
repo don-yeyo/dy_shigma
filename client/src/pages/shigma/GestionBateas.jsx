@@ -491,11 +491,11 @@ const GestionBateas = () => {
                 >
                     <form onSubmit={handleRestartSubmit} style={{ padding: '8px 0' }}>
                         <div style={{ 
-                            background: 'rgba(228, 5, 33, 0.05)', 
-                            border: '1px solid rgba(228, 5, 33, 0.1)', 
+                            background: 'var(--alert-danger-bg)', 
+                            border: '1px solid var(--alert-danger-border)', 
                             borderRadius: '12px', 
                             padding: '12px 16px', 
-                            color: 'var(--dy-red)', 
+                            color: 'var(--alert-danger-text)', 
                             fontSize: '0.85rem',
                             display: 'flex',
                             gap: '8px',

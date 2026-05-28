@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Recycle, ArrowLeft, Send, CheckCircle, Award } from 'lucide-react';
 import { Card, Input, Select, Textarea } from '../../components/FormElements';
 import { Button } from '../../components/Button';
@@ -10,6 +10,8 @@ import { getLocalISOString, validateRecordDate, getDateConstraints } from '../..
 
 const EconomiaCircular = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const editId = searchParams.get('edit');
     const [submitting, setSubmitting] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successId, setSuccessId] = useState('');
@@ -80,6 +82,40 @@ const EconomiaCircular = () => {
         }));
     }, [formData.materialRevalorizado, formData.cantidad]);
 
+    useEffect(() => {
+        if (editId) {
+            const loadRecord = async () => {
+                try {
+                    const response = await SHIGMAService.getRecordsByForm('economia-circular');
+                    const record = response.data.find(r => r.id === editId);
+                    if (record) {
+                        const dateObj = new Date(record.createdAt || record.fecha);
+                        const fechaCarga = dateObj.toISOString().split('T')[0];
+                        const horaCarga = dateObj.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+                        setFormData({
+                            fechaCarga,
+                            horaCarga,
+                            materialRevalorizado: record.materialRevalorizado || '',
+                            cantidad: String(record.cantidad) || '',
+                            unidad: record.unidad || 'kg',
+                            destinoReinsercion: record.destinoReinsercion || '',
+                            ahorroEstimado: String(record.ahorroEstimado) || '',
+                            co2Evitado: record.co2Evitado || 0,
+                            responsable: record.responsable || 'Gabriel Tonelli',
+                            observaciones: record.observaciones || ''
+                        });
+                    } else {
+                        showAlert('Error', 'No se encontró el registro a editar.');
+                    }
+                } catch (err) {
+                    console.error('Error loading record:', err);
+                    showAlert('Error', 'Error al cargar el registro para editar.');
+                }
+            };
+            loadRecord();
+        }
+    }, [editId]);
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
@@ -118,30 +154,38 @@ const EconomiaCircular = () => {
         setSubmitting(true);
         try {
             const { fechaCarga, horaCarga, ...rest } = formData;
-            const response = await SHIGMAService.createRecord('economia-circular', {
+            const payload = {
                 ...rest,
                 createdAt: combinedCreatedAt,
                 cantidad: parseFloat(formData.cantidad),
                 ahorroEstimado: parseFloat(formData.ahorroEstimado)
-            });
+            };
 
-            const resData = response.data;
-            setSuccessId(resData.record.id);
-            setShowSuccessModal(true);
-            
-            const constraints = getDateConstraints();
-            setFormData({
-                fechaCarga: constraints.todayStr,
-                horaCarga: constraints.nowTimeStr,
-                materialRevalorizado: '',
-                cantidad: '',
-                unidad: 'kg',
-                destinoReinsercion: '',
-                ahorroEstimado: '',
-                co2Evitado: 0,
-                responsable: 'Gabriel Tonelli',
-                observaciones: ''
-            });
+            if (editId) {
+                await SHIGMAService.updateRecord('economia-circular', editId, payload);
+                setSuccessId(editId);
+                setShowSuccessModal(true);
+            } else {
+                const response = await SHIGMAService.createRecord('economia-circular', payload);
+
+                const resData = response.data;
+                setSuccessId(resData.record.id);
+                setShowSuccessModal(true);
+                
+                const constraints = getDateConstraints();
+                setFormData({
+                    fechaCarga: constraints.todayStr,
+                    horaCarga: constraints.nowTimeStr,
+                    materialRevalorizado: '',
+                    cantidad: '',
+                    unidad: 'kg',
+                    destinoReinsercion: '',
+                    ahorroEstimado: '',
+                    co2Evitado: 0,
+                    responsable: 'Gabriel Tonelli',
+                    observaciones: ''
+                });
+            }
         } catch (error) {
             console.error('Error submitting circular economy form:', error);
             showAlert('Error del servidor', 'No se pudo guardar el registro. Por favor, intente nuevamente.');
@@ -163,10 +207,10 @@ const EconomiaCircular = () => {
                 </Button>
                 <div>
                     <h1 style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--primary)' }}>
-                        Valorización Economía Circular<span style={{ color: 'var(--dy-red)' }}>.</span>
+                        {editId ? 'Modificar' : 'Valorización'} Economía Circular<span style={{ color: 'var(--dy-red)' }}>.</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
-                        Trazabilidad de recursos reinsertados a la cadena productiva y cálculo de huella ecológica reducida.
+                        {editId ? `Editando registro ${editId} del historial.` : 'Trazabilidad de recursos reinsertados a la cadena productiva y cálculo de huella ecológica reducida.'}
                     </p>
                 </div>
             </div>
@@ -355,7 +399,7 @@ const EconomiaCircular = () => {
                         disabled={submitting}
                         style={{ background: 'var(--dy-red)' }}
                     >
-                        <Send size={18} /> {submitting ? 'Guardando...' : 'Registrar Economía Circular'}
+                        <Send size={18} /> {submitting ? 'Guardando...' : editId ? 'Guardar Cambios' : 'Registrar Economía Circular'}
                     </Button>
                 </div>
             </form>
@@ -379,8 +423,11 @@ const EconomiaCircular = () => {
             {/* Success Modal */}
             <Modal 
                 isOpen={showSuccessModal} 
-                onClose={() => setShowSuccessModal(false)}
-                title="Impacto Circular Registrado"
+                onClose={() => {
+                    setShowSuccessModal(false);
+                    if (editId) navigate('/historial');
+                }}
+                title={editId ? "Registro Modificado" : "Impacto Circular Registrado"}
                 showFooter={false}
             >
                 <div style={{ textAlign: 'center', padding: '16px 0' }}>
@@ -388,28 +435,41 @@ const EconomiaCircular = () => {
                         <Recycle size={64} />
                     </div>
                     <h3 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '8px', color: 'var(--primary)' }}>
-                        ¡Lote Valorizado!
+                        {editId ? "¡Modificación Guardada!" : "¡Lote Valorizado!"}
                     </h3>
                     <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
-                        El registro de Economía Circular y la huella mitigada han sido computados en la auditoría con el ID:
+                        {editId 
+                            ? "El registro de Economía Circular y la huella mitigada han sido actualizados con éxito en la auditoría con el ID:"
+                            : "El registro de Economía Circular y la huella mitigada han sido computados en la auditoría con el ID:"}
                         <br />
                         <strong style={{ color: 'var(--text)', fontSize: '1.1rem', display: 'inline-block', marginTop: '8px', padding: '6px 12px', background: 'var(--surface-hover)', borderRadius: '8px', border: '1px solid var(--border)' }}>
                             {successId}
                         </strong>
                     </p>
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
-                        <Button 
-                            variant="outline" 
-                            onClick={() => setShowSuccessModal(false)}
-                        >
-                            Cargar Otro
-                        </Button>
-                        <Button 
-                            variant="primary" 
-                            onClick={() => navigate('/')}
-                        >
-                            Ir al Dashboard
-                        </Button>
+                        {editId ? (
+                            <Button
+                                variant="primary"
+                                onClick={() => navigate('/historial')}
+                            >
+                                Volver al Historial
+                            </Button>
+                        ) : (
+                            <>
+                                <Button 
+                                    variant="outline" 
+                                    onClick={() => setShowSuccessModal(false)}
+                                >
+                                    Cargar Otro
+                                </Button>
+                                <Button 
+                                    variant="primary" 
+                                    onClick={() => navigate('/')}
+                                >
+                                    Ir al Dashboard
+                                </Button>
+                            </>
+                        )}
                     </div>
                 </div>
             </Modal>

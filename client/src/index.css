@@ -33,6 +33,11 @@
   --header-text: #0d2c5c;
   --drawer-title: #0d2c5c;
   --drawer-footer: #0d2c5c;
+
+  /* Alert danger colors for vaciado warnings */
+  --alert-danger-text: var(--dy-red);
+  --alert-danger-bg: rgba(228, 5, 33, 0.05);
+  --alert-danger-border: rgba(228, 5, 33, 0.1);
 }
 
 .dark-theme {
@@ -55,6 +60,11 @@
   --header-text: #f8fafc;
   --drawer-title: #94a3b8;
   --drawer-footer: #94a3b8;
+
+  /* Alert danger colors for dark mode */
+  --alert-danger-text: #ff8093; /* Lighter, pinkish red for high contrast */
+  --alert-danger-bg: rgba(255, 128, 147, 0.08);
+  --alert-danger-border: rgba(255, 128, 147, 0.2);
 }
 
 /* Custom Date Picker Interaction */
@@ -203,6 +213,30 @@ h1, h2, h3 {
 .btn-sm { padding: 6px 16px; font-size: 0.875rem; }
 .btn-md { padding: 12px 24px; font-size: 1rem; }
 .btn-lg { padding: 16px 32px; font-size: 1.125rem; }
+
+/* Custom Modify Record outline button styled for light/dark mode */
+.btn-modify-record {
+  border: 2px solid var(--dy-blue) !important;
+  color: var(--dy-blue) !important;
+  background: transparent !important;
+}
+.btn-modify-record:hover {
+  background: var(--dy-blue) !important;
+  color: #fff !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(13, 44, 92, 0.2);
+}
+
+.dark-theme .btn-modify-record {
+  border: 2px solid var(--dy-red) !important;
+  color: var(--dy-red) !important;
+  background: rgba(228, 5, 33, 0.05) !important;
+}
+.dark-theme .btn-modify-record:hover {
+  background: var(--dy-red) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px rgba(228, 5, 33, 0.3);
+}
 
 input, select, textarea {
   background: var(--surface);

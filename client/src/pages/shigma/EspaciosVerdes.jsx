@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Leaf, ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import { Card, Input, Select, Textarea } from '../../components/FormElements';
 import { Button } from '../../components/Button';
@@ -10,6 +10,8 @@ import { getLocalISOString, validateRecordDate, getDateConstraints } from '../..
 
 const EspaciosVerdes = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const editId = searchParams.get('edit');
     const [submitting, setSubmitting] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successId, setSuccessId] = useState('');
@@ -88,6 +90,41 @@ const EspaciosVerdes = () => {
         fetchOperadores();
     }, []);
 
+    useEffect(() => {
+        if (editId) {
+            const loadRecord = async () => {
+                try {
+                    const response = await SHIGMAService.getRecordsByForm('espacios-verdes');
+                    const record = response.data.find(r => r.id === editId);
+                    if (record) {
+                        const dateObj = new Date(record.createdAt || record.fecha);
+                        const fechaCarga = dateObj.toISOString().split('T')[0];
+                        const horaCarga = dateObj.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+                        setFormData({
+                            fechaCarga,
+                            horaCarga,
+                            espacioVerde: record.espacioVerde || '',
+                            tareaRealizada: record.tareaRealizada || '',
+                            consumoAgua: String(record.consumoAgua) || '',
+                            plantasAgregadas: String(record.plantasAgregadas) || '0',
+                            especieAgregada: record.especieAgregada || '',
+                            estadoSalud: record.estadoSalud || '',
+                            responsableTarea: record.responsableTarea || `Jardinería & Mantenimiento ${import.meta.env.VITE_COMPANY_NAME_SHORT || 'Don Yeyo'}`,
+                            responsable: record.responsable || '',
+                            observaciones: record.observaciones || ''
+                        });
+                    } else {
+                        showAlert('Error', 'No se encontró el registro a editar.');
+                    }
+                } catch (err) {
+                    console.error('Error loading record:', err);
+                    showAlert('Error', 'Error al cargar el registro para editar.');
+                }
+            };
+            loadRecord();
+        }
+    }, [editId]);
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({
@@ -138,31 +175,39 @@ const EspaciosVerdes = () => {
         setSubmitting(true);
         try {
             const { fechaCarga, horaCarga, ...rest } = formData;
-            const response = await SHIGMAService.createRecord('espacios-verdes', {
+            const payload = {
                 ...rest,
                 createdAt: combinedCreatedAt,
                 consumoAgua: parseFloat(formData.consumoAgua),
                 plantasAgregadas: parseInt(formData.plantasAgregadas) || 0
-            });
+            };
 
-            const resData = response.data;
-            setSuccessId(resData.record.id);
-            setShowSuccessModal(true);
-            
-            const constraints = getDateConstraints();
-            setFormData({
-                fechaCarga: constraints.todayStr,
-                horaCarga: constraints.nowTimeStr,
-                espacioVerde: '',
-                tareaRealizada: '',
-                consumoAgua: '',
-                plantasAgregadas: '0',
-                especieAgregada: '',
-                estadoSalud: '',
-                responsableTarea: `Jardinería & Mantenimiento ${import.meta.env.VITE_COMPANY_NAME_SHORT || 'Don Yeyo'}`,
-                responsable: localStorage.getItem('shigma_last_operator_espacios-verdes') || '',
-                observaciones: ''
-            });
+            if (editId) {
+                await SHIGMAService.updateRecord('espacios-verdes', editId, payload);
+                setSuccessId(editId);
+                setShowSuccessModal(true);
+            } else {
+                const response = await SHIGMAService.createRecord('espacios-verdes', payload);
+
+                const resData = response.data;
+                setSuccessId(resData.record.id);
+                setShowSuccessModal(true);
+                
+                const constraints = getDateConstraints();
+                setFormData({
+                    fechaCarga: constraints.todayStr,
+                    horaCarga: constraints.nowTimeStr,
+                    espacioVerde: '',
+                    tareaRealizada: '',
+                    consumoAgua: '',
+                    plantasAgregadas: '0',
+                    especieAgregada: '',
+                    estadoSalud: '',
+                    responsableTarea: `Jardinería & Mantenimiento ${import.meta.env.VITE_COMPANY_NAME_SHORT || 'Don Yeyo'}`,
+                    responsable: localStorage.getItem('shigma_last_operator_espacios-verdes') || '',
+                    observaciones: ''
+                });
+            }
         } catch (error) {
             console.error('Error submitting green spaces form:', error);
             showAlert('Error del servidor', 'No se pudo guardar el registro. Por favor, intente nuevamente.');
@@ -184,10 +229,10 @@ const EspaciosVerdes = () => {
                 </Button>
                 <div>
                     <h1 style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--primary)' }}>
-                        Control de Espacios Verdes<span style={{ color: 'var(--dy-red)' }}>.</span>
+                        {editId ? 'Modificar' : 'Control de'} Espacios Verdes<span style={{ color: 'var(--dy-red)' }}>.</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
-                        Registro de mantenimiento botánico, forestación industrial y optimización de agua de riego ecológico.
+                        {editId ? `Editando registro ${editId} del historial.` : 'Registro de mantenimiento botánico, forestación industrial y optimización de agua de riego ecológico.'}
                     </p>
                 </div>
             </div>
@@ -368,7 +413,7 @@ const EspaciosVerdes = () => {
                         disabled={submitting}
                         style={{ background: '#84cc16', color: '#fff' }}
                     >
-                        <Send size={18} /> {submitting ? 'Guardando...' : 'Registrar Mantenimiento'}
+                        <Send size={18} /> {submitting ? 'Guardando...' : editId ? 'Guardar Cambios' : 'Registrar Mantenimiento'}
                     </Button>
                 </div>
             </form>
@@ -392,8 +437,11 @@ const EspaciosVerdes = () => {
             {/* Success Modal */}
             <Modal 
                 isOpen={showSuccessModal} 
-                onClose={() => setShowSuccessModal(false)}
-                title="Mantenimiento de Espacio Verde Registrado"
+                onClose={() => {
+                    setShowSuccessModal(false);
+                    if (editId) navigate('/historial');
+                }}
+                title={editId ? "Registro Modificado" : "Mantenimiento de Espacio Verde Registrado"}
                 showFooter={false}
             >
                 <div style={{ textAlign: 'center', padding: '16px 0' }}>
@@ -401,28 +449,41 @@ const EspaciosVerdes = () => {
                         <Leaf size={64} />
                     </div>
                     <h3 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '8px', color: 'var(--primary)' }}>
-                        ¡Parquizado Registrado!
+                        {editId ? "¡Registro Modificado Exitosamente!" : "¡Parquizado Registrado!"}
                     </h3>
                     <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
-                        La tarea ambiental en el pulmón verde ha sido guardada en la base de trazabilidad ecológica con el ID único:
+                        {editId 
+                            ? "La modificación se ha guardado correctamente en la base de datos de trazabilidad bajo el ID único:" 
+                            : "La tarea ambiental en el pulmón verde ha sido guardada en la base de trazabilidad ecológica con el ID único:"}
                         <br />
                         <strong style={{ color: 'var(--text)', fontSize: '1.1rem', display: 'inline-block', marginTop: '8px', padding: '6px 12px', background: 'var(--surface-hover)', borderRadius: '8px', border: '1px solid var(--border)' }}>
                             {successId}
                         </strong>
                     </p>
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
-                        <Button 
-                            variant="outline" 
-                            onClick={() => setShowSuccessModal(false)}
-                        >
-                            Cargar Otro
-                        </Button>
-                        <Button 
-                            variant="primary" 
-                            onClick={() => navigate('/')}
-                        >
-                            Ir al Dashboard
-                        </Button>
+                        {editId ? (
+                            <Button 
+                                variant="primary" 
+                                onClick={() => navigate('/historial')}
+                            >
+                                Volver al Historial
+                            </Button>
+                        ) : (
+                            <>
+                                <Button 
+                                    variant="outline" 
+                                    onClick={() => setShowSuccessModal(false)}
+                                >
+                                    Cargar Otro
+                                </Button>
+                                <Button 
+                                    variant="primary" 
+                                    onClick={() => navigate('/')}
+                                >
+                                    Ir al Dashboard
+                                </Button>
+                            </>
+                        )}
                     </div>
                 </div>
             </Modal>

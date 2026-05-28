@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Trash2, ArrowLeft, Send, CheckCircle, AlertTriangle, Layers, Boxes, Scale, ChevronRight
 } from 'lucide-react';
@@ -141,6 +141,8 @@ const NumberInput = ({ label, value, onChange, min = 0, step = 1, name, placehol
 
 const ResiduosComunes = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const editId = searchParams.get('edit');
     const { theme } = useTheme();
     const isDark = theme === 'dark';
 
@@ -266,6 +268,60 @@ const ResiduosComunes = () => {
         fetchBateasData();
         fetchOperadoresData();
     }, []);
+
+    useEffect(() => {
+        if (editId) {
+            const loadRecord = async () => {
+                try {
+                    const response = await SHIGMAService.getRecordsByForm('residuos-comunes');
+                    const record = response.data.find(r => r.id === editId);
+                    if (record) {
+                        const dateObj = new Date(record.createdAt || record.fecha);
+                        const fechaCarga = dateObj.toISOString().split('T')[0];
+                        const horaCarga = dateObj.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+                        
+                        // Parse materials
+                        const defaultRecuperados = {
+                            'Cartón': { cantidad: '', unidad: 'Kilos' },
+                            'Metal': { cantidad: '', unidad: 'Kilos' },
+                            'Cajones': { cantidad: '', unidad: 'Kilos' },
+                            'Conos de Film Streech': { cantidad: '', unidad: 'Kilos' },
+                            'Otros': { cantidad: '', unidad: 'Kilos' }
+                        };
+                        if (record.materialesRecuperados) {
+                            Object.entries(record.materialesRecuperados).forEach(([mat, data]) => {
+                                if (defaultRecuperados[mat]) {
+                                    defaultRecuperados[mat] = {
+                                        cantidad: String(data.cantidad) || '',
+                                        unidad: data.unidad || 'Kilos'
+                                    };
+                                }
+                            });
+                        }
+
+                        setFormData({
+                            fechaCarga,
+                            horaCarga,
+                            sector: record.sector || '',
+                            tipoResiduo: record.tipoResiduo || '',
+                            clasificacionInorganico: record.clasificacionInorganico || 'Irrecuperables',
+                            materialesRecuperados: defaultRecuperados,
+                            peso: String(record.peso) || '',
+                            destino: record.destino || '',
+                            responsable: record.responsable || '',
+                            observaciones: record.observaciones || ''
+                        });
+                    } else {
+                        showAlert('No se encontró el registro a editar.', 'Error', 'error');
+                    }
+                } catch (err) {
+                    console.error('Error loading record:', err);
+                    showAlert('Error al cargar el registro para editar.', 'Error', 'error');
+                }
+            };
+            loadRecord();
+        }
+    }, [editId]);
 
     // Obtener los destinos para el Select: Filtrados por tipo de residuo (Organicos / Inorganicos)
     const getDestinoOptions = () => {
@@ -572,35 +628,41 @@ const ResiduosComunes = () => {
                 }
             }
 
-            const response = await SHIGMAService.createRecord('residuos-comunes', payload);
+            if (editId) {
+                await SHIGMAService.updateRecord('residuos-comunes', editId, payload);
+                setSuccessId(editId);
+                setShowSuccessModal(true);
+            } else {
+                const response = await SHIGMAService.createRecord('residuos-comunes', payload);
 
-            const resData = response.data;
-            setSuccessId(resData.record.id);
-            setShowSuccessModal(true);
+                const resData = response.data;
+                setSuccessId(resData.record.id);
+                setShowSuccessModal(true);
 
-            // Reset form
-            const constraints = getDateConstraints();
-            setFormData({
-                fechaCarga: constraints.todayStr,
-                horaCarga: constraints.nowTimeStr,
-                sector: '',
-                tipoResiduo: '',
-                clasificacionInorganico: 'Irrecuperables',
-                materialesRecuperados: {
-                    'Cartón': { cantidad: '', unidad: 'Kilos' },
-                    'Metal': { cantidad: '', unidad: 'Kilos' },
-                    'Cajones': { cantidad: '', unidad: 'Kilos' },
-                    'Conos de Film Streech': { cantidad: '', unidad: 'Kilos' },
-                    'Otros': { cantidad: '', unidad: 'Kilos' }
-                },
-                peso: '',
-                destino: '',
-                responsable: localStorage.getItem('shigma_last_operator_residuos-comunes') || '',
-                observaciones: ''
-            });
+                // Reset form
+                const constraints = getDateConstraints();
+                setFormData({
+                    fechaCarga: constraints.todayStr,
+                    horaCarga: constraints.nowTimeStr,
+                    sector: '',
+                    tipoResiduo: '',
+                    clasificacionInorganico: 'Irrecuperables',
+                    materialesRecuperados: {
+                        'Cartón': { cantidad: '', unidad: 'Kilos' },
+                        'Metal': { cantidad: '', unidad: 'Kilos' },
+                        'Cajones': { cantidad: '', unidad: 'Kilos' },
+                        'Conos de Film Streech': { cantidad: '', unidad: 'Kilos' },
+                        'Otros': { cantidad: '', unidad: 'Kilos' }
+                    },
+                    peso: '',
+                    destino: '',
+                    responsable: localStorage.getItem('shigma_last_operator_residuos-comunes') || '',
+                    observaciones: ''
+                });
 
-            // Refrescar bateas para la siguiente validación
-            fetchBateasData();
+                // Refrescar bateas para la siguiente validación
+                fetchBateasData();
+            }
         } catch (error) {
             console.error('Error submitting form:', error);
             showAlert('Error al guardar el registro en el servidor.', 'Error de Servidor', 'error');
@@ -626,10 +688,10 @@ const ResiduosComunes = () => {
                 </Button>
                 <div>
                     <h1 style={{ fontSize: '2.1rem', fontWeight: '900', color: 'var(--primary)' }}>
-                        Residuos Industriales No Especiales (RINE)<span style={{ color: 'var(--dy-red)' }}>.</span>
+                        {editId ? 'Modificar' : 'Registrar'} Residuos Industriales No Especiales (RINE)<span style={{ color: 'var(--dy-red)' }}>.</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
-                        Registro y clasificación de desperdicios orgánicos, inorgánicos de marca y generales.
+                        {editId ? `Editando registro ${editId} del historial.` : 'Registro y clasificación de desperdicios orgánicos, inorgánicos de marca y generales.'}
                     </p>
                 </div>
             </div>
@@ -994,7 +1056,7 @@ const ResiduosComunes = () => {
                         disabled={submitting}
                         style={{ background: 'var(--success)' }}
                     >
-                        <Send size={18} /> {submitting ? 'Guardando...' : 'Registrar Lote RINE'}
+                        <Send size={18} /> {submitting ? 'Guardando...' : editId ? 'Guardar Cambios' : 'Registrar Lote RINE'}
                     </Button>
                 </div>
             </form>
@@ -1002,8 +1064,11 @@ const ResiduosComunes = () => {
             {/* Modal de Confirmación de Registro Exitoso */}
             <Modal
                 isOpen={showSuccessModal}
-                onClose={() => setShowSuccessModal(false)}
-                title="Registro Completado"
+                onClose={() => {
+                    setShowSuccessModal(false);
+                    if (editId) navigate('/historial');
+                }}
+                title={editId ? "Registro Modificado" : "Registro Completado"}
                 showFooter={false}
             >
                 <div style={{ textAlign: 'center', padding: '16px 0' }}>
@@ -1011,28 +1076,41 @@ const ResiduosComunes = () => {
                         <CheckCircle size={64} />
                     </div>
                     <h3 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '8px', color: 'var(--primary)' }}>
-                        ¡Guardado Correctamente!
+                        {editId ? "¡Modificación Guardada!" : "¡Guardado Correctamente!"}
                     </h3>
                     <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '0.95rem' }}>
-                        El pesaje de RINE ha sido ingresado al historial de trazabilidad con el ID único:
+                        {editId 
+                            ? "El pesaje de RINE ha sido actualizado correctamente en la base de datos bajo el ID único:"
+                            : "El pesaje de RINE ha sido ingresado al historial de trazabilidad con el ID único:"}
                         <br />
                         <strong style={{ color: 'var(--text)', fontSize: '1.1rem', display: 'inline-block', marginTop: '8px', padding: '6px 12px', background: 'var(--surface-hover)', borderRadius: '8px', border: '1px solid var(--border)' }}>
                             {successId}
                         </strong>
                     </p>
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
-                        <Button
-                            variant="outline"
-                            onClick={() => setShowSuccessModal(false)}
-                        >
-                            Cargar Otro
-                        </Button>
-                        <Button
-                            variant="primary"
-                            onClick={() => navigate('/')}
-                        >
-                            Ir al Dashboard
-                        </Button>
+                        {editId ? (
+                            <Button
+                                variant="primary"
+                                onClick={() => navigate('/historial')}
+                            >
+                                Volver al Historial
+                            </Button>
+                        ) : (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setShowSuccessModal(false)}
+                                >
+                                    Cargar Otro
+                                </Button>
+                                <Button
+                                    variant="primary"
+                                    onClick={() => navigate('/')}
+                                >
+                                    Ir al Dashboard
+                                </Button>
+                            </>
+                        )}
                     </div>
                 </div>
             </Modal>
@@ -1054,7 +1132,7 @@ const ResiduosComunes = () => {
                         </h3>
                         <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.875rem', lineHeight: '1.4' }}>
                             La batea <strong>{warningModalData.bateaNombre}</strong> solo tiene <strong>{warningModalData.disponible.toLocaleString()} kg</strong> libres.
-                            Estás intentando ingresar <strong>{warningModalData.pesoIngresado} kg</strong>.
+                            Está intentando ingresar <strong>{warningModalData.pesoIngresado} kg</strong>.
                         </p>
                         <div style={{
                             padding: '10px 12px',
@@ -1097,7 +1175,7 @@ const ResiduosComunes = () => {
                 <Modal
                     isOpen={showConfirmModal}
                     onClose={() => setShowConfirmModal(false)}
-                    title="Confirmación de Registro de Lote"
+                    title={editId ? "Confirmación de Modificación de Lote" : "Confirmación de Registro de Lote"}
                     showCancel={false}
                     showFooter={false}
                 >
@@ -1273,7 +1351,7 @@ const ResiduosComunes = () => {
                                     cursor: consentChecked ? 'pointer' : 'not-allowed'
                                 }}
                             >
-                                Confirmar y Registrar
+                                {editId ? 'Confirmar y Guardar' : 'Confirmar y Registrar'}
                             </Button>
                         </div>
                     </div>

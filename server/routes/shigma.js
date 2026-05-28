@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const shigmaController = require('../controllers/shigmaController');
+const { requireRole } = require('../middleware/auth');
+
+// Requerir autenticación y poblar req.currentUser para todas las operaciones SHIGMA
+router.use(requireRole());
 
 // Obtener todas las estadísticas agrupadas para el dashboard
 router.get('/stats', shigmaController.getDashboardStats);
@@ -13,6 +17,12 @@ router.get('/records/:formType', shigmaController.getRecordsByForm);
 
 // Crear un registro en un formulario específico
 router.post('/records/:formType', shigmaController.createRecord);
+
+// Modificar un registro existente (con validaciones de permisos)
+router.put('/records/:formType/:id', shigmaController.updateRecord);
+
+// Eliminar un registro existente (con validaciones de permisos)
+router.delete('/records/:formType/:id', shigmaController.deleteRecord);
 
 // Obtener operadores asignados a un formulario específico
 router.get('/operadores/:formType', shigmaController.getOperadoresByForm);

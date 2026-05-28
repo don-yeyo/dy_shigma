@@ -38,11 +38,13 @@ const finnegansRoutes = require('./routes/finnegans');
 const cotRoutes = require('./routes/cot');
 const systemRoutes = require('./routes/system');
 const shigmaRoutes = require('./routes/shigma');
+const usersRoutes = require('./routes/users');
 
 app.use('/api/finnegans', finnegansRoutes);
 app.use('/api/cot', cotRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/shigma', shigmaRoutes);
+app.use('/api/users', usersRoutes);
 
 app.get('/', (req, res) => {
     res.json({ message: `SHIGMA API - Seguridad, Higiene y Medioambiente - ${process.env.COMPANY_NAME || 'SHIGMA'}` });

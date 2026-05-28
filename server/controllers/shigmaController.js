@@ -85,28 +85,95 @@ const toCamelCaseObj = (obj) => {
 // ============================================================
 
 const shigmaController = {
-    // Obtener todos los registros combinados (para el historial)
+    // Obtener todos los registros combinados (para el historial, paginado y filtrado)
     getAllRecords: async (req, res) => {
         try {
-            const queries = Object.entries(formTables).map(async ([formType, tableName]) => {
-                const [rows] = await db.query(`SELECT * FROM ${tableName} ORDER BY created_at DESC`);
+            const isRegistrador = req.currentUser.rol === 'registrador';
+            const userNombre = req.currentUser.nombre;
+
+            // Parámetros de consulta
+            const page = parseInt(req.query.page || '1', 10);
+            const limit = parseInt(req.query.limit || process.env.HISTORIAL_PAGE_SIZE || '20', 10);
+            const search = (req.query.search || '').trim().toLowerCase();
+            const formType = req.query.formType || 'all';
+            const since = req.query.since || '';
+            const isExport = req.query.export === 'true';
+
+            // Filtrar las tablas a consultar
+            const targetEntries = formType !== 'all' && formTables[formType]
+                ? [[formType, formTables[formType]]]
+                : Object.entries(formTables);
+
+            const queries = targetEntries.map(async ([type, tableName]) => {
+                let sql = `SELECT * FROM ${tableName}`;
+                const params = [];
+                if (isRegistrador) {
+                    sql += ` WHERE usuario = ?`;
+                    params.push(userNombre);
+                }
+                sql += ` ORDER BY created_at DESC`;
+
+                const [rows] = await db.query(sql, params);
                 return rows.map(r => {
                     const camelRecord = toCamelCaseObj(r);
                     return {
                         ...camelRecord,
-                        formType,
-                        formLabel: formNames[formType] || formType
+                        formType: type,
+                        formLabel: formNames[type] || type
                     };
                 });
             });
 
             const results = await Promise.all(queries);
-            const combined = results.flat();
+            let combined = results.flat();
+
+            // Filtrar por fecha de inicio (since) si está presente
+            if (since) {
+                const sinceDate = new Date(`${since}T00:00:00`);
+                combined = combined.filter(r => new Date(r.createdAt || r.fecha) >= sinceDate);
+            }
+
+            // Filtrar por búsqueda
+            if (search) {
+                combined = combined.filter(r => {
+                    return (
+                        (r.id && r.id.toLowerCase().includes(search)) ||
+                        (r.responsable && r.responsable.toLowerCase().includes(search)) ||
+                        (r.sector && r.sector.toLowerCase().includes(search)) ||
+                        (r.tipoResiduo && r.tipoResiduo.toLowerCase().includes(search)) ||
+                        (r.tipoResiduoEspecial && r.tipoResiduoEspecial.toLowerCase().includes(search)) ||
+                        (r.productoDevuelto && r.productoDevuelto.toLowerCase().includes(search)) ||
+                        (r.clienteOrigen && r.clienteOrigen.toLowerCase().includes(search)) ||
+                        (r.materialRevalorizado && r.materialRevalorizado.toLowerCase().includes(search))
+                    );
+                });
+            }
 
             // Ordenar por fecha descendente
-            combined.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            combined.sort((a, b) => new Date(b.createdAt || b.fecha) - new Date(a.createdAt || a.fecha));
 
-            res.json(combined);
+            const totalCount = combined.length;
+
+            if (isExport) {
+                // Para exportar no se hace paginación
+                return res.json({
+                    records: combined,
+                    totalCount
+                });
+            }
+
+            // Paginar
+            const totalPages = Math.ceil(totalCount / limit);
+            const offset = (page - 1) * limit;
+            const paginated = combined.slice(offset, offset + limit);
+
+            res.json({
+                records: paginated,
+                totalCount,
+                totalPages,
+                currentPage: page,
+                limit
+            });
         } catch (error) {
             console.error('Error en getAllRecords:', error);
             res.status(500).json({ error: 'Error al recuperar todos los registros desde la base de datos.' });
@@ -122,7 +189,18 @@ const shigmaController = {
                 return res.status(400).json({ error: 'Tipo de formulario inválido.' });
             }
 
-            const [rows] = await db.query(`SELECT * FROM ${tableName} ORDER BY created_at DESC`);
+            const isRegistrador = req.currentUser.rol === 'registrador';
+            const userNombre = req.currentUser.nombre;
+
+            let sql = `SELECT * FROM ${tableName}`;
+            const params = [];
+            if (isRegistrador) {
+                sql += ` WHERE usuario = ?`;
+                params.push(userNombre);
+            }
+            sql += ` ORDER BY created_at DESC`;
+
+            const [rows] = await db.query(sql, params);
             
             // Mapear campos snake_case a camelCase para el frontend
             const mapped = rows.map(r => toCamelCaseObj(r));
@@ -156,7 +234,7 @@ const shigmaController = {
             // Preparar el payload del registro
             const insertData = {
                 ...recordData,
-                usuario: recordData.usuario || 'Gabriel Tonelli'
+                usuario: req.currentUser.nombre || recordData.usuario || 'Gabriel Tonelli'
             };
 
             // Si no se envía fecha/hora de carga, la eliminamos para que MySQL use el DEFAULT CURRENT_TIMESTAMP local (GMT-3)
@@ -195,6 +273,156 @@ const shigmaController = {
         } catch (error) {
             console.error('Error en createRecord:', error);
             res.status(500).json({ error: 'Error interno del servidor al guardar el registro.' });
+        }
+    },
+
+    // Modificar un registro existente (con validaciones de permisos)
+    updateRecord: async (req, res) => {
+        try {
+            const { formType, id } = req.params;
+            const recordData = req.body;
+
+            const tableName = formTables[formType];
+            if (!tableName) {
+                return res.status(400).json({ error: 'Tipo de formulario inválido.' });
+            }
+
+            // 1. Recuperar el registro actual
+            const [rows] = await db.query(`SELECT * FROM ${tableName} WHERE id = ?`, [id]);
+            if (rows.length === 0) {
+                return res.status(404).json({ error: 'Registro no encontrado.' });
+            }
+            const record = rows[0];
+
+            // 2. Aplicar validaciones de rol
+            if (req.currentUser.rol === 'registrador') {
+                // Validación de propiedad
+                if (record.usuario !== req.currentUser.nombre) {
+                    return res.status(403).json({ error: 'Acceso denegado. Solo podés modificar tus propios registros.' });
+                }
+
+                // Validación de antigüedad (N días)
+                const maxEditDays = parseInt(process.env.REGISTRADOR_MAX_EDIT_DAYS || '7', 10);
+                const createdTime = new Date(record.created_at).getTime();
+                const daysDiff = (Date.now() - createdTime) / (1000 * 60 * 60 * 24);
+                if (daysDiff > maxEditDays) {
+                    return res.status(403).json({ 
+                        error: `Límite de tiempo superado. No podés modificar registros creados hace más de ${maxEditDays} días.` 
+                    });
+                }
+
+                // Validación de cantidad de ediciones (X veces)
+                const maxEdits = parseInt(process.env.REGISTRADOR_MAX_EDITS_PER_RECORD || '3', 10);
+                if (record.ediciones >= maxEdits) {
+                    return res.status(403).json({ 
+                        error: `Límite de ediciones alcanzado. No podés modificar este registro más de ${maxEdits} veces.` 
+                    });
+                }
+            }
+
+            // Convertir el body entrante a snake_case
+            const dbPayload = toSnakeCaseObj(recordData);
+
+            // Preparar actualización dinámica
+            const sets = [];
+            const values = [];
+
+            Object.entries(dbPayload).forEach(([key, val]) => {
+                // No permitir modificar id, created_at, o usuario original
+                if (key === 'id' || key === 'created_at' || key === 'usuario' || key === 'ediciones' || key === 'form_type' || key === 'form_label') return;
+                
+                sets.push(`${key} = ?`);
+                if (val !== null && typeof val === 'object') {
+                    values.push(JSON.stringify(val));
+                } else {
+                    values.push(val);
+                }
+            });
+
+            if (sets.length === 0) {
+                return res.status(400).json({ error: 'No hay campos válidos para actualizar.' });
+            }
+
+            // Incrementar ediciones en 1 y registrar quién editó
+            sets.push('ediciones = ?');
+            values.push(record.ediciones + 1);
+
+            sets.push('usuario_edicion = ?');
+            values.push(req.currentUser.nombre);
+
+            // Añadir ID al final de los valores
+            values.push(id);
+
+            const sql = `UPDATE ${tableName} SET ${sets.join(', ')} WHERE id = ?`;
+            await db.query(sql, values);
+
+            // Recuperar el registro actualizado
+            const [updatedRows] = await db.query(`SELECT * FROM ${tableName} WHERE id = ?`, [id]);
+            const updatedRecord = toCamelCaseObj(updatedRows[0]);
+
+            res.json({ message: 'Registro actualizado con éxito.', record: updatedRecord });
+        } catch (error) {
+            console.error('Error en updateRecord:', error);
+            res.status(500).json({ error: 'Error interno del servidor al actualizar el registro.' });
+        }
+    },
+
+    // Eliminar un registro existente (con validaciones de permisos y fecha/edición)
+    deleteRecord: async (req, res) => {
+        try {
+            const { formType, id } = req.params;
+
+            const tableName = formTables[formType];
+            if (!tableName) {
+                return res.status(400).json({ error: 'Tipo de formulario inválido.' });
+            }
+
+            // 1. Recuperar el registro actual
+            const [rows] = await db.query(`SELECT * FROM ${tableName} WHERE id = ?`, [id]);
+            if (rows.length === 0) {
+                return res.status(404).json({ error: 'Registro no encontrado.' });
+            }
+            const record = rows[0];
+
+            // 2. Aplicar validaciones de rol
+            if (req.currentUser.rol === 'registrador') {
+                // Verificar si tiene permiso de eliminación
+                const puedeEliminar = process.env.REGISTRADOR_PUEDE_ELIMINAR === 'true';
+                if (!puedeEliminar) {
+                    return res.status(403).json({ error: 'Acceso denegado. Los registradores no tienen permitido eliminar registros.' });
+                }
+
+                // Validación de propiedad
+                if (record.usuario !== req.currentUser.nombre) {
+                    return res.status(403).json({ error: 'Acceso denegado. Solo podés eliminar tus propios registros.' });
+                }
+
+                // Validación de antigüedad (N días)
+                const maxEditDays = parseInt(process.env.REGISTRADOR_MAX_EDIT_DAYS || '7', 10);
+                const createdTime = new Date(record.created_at).getTime();
+                const daysDiff = (Date.now() - createdTime) / (1000 * 60 * 60 * 24);
+                if (daysDiff > maxEditDays) {
+                    return res.status(403).json({ 
+                        error: `Límite de tiempo superado. No podés eliminar registros creados hace más de ${maxEditDays} días.` 
+                    });
+                }
+
+                // Validación de cantidad de ediciones (X veces)
+                const maxEdits = parseInt(process.env.REGISTRADOR_MAX_EDITS_PER_RECORD || '3', 10);
+                if (record.ediciones >= maxEdits) {
+                    return res.status(403).json({ 
+                        error: `Límite de ediciones alcanzado. No podés eliminar este registro porque ya se ha editado ${maxEdits} o más veces.` 
+                    });
+                }
+            }
+
+            // 3. Eliminar el registro
+            await db.query(`DELETE FROM ${tableName} WHERE id = ?`, [id]);
+
+            res.json({ message: 'Registro eliminado con éxito.' });
+        } catch (error) {
+            console.error('Error en deleteRecord:', error);
+            res.status(500).json({ error: 'Error interno del servidor al eliminar el registro.' });
         }
     },
 

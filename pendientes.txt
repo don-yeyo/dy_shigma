@@ -1,4 +1,8 @@
-permitir modificar registros hasta N dias para atras y X cantidad de veces
+como ya sabes, los usuarios ingresaran al sistemas mediante el sign in con sus cuentas de microsoft o tambien con sus emails de google en caso de que se encuentre habilitado el inicio de sesion con google. quiero además que determinadas cuentas se validen entre los emails gestionados a partir de una tabla de usuarios que deberas crear. Por cada usuario debe existir la posibilidad de asignar los módulos a los que tendrá acceso y su nivel de usuario, por ahora solo existen 3 niveles: registrador, supervisor y sysadmin.
+sysadmin es el maximo nivel y podra gestionar a todos los usuarios y modulos, asignar modulos, etc.
+por ahora los supervisores podran, listar y modificar registros de cualquier registrador, exportar, visualizar el dashboardupervisor podra gestionar solo sus registros y los de los usuarios que tenga asignados y registrador podra gestionar solo sus registros.
+Mientras que los registradores pueden ver solo los registros propios y podran modificar hasta N dias para atras y hasta X veces.
+
 
 agregar mails de usuarios administradores por variable de entorno separados por comas
 
@@ -14,5 +18,5 @@ notificaciones
 
 gestion de usuarios que modulos puede gestionar y cuales emails recibe
 
-
+proceso de importacion de lo anterior
 
