@@ -232,6 +232,21 @@ Copiar las plantillas `.env.template` correspondientes a `.env` tanto en la carp
 
 ---
 
+## Despliegue en Netlify
+
+El proyecto está configurado para desplegarse de manera unificada en **Netlify** utilizando el archivo `netlify.toml` en la raíz del proyecto.
+
+### Arquitectura de Producción
+- **Frontend (React)**: Se construye mediante `npm run build --prefix client` y se publica el directorio estático `client/dist`.
+- **Backend (API)**: Las rutas `/api/*` se redirigen automáticamente al handler de Netlify Functions en `server/netlify-handler.js`, el cual ejecuta el backend Express en modo serverless.
+
+### Configuración en Netlify
+1. **Vincular Repositorio**: Conectar el repositorio de GitHub `https://github.com/don-yeyo/dy_shigma.git` (rama `main`).
+2. **Variables de Entorno**: Configurar todas las variables tanto del cliente como del servidor en el panel de Netlify.
+3. **Base de Datos**: Requiere configurar un servidor MySQL accesible externamente (como AWS RDS) y proveer las credenciales de producción en las variables correspondientes.
+
+---
+
 ## Ejecución del Proyecto
 
 ### 1. Configuración de Base de Datos
