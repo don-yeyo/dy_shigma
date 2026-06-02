@@ -6,9 +6,11 @@ import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
 import { SHIGMAService } from '../../services/api';
 import { getLocalISOString, validateRecordDate, getDateConstraints } from '../../utils/dateUtils';
+import { useMobile } from '../../config/ThemeContext';
 
 
 const Pallets = () => {
+    const isMobile = useMobile();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const editId = searchParams.get('edit');
@@ -241,7 +243,14 @@ const Pallets = () => {
                     </div>
 
                     {/* Fecha y Hora de la Carga (Separadas en grilla responsive, con Autofoco) */}
-                    <div className="form-grid" style={{ marginBottom: '24px' }}>
+                    <div className="form-grid" style={isMobile ? {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px',
+                        marginBottom: '24px'
+                    } : {
+                        marginBottom: '24px'
+                    }}>
                         <div>
                             <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
                                 Fecha de la Carga *
@@ -296,7 +305,11 @@ const Pallets = () => {
                         </div>
                     </div>
 
-                    <div className="form-grid">
+                    <div className="form-grid" style={isMobile ? {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px'
+                    } : {}}>
                         <Select
                             label="Formato / Tipo de Pallet *"
                             name="tipoPallet"
@@ -322,7 +335,11 @@ const Pallets = () => {
                         Estado y Disposición de Reparaciones
                     </div>
 
-                    <div className="form-grid">
+                    <div className="form-grid" style={isMobile ? {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px'
+                    } : {}}>
                         <Input
                             label="Cantidad Reparados / Aptos *"
                             type="number"
@@ -346,7 +363,14 @@ const Pallets = () => {
                         />
                     </div>
 
-                    <div className="form-grid" style={{ marginTop: '8px' }}>
+                    <div className="form-grid" style={isMobile ? {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px',
+                        marginTop: '8px'
+                    } : {
+                        marginTop: '8px'
+                    }}>
                         <Input
                             label="Enviados a Economía Circular (Madera recuperable) *"
                             type="number"
@@ -463,7 +487,10 @@ const Pallets = () => {
                             <>
                                 <Button 
                                     variant="outline" 
-                                    onClick={() => setShowSuccessModal(false)}
+                                    onClick={() => {
+                                        setShowSuccessModal(false);
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    }}
                                 >
                                     Cargar Otro
                                 </Button>

@@ -6,9 +6,11 @@ import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
 import { SHIGMAService } from '../../services/api';
 import { getLocalISOString, validateRecordDate, getDateConstraints } from '../../utils/dateUtils';
+import { useMobile } from '../../config/ThemeContext';
 
 
 const ResiduosEspeciales = () => {
+    const isMobile = useMobile();
     const [searchParams] = useSearchParams();
     const editId = searchParams.get('edit');
     const [submitting, setSubmitting] = useState(false);
@@ -250,7 +252,14 @@ const ResiduosEspeciales = () => {
                     </div>
 
                     {/* Fecha y Hora de la Carga (Separadas en grilla responsive, con Autofoco) */}
-                    <div className="form-grid" style={{ marginBottom: '24px' }}>
+                    <div className="form-grid" style={isMobile ? {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px',
+                        marginBottom: '24px'
+                    } : {
+                        marginBottom: '24px'
+                    }}>
                         <div>
                             <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
                                 Fecha de la Carga *
@@ -305,7 +314,11 @@ const ResiduosEspeciales = () => {
                         </div>
                     </div>
 
-                    <div className="form-grid">
+                    <div className="form-grid" style={isMobile ? {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px'
+                    } : {}}>
                         <Select
                             label="Tipo de Residuo *"
                             name="tipoResiduoEspecial"
@@ -325,8 +338,22 @@ const ResiduosEspeciales = () => {
                         />
                     </div>
 
-                    <div className="form-grid" style={{ marginTop: '8px' }}>
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                    <div className="form-grid" style={isMobile ? {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px',
+                        marginTop: '8px'
+                    } : {
+                        marginTop: '8px'
+                    }}>
+                        <div style={isMobile ? {
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '16px'
+                        } : {
+                            display: 'flex',
+                            gap: '8px'
+                        }}>
                             <div style={{ flex: 2 }}>
                                 <Input
                                     label="Cantidad *"
@@ -361,7 +388,14 @@ const ResiduosEspeciales = () => {
                         />
                     </div>
 
-                    <div className="form-grid" style={{ marginTop: '8px' }}>
+                    <div className="form-grid" style={isMobile ? {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px',
+                        marginTop: '8px'
+                    } : {
+                        marginTop: '8px'
+                    }}>
                         <Select
                             label="Tipo de Envase / Contenedor *"
                             name="tipoEnvase"
@@ -460,7 +494,10 @@ const ResiduosEspeciales = () => {
                             <>
                                 <Button
                                     variant="outline"
-                                    onClick={() => setShowSuccessModal(false)}
+                                    onClick={() => {
+                                        setShowSuccessModal(false);
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    }}
                                 >
                                     Cargar Otro
                                 </Button>

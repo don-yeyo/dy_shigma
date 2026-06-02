@@ -46,12 +46,12 @@ class ArbaService {
         const hh = String(now.getHours()).padStart(2, '0');
         const min = String(now.getMinutes()).padStart(2, '0');
         const ss = String(now.getSeconds()).padStart(2, '0');
-        
+
         const nombreArchivo = `TB_${this.cuitEmpresa}_${this.planta}${this.puerta}_${yyyy}${mm}${dd}_${hh}${min}${ss}.txt`;
-        
+
         let lineas = [];
         lineas.push(this._generarHeader());
-        
+
         const remitos = Array.isArray(datos) ? datos : [datos];
         for (const remito of remitos) {
             lineas.push(this._generarRemito(remito));
@@ -61,18 +61,18 @@ class ArbaService {
                 }
             }
         }
-        
+
         lineas.push(this._generarFooter(remitos.length));
-        
+
         const contenido = lineas.join('\r\n');
-        
+
         if (this.saveLocal) {
             if (!fs.existsSync(this.localPath)) {
                 fs.mkdirSync(this.localPath, { recursive: true });
             }
             fs.writeFileSync(path.join(this.localPath, nombreArchivo), contenido);
         }
-        
+
         return {
             nombreArchivo,
             contenido,
@@ -123,7 +123,7 @@ class ArbaService {
             ' ',                                                                // 22: PROPIO_DESTINO_DOMICILIO_CODIGO
             'NO',                                                               // 23: ENTREGA_DOMICILIO_ORIGEN
             remito.ORIGEN_CUIT || this.cuitEmpresa,                             // 24: ORIGEN_CUIT
-            remito.ORIGEN_RAZON_SOCIAL || 'DON YEYO S.A.',                      // 25: ORIGEN_RAZON_SOCIAL
+            remito.ORIGEN_RAZON_SOCIAL || 'DEMO',                      // 25: ORIGEN_RAZON_SOCIAL
             '0',                                                                // 26: EMISOR_TENEDOR
             remito.ORIGEN_DOMICILIO_CALLE || remito.origenCalle || '',          // 27: ORIGEN_DOMICILIO_CALLE
             remito.ORIGEN_DOMICILIO_NUMERO || remito.origenNumero || '0',       // 28: ORIGEN_DOMICILIO_NUMERO
@@ -172,10 +172,10 @@ class ArbaService {
             const form = new FormData();
             form.append('user', this.cotUser);
             form.append('password', this.cotPassword);
-            
+
             // Creamos un Buffer en latin1 para el contenido del archivo para asegurar compatibilidad con ARBA
             const fileBuffer = Buffer.from(contenido, 'latin1');
-            
+
             form.append('file', fileBuffer, {
                 filename: nombreArchivo,
                 contentType: 'text/plain',
@@ -184,7 +184,7 @@ class ArbaService {
             const headers = {
                 ...form.getHeaders(),
             };
-            
+
             // Si hay una cookie configurada, la añadimos (aunque axios lo maneja mejor con jar, aquí lo ponemos manual)
             if (this.cookie) {
                 headers['Cookie'] = this.cookie;
@@ -203,7 +203,7 @@ class ArbaService {
             if (this.saveLocal) {
                 try {
                     fs.writeFileSync(path.join(this.localPath, 'arba_last_response.txt'), responseText);
-                } catch (e) {}
+                } catch (e) { }
             }
 
             const nroCotMatch = responseText.match(/<cot>(\d+)<\/cot>/);
@@ -238,13 +238,13 @@ class ArbaService {
 
         } catch (error) {
             console.error('[ARBA] Error en envío vía Axios:', error.message);
-            return { 
-                success: false, 
-                errores: [{ 
-                    codigo: 'AXIOS_ERROR', 
+            return {
+                success: false,
+                errores: [{
+                    codigo: 'AXIOS_ERROR',
                     descripcion: `Error de conexión: ${error.message}`,
                     tipo: 'CONEXION'
-                }] 
+                }]
             };
         }
     }

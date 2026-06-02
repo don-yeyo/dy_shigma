@@ -2,15 +2,6 @@
 
 ## Cambios realizados — Variables de Entorno para Nombre de Empresa
 
-Se agregaron las variables:
-
-| Variable | Alcance | Valor actual |
-|---|---|---|
-| `VITE_COMPANY_NAME` | Frontend (React) | `Don Yeyo S.A.` |
-| `VITE_COMPANY_NAME_SHORT` | Frontend (React) | `Don Yeyo` |
-| `COMPANY_NAME` | Backend (Node) | `Don Yeyo S.A.` |
-| `COMPANY_NAME_SHORT` | Backend (Node) | `Don Yeyo` |
-
 Archivos modificados:
 - [client/.env](file:///c:/Users/gabrielt/Documents/Proyectos/SeguridadHigieneMedioambiente/dy_shigma/client/.env) y `.env.template`
 - [server/.env](file:///c:/Users/gabrielt/Documents/Proyectos/SeguridadHigieneMedioambiente/dy_shigma/server/.env)
@@ -113,7 +104,7 @@ CREATE TABLE shigma_espacios_verdes (
 
 ## Resumen de Impacto
 
-- **9 archivos** de código fuente ya no contienen referencias a "Don Yeyo"
+- **9 archivos** de código fuente ya no contienen referencias a "DY"
 - **4 variables de entorno** nuevas parametrizan el nombre en front y back
 - **13 campos seleccionables** identificados como candidatos a migración a BD
 - **6 de alta prioridad** para hacer el sistema verdaderamente multi-empresa sin cambios de código

@@ -8,6 +8,35 @@ const BATEAS = [
     { id: 'batea_2_inorg', nombre: 'Batea 2 de Inorgánicos', tipo: 'Inorgánicos', capacidad: 2500 }
 ];
 
+// Asegurar que la tabla bateas existe y tiene los datos iniciales
+const ensureBateasTable = async () => {
+    try {
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS \`bateas\` (
+                \`id\` varchar(50) NOT NULL,
+                \`nombre\` varchar(100) NOT NULL,
+                \`tipo\` varchar(50) NOT NULL,
+                \`capacidad\` decimal(10, 2) NOT NULL,
+                PRIMARY KEY (\`id\`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        `);
+        
+        // Contar registros
+        const [rows] = await db.query('SELECT COUNT(*) as count FROM `bateas`');
+        if (rows[0].count === 0) {
+            await db.query(`
+                INSERT INTO \`bateas\` (\`id\`, \`nombre\`, \`tipo\`, \`capacidad\`) VALUES
+                ('batea_1_org', 'Batea 1 de Orgánicos', 'Orgánicos', 1000),
+                ('batea_2_org', 'Batea 2 de Orgánicos', 'Orgánicos', 1200),
+                ('batea_1_inorg', 'Batea 1 de Inorgánicos', 'Inorgánicos', 2000),
+                ('batea_2_inorg', 'Batea 2 de Inorgánicos', 'Inorgánicos', 2500)
+            `);
+        }
+    } catch (err) {
+        console.error('Error al asegurar tabla bateas:', err);
+    }
+};
+
 // Mapeo de tipos de formulario a tablas en base de datos (Plurales, Minúsculas y Snake Case)
 const formTables = {
     'residuos-comunes': 'residuos_comunes',
@@ -66,15 +95,15 @@ const toCamelCaseObj = (obj) => {
     const camel = {};
     Object.entries(obj).forEach(([key, val]) => {
         const camelKey = key.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
-        
+
         // Auto-parsear JSON para campos específicos
         if ((key === 'record_ids' || key === 'materiales_recuperados') && typeof val === 'string') {
             try {
                 camel[camelKey] = JSON.parse(val);
                 return;
-            } catch (e) {}
+            } catch (e) { }
         }
-        
+
         camel[camelKey] = val;
     });
     return camel;
@@ -201,7 +230,7 @@ const shigmaController = {
             sql += ` ORDER BY created_at DESC`;
 
             const [rows] = await db.query(sql, params);
-            
+
             // Mapear campos snake_case a camelCase para el frontend
             const mapped = rows.map(r => toCamelCaseObj(r));
 
@@ -225,9 +254,19 @@ const shigmaController = {
                 return res.status(400).json({ error: 'Tipo de formulario inválido.' });
             }
 
-            // Generar ID secuencial premium
-            const [[{ count }]] = await db.query(`SELECT COUNT(*) AS count FROM ${tableName}`);
-            const nextIndex = count + 1;
+            // Generar ID secuencial premium de forma segura
+            const [lastRows] = await db.query(
+                `SELECT id FROM ${tableName} WHERE id LIKE ? ORDER BY id DESC LIMIT 1`,
+                [`SHG-${prefix}-%`]
+            );
+            let nextIndex = 1;
+            if (lastRows.length > 0) {
+                const lastId = lastRows[0].id;
+                const lastNum = parseInt(lastId.substring(lastId.lastIndexOf('-') + 1), 10);
+                if (!isNaN(lastNum)) {
+                    nextIndex = lastNum + 1;
+                }
+            }
             const paddedIndex = String(nextIndex).padStart(4, '0');
             const customId = `SHG-${prefix}-${paddedIndex}`;
 
@@ -306,16 +345,16 @@ const shigmaController = {
                 const createdTime = new Date(record.created_at).getTime();
                 const daysDiff = (Date.now() - createdTime) / (1000 * 60 * 60 * 24);
                 if (daysDiff > maxEditDays) {
-                    return res.status(403).json({ 
-                        error: `Límite de tiempo superado. No podés modificar registros creados hace más de ${maxEditDays} días.` 
+                    return res.status(403).json({
+                        error: `Límite de tiempo superado. No podés modificar registros creados hace más de ${maxEditDays} días.`
                     });
                 }
 
                 // Validación de cantidad de ediciones (X veces)
                 const maxEdits = parseInt(process.env.REGISTRADOR_MAX_EDITS_PER_RECORD || '3', 10);
                 if (record.ediciones >= maxEdits) {
-                    return res.status(403).json({ 
-                        error: `Límite de ediciones alcanzado. No podés modificar este registro más de ${maxEdits} veces.` 
+                    return res.status(403).json({
+                        error: `Límite de ediciones alcanzado. No podés modificar este registro más de ${maxEdits} veces.`
                     });
                 }
             }
@@ -330,7 +369,7 @@ const shigmaController = {
             Object.entries(dbPayload).forEach(([key, val]) => {
                 // No permitir modificar id, created_at, o usuario original
                 if (key === 'id' || key === 'created_at' || key === 'usuario' || key === 'ediciones' || key === 'form_type' || key === 'form_label') return;
-                
+
                 sets.push(`${key} = ?`);
                 if (val !== null && typeof val === 'object') {
                     values.push(JSON.stringify(val));
@@ -402,16 +441,16 @@ const shigmaController = {
                 const createdTime = new Date(record.created_at).getTime();
                 const daysDiff = (Date.now() - createdTime) / (1000 * 60 * 60 * 24);
                 if (daysDiff > maxEditDays) {
-                    return res.status(403).json({ 
-                        error: `Límite de tiempo superado. No podés eliminar registros creados hace más de ${maxEditDays} días.` 
+                    return res.status(403).json({
+                        error: `Límite de tiempo superado. No podés eliminar registros creados hace más de ${maxEditDays} días.`
                     });
                 }
 
                 // Validación de cantidad de ediciones (X veces)
                 const maxEdits = parseInt(process.env.REGISTRADOR_MAX_EDITS_PER_RECORD || '3', 10);
                 if (record.ediciones >= maxEdits) {
-                    return res.status(403).json({ 
-                        error: `Límite de ediciones alcanzado. No podés eliminar este registro porque ya se ha editado ${maxEdits} o más veces.` 
+                    return res.status(403).json({
+                        error: `Límite de ediciones alcanzado. No podés eliminar este registro porque ya se ha editado ${maxEdits} o más veces.`
                     });
                 }
             }
@@ -429,6 +468,8 @@ const shigmaController = {
     // Obtener el estado actual de las bateas
     getBateasStatus: async (req, res) => {
         try {
+            await ensureBateasTable();
+
             // Consultar agrupaciones directo en RINE
             const [rows] = await db.query(`
                 SELECT destino, SUM(peso) AS peso_acumulado, COUNT(*) AS records_count
@@ -437,15 +478,21 @@ const shigmaController = {
                 GROUP BY destino
             `);
 
-            // Mapear el estado basándonos en la lista estática BATEAS
-            const status = BATEAS.map(batea => {
+            // Consultar bateas configuradas en la base de datos
+            const [dbBateas] = await db.query('SELECT * FROM bateas');
+
+            // Mapear el estado basándonos en las bateas de la BD
+            const status = dbBateas.map(batea => {
                 const dbBatea = rows.find(r => r.destino === batea.nombre);
                 const pesoAcumulado = dbBatea ? parseFloat(dbBatea.peso_acumulado || 0) : 0;
                 const recordsCount = dbBatea ? parseInt(dbBatea.records_count || 0) : 0;
-                const porcentaje = Math.min(100, Math.round((pesoAcumulado / batea.capacidad) * 100 * 10) / 10);
+                const porcentaje = Math.min(100, Math.round((pesoAcumulado / parseFloat(batea.capacidad)) * 100 * 10) / 10);
 
                 return {
-                    ...batea,
+                    id: batea.id,
+                    nombre: batea.nombre,
+                    tipo: batea.tipo,
+                    capacidad: parseFloat(batea.capacidad),
                     pesoAcumulado: Math.round(pesoAcumulado * 100) / 100,
                     porcentaje,
                     recordsCount
@@ -463,6 +510,7 @@ const shigmaController = {
     restartBatea: async (req, res) => {
         const connection = await db.getConnection();
         try {
+            await ensureBateasTable();
             await connection.beginTransaction();
 
             const { bateaId } = req.params;
@@ -472,10 +520,13 @@ const shigmaController = {
                 return res.status(400).json({ error: 'Faltan campos obligatorios: fecha, hora, nroManifiesto y pesoBalanza son obligatorios.' });
             }
 
-            const batea = BATEAS.find(b => b.id === bateaId);
-            if (!batea) {
+            // Consultar la batea específica de la base de datos
+            const [dbBateas] = await connection.query('SELECT * FROM bateas WHERE id = ?', [bateaId]);
+            if (dbBateas.length === 0) {
+                await connection.rollback();
                 return res.status(404).json({ error: 'Batea no encontrada.' });
             }
+            const batea = dbBateas[0];
 
             // Seleccionar y bloquear RINE sin vaciar
             const [activeRecords] = await connection.query(
@@ -491,9 +542,18 @@ const shigmaController = {
             const pesoAcumulado = activeRecords.reduce((sum, r) => sum + parseFloat(r.peso || 0), 0);
             const recordIds = activeRecords.map(r => r.id);
 
-            // Generar ID de salida secuencial
-            const [[{ count }]] = await connection.query(`SELECT COUNT(*) AS count FROM bateas_salidas`);
-            const nextIndex = count + 1;
+            // Generar ID de salida secuencial de forma segura
+            const [lastSalidas] = await connection.query(
+                `SELECT id FROM bateas_salidas WHERE id LIKE 'SHG-BSAL-%' ORDER BY id DESC LIMIT 1`
+            );
+            let nextIndex = 1;
+            if (lastSalidas.length > 0) {
+                const lastId = lastSalidas[0].id;
+                const lastNum = parseInt(lastId.substring(lastId.lastIndexOf('-') + 1), 10);
+                if (!isNaN(lastNum)) {
+                    nextIndex = lastNum + 1;
+                }
+            }
             const paddedIndex = String(nextIndex).padStart(4, '0');
             const customSalidaId = `SHG-BSAL-${paddedIndex}`;
 
@@ -544,7 +604,7 @@ const shigmaController = {
     getBateaSalidas: async (req, res) => {
         try {
             const [rows] = await db.query(`SELECT * FROM bateas_salidas ORDER BY created_at DESC`);
-            
+
             // Mapear a camelCase para el cliente
             const mapped = rows.map(r => toCamelCaseObj(r));
 
@@ -552,6 +612,42 @@ const shigmaController = {
         } catch (error) {
             console.error('Error en getBateaSalidas:', error);
             res.status(500).json({ error: 'Error al listar las salidas de batea.' });
+        }
+    },
+
+    // Actualizar la capacidad de una batea
+    updateBateaCapacity: async (req, res) => {
+        try {
+            await ensureBateasTable();
+            const { bateaId } = req.params;
+            const { capacidad } = req.body;
+
+            if (capacidad === undefined || capacidad === null) {
+                return res.status(400).json({ error: 'La capacidad es obligatoria.' });
+            }
+
+            const parsedCapacity = parseFloat(capacidad);
+            if (isNaN(parsedCapacity) || parsedCapacity <= 0) {
+                return res.status(400).json({ error: 'La capacidad debe ser un número positivo mayor a 0.' });
+            }
+
+            const [result] = await db.query(
+                'UPDATE bateas SET capacidad = ? WHERE id = ?',
+                [parsedCapacity, bateaId]
+            );
+
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'Batea no encontrada.' });
+            }
+
+            res.json({
+                message: 'Capacidad de la batea actualizada con éxito.',
+                bateaId,
+                capacidad: parsedCapacity
+            });
+        } catch (error) {
+            console.error('Error en updateBateaCapacity:', error);
+            res.status(500).json({ error: 'Error al actualizar la capacidad de la batea.' });
         }
     },
 
@@ -628,8 +724,8 @@ const shigmaController = {
                         });
                     }
                 }
-                
-                if (r.tipo_residuo === `Inorgánicos marca ${process.env.COMPANY_NAME_SHORT || 'Don Yeyo'}`) {
+
+                if (r.tipo_residuo === `Inorgánicos marca ${process.env.COMPANY_NAME_SHORT || 'DEMO'}`) {
                     plasticoKg += peso;
                 }
             });
@@ -668,7 +764,7 @@ const shigmaController = {
     getOperadoresByForm: async (req, res) => {
         try {
             const { formType } = req.params;
-            
+
             const [rows] = await db.query(`
                 SELECT o.id, o.apellido_nombre, o.legajo
                 FROM operadores o

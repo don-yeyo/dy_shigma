@@ -36,6 +36,7 @@ router.delete('/operadores/:id', shigmaController.deleteOperador);
 // Rutas de Bateas
 router.get('/bateas', shigmaController.getBateasStatus);
 router.post('/bateas/:bateaId/restart', shigmaController.restartBatea);
+router.put('/bateas/:bateaId/capacity', shigmaController.updateBateaCapacity);
 router.get('/bateas/salidas', shigmaController.getBateaSalidas);
 
 module.exports = router;

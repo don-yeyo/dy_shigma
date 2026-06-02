@@ -68,6 +68,8 @@ export const SHIGMAService = {
         api.get('/shigma/bateas'),
     restartBatea: (bateaId, data) =>
         api.post(`/shigma/bateas/${bateaId}/restart`, data),
+    updateBateaCapacity: (bateaId, capacidad) =>
+        api.put(`/shigma/bateas/${bateaId}/capacity`, { capacidad }),
     getBateaSalidas: () =>
         api.get('/shigma/bateas/salidas'),
     

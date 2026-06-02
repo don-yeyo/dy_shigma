@@ -1,10 +1,10 @@
 # SHIGMA — Seguridad, Higiene Industrial y Medio Ambiente
 > [!NOTE]
-> Sistema web interno de control ambiental, trazabilidad y estado de reciclado dentro de la fábrica de **Don Yeyo S.A.**
+> Sistema web interno de control ambiental, trazabilidad y estado de reciclado dentro de fábrica
 >
 > 📖 Para una guía detallada del sistema orientada al usuario final y supervisores, consulte el [Manual de Usuario](file:///c:/Users/gabrielt/Documents/Proyectos/SeguridadHigieneMedioambiente/dy_shigma/shigma_manual_usuario.md).
 
-SHIGMA permite registrar y auditar todos los flujos de materiales de descartes, tratamiento de residuos, reinserción bajo la premisa de Economía Circular, gestión de pallets de logística y el monitoreo biológico de espacios verdes en un entorno interactivo y premium de alto impacto estético.
+SHIGMA permite registrar y auditar todos los flujos de materiales de descartes, tratamiento de residuos, reinserción bajo la premisa de Economía Circular, gestión de pallets de logística y el monitoreo biológico de espacios verdes en un entorno interactivo de alto impacto estético.
 
 ---
 
@@ -31,7 +31,7 @@ El panel de control principal hereda la estética premium con transparencias (gl
 
 ### 2. Formularios de Registro e Trazabilidad
 SHIGMA cuenta con 7 formularios independientes de alta fidelidad visual y validación de negocio:
-- **Residuos Industriales No Especiales (RINE)**: Registro y pesaje detallado de desperdicios orgánicos, inorgánicos de marca Don Yeyo e inorgánicos generales por planta generadora. Incluye un switch interactivo para clasificar inorgánicos como *Recuperables* con desglose por material (Cartón, Metal, Cajones, etc.) y auto-cálculo reactivo del lote. Posee integración con un **Monitor de Capacidad de Bateas**, permitiendo vaciar y reiniciar bateas (con manifiesto de salida obligatorio en estado *pendiente*).
+- **Residuos Industriales No Especiales (RINE)**: Registro y pesaje detallado de desperdicios orgánicos, inorgánicos de la marca de la empresa e inorgánicos generales por planta generadora. Incluye un switch interactivo para clasificar inorgánicos como *Recuperables* con desglose por material (Cartón, Metal, Cajones, etc.) y auto-cálculo reactivo del lote. Posee integración con un **Monitor de Capacidad de Bateas**, el cual permite a cualquier nivel de usuario ajustar de forma dinámica y en tiempo real la capacidad de cualquier batea en Kilos mediante un modal premium con controles numéricos finos, así como vaciar y reiniciar bateas (con manifiesto de salida obligatorio en estado *pendiente*).
 - **Residuos Especiales**: Control estricto de aceites usados, solventes y trapos contaminados. Incluye clasificación por **Código Y de desecho peligroso** (Y9, Y42, Y31) y conversión dinámica de unidades (kg o litros).
 - **Inspección de Devoluciones**: Control de mercadería devuelta por clientes para clasificar su destino ambiental (Compostado orgánico, reproceso, donación o destrucción directa).
 - **Tratamiento y Valorización**: Registro de procesos físicos de valorización (Compactado hidráulico, trituración de plásticos, compostado industrial) detallando máquina utilizada y subproducto obtenido.
@@ -50,8 +50,8 @@ Pantalla de auditoría de trazabilidad completa dotada de:
 - **Paginación del Lado del Servidor**: Los registros se cargan paginados de forma eficiente desde el servidor según la variable de entorno `HISTORIAL_PAGE_SIZE`, optimizando el consumo de red y el rendimiento del navegador.
 - **Buscador global y Filtrado debounced**: Búsqueda por palabra clave y selector de formularios operando en conjunto del lado del servidor para garantizar consistencia con los datos paginados.
 - **Diseño en Acordeón**: Visualización elegante de los campos específicos de cada uno de los 7 tipos de registros.
-- **Exportación Premium a CSV con Rango**: Al exportar, un modal permite configurar el rango de exportación a formato CSV de auditoría (todo el historial o a partir de una fecha determinada), integrando filtros activos de búsqueda/formulario y aplicando el UTF-8 BOM para un soporte perfecto de caracteres en Microsoft Excel.
-- **Modales de Confirmación y Éxito Premium**: Todos los mensajes de confirmación de eliminación y alertas de éxito de modificación/creación han sido reemplazados por modales interactivos y estilizados que respetan la estética visual y el contraste de la aplicación, eliminando por completo el uso de `alert()` o `confirm()` nativos de JavaScript.
+- **Exportación a CSV con Rango**: Al exportar, un modal permite configurar el rango de exportación a formato CSV de auditoría (todo el historial o a partir de una fecha determinada), integrando filtros activos de búsqueda/formulario y aplicando el UTF-8 BOM para un soporte perfecto de caracteres en Microsoft Excel.
+- **Modales de Confirmación y Éxito**: Todos los mensajes de confirmación de eliminación y alertas de éxito de modificación/creación han sido reemplazados por modales interactivos y estilizados que respetan la estética visual y el contraste de la aplicación, eliminando por completo el uso de `alert()` o `confirm()` nativos de JavaScript.
 
 ---
 
@@ -214,11 +214,11 @@ Copiar las plantillas `.env.template` correspondientes a `.env` tanto en la carp
 | Variable | Descripción | Default |
 |---|---|---|
 | `VITE_API_URL` | URL de la API del servidor | `http://localhost:5000/api` |
-| `VITE_COMPANY_NAME` | Nombre completo de la empresa | `Don Yeyo S.A.` |
-| `VITE_COMPANY_NAME_SHORT` | Nombre corto de la empresa | `Don Yeyo` |
+| `VITE_COMPANY_NAME` | Nombre completo de la empresa | `DEMO S.A.` |
+| `VITE_COMPANY_NAME_SHORT` | Nombre corto de la empresa | `DEMO` |
 | `VITE_MOCK_AUTH` | Activa login mock en desarrollo | `true` |
-| `VITE_MOCK_AUTH_EMAIL` | Email del usuario mock | `gabrielt@donyeyo.com.ar` |
-| `VITE_MOCK_AUTH_NAME` | Nombre del usuario mock | `Gabriel Tonelli` |
+| `VITE_MOCK_AUTH_EMAIL` | Email del usuario mock | `user@ddominio.com` |
+| `VITE_MOCK_AUTH_NAME` | Nombre del usuario mock | `Nombre Apellido` |
 | `VITE_AZURE_AD_CLIENT_ID` | Client ID Azure para MSAL | *(tu app Azure)* |
 | `VITE_AZURE_AD_TENANT_ID` | Tenant ID Azure para MSAL | *(tu tenant)* |
 | `VITE_ENABLE_GOOGLE_LOGIN` | Habilita botón de login Google | `true` |
@@ -265,5 +265,5 @@ npm run dev
 
 ## Licencia
 
-Uso interno — Don Yeyo S.A.
+Uso interno.
 División Seguridad e Higiene Industrial y Medio Ambiente.

@@ -6,9 +6,11 @@ import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
 import { SHIGMAService } from '../../services/api';
 import { getLocalISOString, validateRecordDate, getDateConstraints } from '../../utils/dateUtils';
+import { useMobile } from '../../config/ThemeContext';
 
 
 const EspaciosVerdes = () => {
+    const isMobile = useMobile();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const editId = searchParams.get('edit');
@@ -19,9 +21,9 @@ const EspaciosVerdes = () => {
     const [alertModal, setAlertModal] = useState({ isOpen: false, title: '', message: '' });
 
     const showAlert = (title, message) => setAlertModal({ isOpen: true, title, message });
-    
+
     const { todayStr, nowTimeStr, minDateStr, maxDateStr } = getDateConstraints();
-    
+
     const [formData, setFormData] = useState({
         fechaCarga: todayStr,
         horaCarga: nowTimeStr,
@@ -31,7 +33,7 @@ const EspaciosVerdes = () => {
         plantasAgregadas: '0',
         especieAgregada: '',
         estadoSalud: '',
-        responsableTarea: 'Jardinería & Mantenimiento Don Yeyo',
+        responsableTarea: 'Jardinería & Mantenimiento',
         responsable: '',
         observaciones: ''
     });
@@ -71,7 +73,7 @@ const EspaciosVerdes = () => {
             const response = await SHIGMAService.getOperadoresByForm('espacios-verdes');
             const ops = response.data;
             setOperadores(ops);
-            
+
             const lastOperator = localStorage.getItem('shigma_last_operator_espacios-verdes');
             if (lastOperator) {
                 const exists = ops.some(op => op.apellidoNombre === lastOperator);
@@ -109,7 +111,7 @@ const EspaciosVerdes = () => {
                             plantasAgregadas: String(record.plantasAgregadas) || '0',
                             especieAgregada: record.especieAgregada || '',
                             estadoSalud: record.estadoSalud || '',
-                            responsableTarea: record.responsableTarea || `Jardinería & Mantenimiento ${import.meta.env.VITE_COMPANY_NAME_SHORT || 'Don Yeyo'}`,
+                            responsableTarea: record.responsableTarea || `Jardinería & Mantenimiento ${import.meta.env.VITE_COMPANY_NAME_SHORT || 'DEMO'}`,
                             responsable: record.responsable || '',
                             observaciones: record.observaciones || ''
                         });
@@ -143,7 +145,7 @@ const EspaciosVerdes = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         const combinedCreatedAt = `${formData.fechaCarga}T${formData.horaCarga}`;
         const dateError = validateRecordDate(combinedCreatedAt);
         if (dateError) {
@@ -192,7 +194,7 @@ const EspaciosVerdes = () => {
                 const resData = response.data;
                 setSuccessId(resData.record.id);
                 setShowSuccessModal(true);
-                
+
                 const constraints = getDateConstraints();
                 setFormData({
                     fechaCarga: constraints.todayStr,
@@ -203,7 +205,7 @@ const EspaciosVerdes = () => {
                     plantasAgregadas: '0',
                     especieAgregada: '',
                     estadoSalud: '',
-                    responsableTarea: `Jardinería & Mantenimiento ${import.meta.env.VITE_COMPANY_NAME_SHORT || 'Don Yeyo'}`,
+                    responsableTarea: `Jardinería & Mantenimiento ${import.meta.env.VITE_COMPANY_NAME_SHORT || 'DEMO'}`,
                     responsable: localStorage.getItem('shigma_last_operator_espacios-verdes') || '',
                     observaciones: ''
                 });
@@ -220,9 +222,9 @@ const EspaciosVerdes = () => {
         <div className="card-anim" style={{ maxWidth: '800px', margin: '0 auto' }}>
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-                <Button 
-                    variant="ghost" 
-                    onClick={() => navigate('/')} 
+                <Button
+                    variant="ghost"
+                    onClick={() => navigate('/')}
                     style={{ width: '40px', height: '40px', borderRadius: '50%', padding: 0 }}
                 >
                     <ArrowLeft size={20} />
@@ -244,7 +246,14 @@ const EspaciosVerdes = () => {
                     </div>
 
                     {/* Fecha y Hora de la Carga (Separadas en grilla responsive, con Autofoco) */}
-                    <div className="form-grid" style={{ marginBottom: '24px' }}>
+                    <div className="form-grid" style={isMobile ? {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px',
+                        marginBottom: '24px'
+                    } : {
+                        marginBottom: '24px'
+                    }}>
                         <div>
                             <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
                                 Fecha de la Carga *
@@ -299,7 +308,11 @@ const EspaciosVerdes = () => {
                         </div>
                     </div>
 
-                    <div className="form-grid">
+                    <div className="form-grid" style={isMobile ? {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px'
+                    } : {}}>
                         <Select
                             label="Zona Ambiental / Espacio *"
                             name="espacioVerde"
@@ -319,7 +332,14 @@ const EspaciosVerdes = () => {
                         />
                     </div>
 
-                    <div className="form-grid" style={{ marginTop: '8px' }}>
+                    <div className="form-grid" style={isMobile ? {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px',
+                        marginTop: '8px'
+                    } : {
+                        marginTop: '8px'
+                    }}>
                         <Input
                             label="Consumo de Agua Estimado (Litros) *"
                             type="number"
@@ -345,7 +365,11 @@ const EspaciosVerdes = () => {
                         Forestación y Plantación (Nuevas Especies)
                     </div>
 
-                    <div className="form-grid">
+                    <div className="form-grid" style={isMobile ? {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px'
+                    } : {}}>
                         <Input
                             label="Cantidad de Plantas/Árboles Agregados"
                             type="number"
@@ -366,7 +390,14 @@ const EspaciosVerdes = () => {
                         />
                     </div>
 
-                    <div className="form-grid" style={{ marginTop: '8px' }}>
+                    <div className="form-grid" style={isMobile ? {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px',
+                        marginTop: '8px'
+                    } : {
+                        marginTop: '8px'
+                    }}>
                         <Input
                             label="Equipo Ejecutor"
                             type="text"
@@ -398,17 +429,17 @@ const EspaciosVerdes = () => {
 
                 {/* Submit Actions */}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '24px' }}>
-                    <Button 
-                        type="button" 
-                        variant="outline" 
+                    <Button
+                        type="button"
+                        variant="outline"
                         onClick={() => navigate('/')}
                         disabled={submitting}
                     >
                         Cancelar
                     </Button>
-                    <Button 
-                        type="submit" 
-                        variant="primary" 
+                    <Button
+                        type="submit"
+                        variant="primary"
                         className={submitting ? 'btn-loading' : ''}
                         disabled={submitting}
                         style={{ background: '#84cc16', color: '#fff' }}
@@ -427,7 +458,7 @@ const EspaciosVerdes = () => {
             >
                 <div style={{ textAlign: 'center', padding: '16px 0' }}>
                     <div style={{ color: 'var(--dy-red)', marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
                     </div>
                     <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '1rem' }}>{alertModal.message}</p>
                     <Button variant="primary" onClick={() => setAlertModal({ isOpen: false, title: '', message: '' })} style={{ background: '#84cc16', color: '#fff' }}>Entendido</Button>
@@ -435,8 +466,8 @@ const EspaciosVerdes = () => {
             </Modal>
 
             {/* Success Modal */}
-            <Modal 
-                isOpen={showSuccessModal} 
+            <Modal
+                isOpen={showSuccessModal}
                 onClose={() => {
                     setShowSuccessModal(false);
                     if (editId) navigate('/historial');
@@ -452,8 +483,8 @@ const EspaciosVerdes = () => {
                         {editId ? "¡Registro Modificado Exitosamente!" : "¡Parquizado Registrado!"}
                     </h3>
                     <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
-                        {editId 
-                            ? "La modificación se ha guardado correctamente en la base de datos de trazabilidad bajo el ID único:" 
+                        {editId
+                            ? "La modificación se ha guardado correctamente en la base de datos de trazabilidad bajo el ID único:"
                             : "La tarea ambiental en el pulmón verde ha sido guardada en la base de trazabilidad ecológica con el ID único:"}
                         <br />
                         <strong style={{ color: 'var(--text)', fontSize: '1.1rem', display: 'inline-block', marginTop: '8px', padding: '6px 12px', background: 'var(--surface-hover)', borderRadius: '8px', border: '1px solid var(--border)' }}>
@@ -462,22 +493,25 @@ const EspaciosVerdes = () => {
                     </p>
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
                         {editId ? (
-                            <Button 
-                                variant="primary" 
+                            <Button
+                                variant="primary"
                                 onClick={() => navigate('/historial')}
                             >
                                 Volver al Historial
                             </Button>
                         ) : (
                             <>
-                                <Button 
-                                    variant="outline" 
-                                    onClick={() => setShowSuccessModal(false)}
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setShowSuccessModal(false);
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    }}
                                 >
                                     Cargar Otro
                                 </Button>
-                                <Button 
-                                    variant="primary" 
+                                <Button
+                                    variant="primary"
                                     onClick={() => navigate('/')}
                                 >
                                     Ir al Dashboard

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-    Scale, ArrowLeft, RefreshCw, AlertTriangle, Calendar, Clock, FileText, CheckCircle
+    Scale, ArrowLeft, RefreshCw, AlertTriangle, Calendar, Clock, FileText, CheckCircle, Sliders
 } from 'lucide-react';
 import { Card, Input } from '../../components/FormElements';
 import { Button } from '../../components/Button';
@@ -153,6 +153,12 @@ const GestionBateas = () => {
         pesoBalanza: ''
     });
 
+    // Modal de Capacidad
+    const [showCapacityModal, setShowCapacityModal] = useState(false);
+    const [selectedBateaForCapacity, setSelectedBateaForCapacity] = useState(null);
+    const [capacityValue, setCapacityValue] = useState('');
+    const [updatingCapacity, setUpdatingCapacity] = useState(false);
+
     // Cargar Bateas y Salidas desde el backend
     const fetchBateasData = async () => {
         setLoadingBateas(true);
@@ -221,6 +227,35 @@ const GestionBateas = () => {
             alert('Error al reiniciar la batea.');
         } finally {
             setRestarting(false);
+        }
+    };
+
+    // Lógica para ajustar capacidad
+    const handleOpenCapacityModal = (batea) => {
+        setSelectedBateaForCapacity(batea);
+        setCapacityValue(String(batea.capacidad));
+        setShowCapacityModal(true);
+    };
+
+    const handleCapacitySubmit = async (e) => {
+        e.preventDefault();
+        const cap = parseFloat(capacityValue);
+        if (isNaN(cap) || cap <= 0) {
+            alert('Por favor ingrese una capacidad válida.');
+            return;
+        }
+
+        setUpdatingCapacity(true);
+        try {
+            await SHIGMAService.updateBateaCapacity(selectedBateaForCapacity.id, cap);
+            setShowCapacityModal(false);
+            // Actualizar vista
+            fetchBateasData();
+        } catch (error) {
+            console.error('Error updating capacity:', error);
+            alert('Error al actualizar la capacidad de la batea.');
+        } finally {
+            setUpdatingCapacity(false);
         }
     };
 
@@ -339,8 +374,53 @@ const GestionBateas = () => {
                                                     <span style={{ fontSize: '0.85rem', color: 'var(--text)', fontWeight: '700' }}>
                                                         {b.pesoAcumulado.toLocaleString()} kg cargados
                                                     </span>
-                                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600' }}>
-                                                        Disponible: <strong>{disponible.toLocaleString()} kg</strong> (Capacidad: {b.capacidad.toLocaleString()} kg)
+                                                    <span style={{ 
+                                                        fontSize: '0.75rem', 
+                                                        color: 'var(--text-muted)', 
+                                                        fontWeight: '600', 
+                                                        display: 'flex', 
+                                                        alignItems: 'center', 
+                                                        gap: '4px',
+                                                        flexWrap: 'wrap'
+                                                    }}>
+                                                        Disponible: <strong>{disponible.toLocaleString()} kg</strong>
+                                                        <span style={{ color: 'var(--text-muted)', opacity: 0.6 }}>|</span>
+                                                        <span>Capacidad: {b.capacidad.toLocaleString()} kg</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleOpenCapacityModal(b)}
+                                                            style={{
+                                                                background: 'var(--surface)',
+                                                                border: '1px solid var(--border)',
+                                                                color: 'var(--primary)',
+                                                                cursor: 'pointer',
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                padding: '3px 6px',
+                                                                borderRadius: '6px',
+                                                                transition: 'all 0.2s ease',
+                                                                marginLeft: '6px',
+                                                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                                                                gap: '4px'
+                                                            }}
+                                                            title="Hacé click para cambiar la capacidad máxima de esta batea"
+                                                            onMouseEnter={(e) => {
+                                                                e.currentTarget.style.background = 'var(--surface-hover)';
+                                                                e.currentTarget.style.borderColor = 'var(--primary)';
+                                                                e.currentTarget.style.transform = 'translateY(-1px)';
+                                                            }}
+                                                            onMouseLeave={(e) => {
+                                                                e.currentTarget.style.background = 'var(--surface)';
+                                                                e.currentTarget.style.borderColor = 'var(--border)';
+                                                                e.currentTarget.style.transform = 'translateY(0)';
+                                                            }}
+                                                        >
+                                                            <Sliders size={11} />
+                                                            <span style={{ fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.3px', color: 'var(--text)' }}>
+                                                                Ajustar Capacidad
+                                                            </span>
+                                                        </button>
                                                     </span>
                                                 </div>
 
@@ -575,6 +655,80 @@ const GestionBateas = () => {
                                 style={{ background: 'var(--dy-red)' }}
                             >
                                 {restarting ? 'Guardando...' : 'Confirmar Vaciado y Salida'}
+                            </Button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
+
+            {/* Modal para Ajustar Capacidad de Batea */}
+            {selectedBateaForCapacity && (
+                <Modal
+                    isOpen={showCapacityModal}
+                    onClose={() => setShowCapacityModal(false)}
+                    title={`Ajustar Capacidad - ${selectedBateaForCapacity.nombre}`}
+                    showFooter={false}
+                >
+                    <form onSubmit={handleCapacitySubmit} style={{ padding: '8px 0' }}>
+                        <div style={{ 
+                            background: 'var(--surface-hover)', 
+                            border: '1px solid var(--border)', 
+                            borderRadius: '12px', 
+                            padding: '12px 16px', 
+                            color: 'var(--text)', 
+                            fontSize: '0.85rem',
+                            display: 'flex',
+                            gap: '8px',
+                            alignItems: 'center',
+                            marginBottom: '20px'
+                        }}>
+                            <Sliders size={18} style={{ flexShrink: 0, color: 'var(--primary)' }} />
+                            <span>
+                                Modificar la capacidad afectará directamente el cálculo del porcentaje de llenado de la batea en tiempo real.
+                            </span>
+                        </div>
+
+                        {/* Incrementador/Decrementador Custom Premium */}
+                        <NumberInput
+                            label="Nueva Capacidad Máxima (kg) *"
+                            name="capacidadValue"
+                            placeholder="Ej: 1200"
+                            step={100}
+                            min={10}
+                            value={capacityValue}
+                            onChange={(e) => setCapacityValue(e.target.value)}
+                            required
+                        />
+                        
+                        <div style={{
+                            marginTop: '12px',
+                            padding: '12px',
+                            background: 'var(--surface-hover)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '8px',
+                            fontSize: '0.8rem',
+                            color: 'var(--text-muted)'
+                        }}>
+                            <strong>Carga actual de la batea:</strong> {selectedBateaForCapacity.pesoAcumulado.toLocaleString()} kg
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '24px' }}>
+                            <Button 
+                                type="button" 
+                                variant="outline" 
+                                onClick={() => setShowCapacityModal(false)}
+                                disabled={updatingCapacity}
+                            >
+                                Cancelar
+                            </Button>
+                            <Button 
+                                type="submit" 
+                                variant="primary" 
+                                className={updatingCapacity ? 'btn-loading' : ''}
+                                disabled={updatingCapacity}
+                                style={{ background: 'var(--primary)' }}
+                            >
+                                {updatingCapacity ? 'Guardando...' : 'Guardar Capacidad'}
                             </Button>
                         </div>
                     </form>

@@ -6,9 +6,11 @@ import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
 import { SHIGMAService } from '../../services/api';
 import { getLocalISOString, validateRecordDate, getDateConstraints } from '../../utils/dateUtils';
+import { useMobile } from '../../config/ThemeContext';
 
 
 const Devoluciones = () => {
+    const isMobile = useMobile();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const editId = searchParams.get('edit');
@@ -239,7 +241,14 @@ const Devoluciones = () => {
                     </div>
 
                     {/* Fecha y Hora de la Carga (Separadas en grilla responsive, con Autofoco) */}
-                    <div className="form-grid" style={{ marginBottom: '24px' }}>
+                    <div className="form-grid" style={isMobile ? {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px',
+                        marginBottom: '24px'
+                    } : {
+                        marginBottom: '24px'
+                    }}>
                         <div>
                             <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
                                 Fecha de la Carga *
@@ -294,7 +303,11 @@ const Devoluciones = () => {
                         </div>
                     </div>
 
-                    <div className="form-grid">
+                    <div className="form-grid" style={isMobile ? {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px'
+                    } : {}}>
                         <Input
                             label="Cliente / Origen de Devolución *"
                             type="text"
@@ -316,7 +329,14 @@ const Devoluciones = () => {
                         />
                     </div>
 
-                    <div className="form-grid" style={{ marginTop: '8px' }}>
+                    <div className="form-grid" style={isMobile ? {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px',
+                        marginTop: '8px'
+                    } : {
+                        marginTop: '8px'
+                    }}>
                         <Input
                             label="Cantidad de Bultos / Cajas *"
                             type="number"
@@ -343,7 +363,11 @@ const Devoluciones = () => {
                         Inspección Ambiental y Disposición
                     </div>
 
-                    <div className="form-grid">
+                    <div className="form-grid" style={isMobile ? {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px'
+                    } : {}}>
                         <Select
                             label="Motivo de la Devolución *"
                             name="motivoDevolucion"
@@ -451,7 +475,10 @@ const Devoluciones = () => {
                             <>
                                 <Button
                                     variant="outline"
-                                    onClick={() => setShowSuccessModal(false)}
+                                    onClick={() => {
+                                        setShowSuccessModal(false);
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    }}
                                 >
                                     Cargar Otra
                                 </Button>

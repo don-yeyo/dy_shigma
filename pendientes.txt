@@ -1,22 +1,33 @@
-como ya sabes, los usuarios ingresaran al sistemas mediante el sign in con sus cuentas de microsoft o tambien con sus emails de google en caso de que se encuentre habilitado el inicio de sesion con google. quiero además que determinadas cuentas se validen entre los emails gestionados a partir de una tabla de usuarios que deberas crear. Por cada usuario debe existir la posibilidad de asignar los módulos a los que tendrá acceso y su nivel de usuario, por ahora solo existen 3 niveles: registrador, supervisor y sysadmin.
-sysadmin es el maximo nivel y podra gestionar a todos los usuarios y modulos, asignar modulos, etc.
-por ahora los supervisores podran, listar y modificar registros de cualquier registrador, exportar, visualizar el dashboardupervisor podra gestionar solo sus registros y los de los usuarios que tenga asignados y registrador podra gestionar solo sus registros.
-Mientras que los registradores pueden ver solo los registros propios y podran modificar hasta N dias para atras y hasta X veces.
+---------MVP
 
+credenciales de la aplicacion en microsoft
 
-agregar mails de usuarios administradores por variable de entorno separados por comas
+env vars y deploy en netlify
 
-agregar version de la app
+permitir setear capacidad de la batea
 
 ver cuales desplegables deberian ser tablas maestras
 
 revisar vistas mobile
 
-emails
+----
+cambiar mensaje de batea llena para que elija otra
 
-notificaciones
+cuando es orgánico o inorgánico falta definir el sector
+HY - panificado
+PE - Panificado
+ER - Tapas / Pastas
 
-gestion de usuarios que modulos puede gestionar y cuales emails recibe
+expor a excel
+
+----------Next Features
+
+disparo de emails
+
+disparo de notificaciones
 
 proceso de importacion de lo anterior
+
+
+
 

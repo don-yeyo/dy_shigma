@@ -1,7 +1,7 @@
 {
   "name": "dy-shigma",
-  "version": "0.1.0",
-  "description": "SHIGMA - Sistema de Gestión de Seguridad, Higiene Industrial y Medio Ambiente de Don Yeyo S.A.",
+  "version": "0.2.0",
+  "description": "SHIGMA - Sistema de Gestión de Seguridad, Higiene Industrial y Medio Ambiente para Empresa Fabril",
   "main": "server/index.js",
   "scripts": {
     "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",

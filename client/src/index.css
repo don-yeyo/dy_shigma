@@ -1,5 +1,5 @@
 :root {
-  /* Don Yeyo Palette */
+  /* Palette */
   --dy-blue: #0d2c5c;
   --dy-red: #e40521;
   --dy-light-gray: #f8fafc;
@@ -62,7 +62,8 @@
   --drawer-footer: #94a3b8;
 
   /* Alert danger colors for dark mode */
-  --alert-danger-text: #ff8093; /* Lighter, pinkish red for high contrast */
+  --alert-danger-text: #ff8093;
+  /* Lighter, pinkish red for high contrast */
   --alert-danger-bg: rgba(255, 128, 147, 0.08);
   --alert-danger-border: rgba(255, 128, 147, 0.2);
 }
@@ -149,13 +150,17 @@ body {
   transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
-h1, h2, h3 {
+h1,
+h2,
+h3 {
   font-weight: 700;
   letter-spacing: -0.025em;
   color: var(--primary);
 }
 
-.dark-theme h1, .dark-theme h2, .dark-theme h3 {
+.dark-theme h1,
+.dark-theme h2,
+.dark-theme h3 {
   color: var(--text);
 }
 
@@ -210,9 +215,20 @@ h1, h2, h3 {
   color: var(--text);
 }
 
-.btn-sm { padding: 6px 16px; font-size: 0.875rem; }
-.btn-md { padding: 12px 24px; font-size: 1rem; }
-.btn-lg { padding: 16px 32px; font-size: 1.125rem; }
+.btn-sm {
+  padding: 6px 16px;
+  font-size: 0.875rem;
+}
+
+.btn-md {
+  padding: 12px 24px;
+  font-size: 1rem;
+}
+
+.btn-lg {
+  padding: 16px 32px;
+  font-size: 1.125rem;
+}
 
 /* Custom Modify Record outline button styled for light/dark mode */
 .btn-modify-record {
@@ -220,6 +236,7 @@ h1, h2, h3 {
   color: var(--dy-blue) !important;
   background: transparent !important;
 }
+
 .btn-modify-record:hover {
   background: var(--dy-blue) !important;
   color: #fff !important;
@@ -232,13 +249,16 @@ h1, h2, h3 {
   color: var(--dy-red) !important;
   background: rgba(228, 5, 33, 0.05) !important;
 }
+
 .dark-theme .btn-modify-record:hover {
   background: var(--dy-red) !important;
   color: #fff !important;
   box-shadow: 0 4px 12px rgba(228, 5, 33, 0.3);
 }
 
-input, select, textarea {
+input,
+select,
+textarea {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -260,15 +280,25 @@ select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23f8fafc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
 }
 
-input:focus, select:focus {
+input:focus,
+select:focus {
   outline: none;
   border-color: var(--primary);
 }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: var(--background); }
-::-webkit-scrollbar-thumb { background: var(--dy-blue); border-radius: 4px; }
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--dy-blue);
+  border-radius: 4px;
+}
 
 .layout {
   min-height: 100vh;
@@ -285,8 +315,15 @@ input:focus, select:focus {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .card-anim {
@@ -306,7 +343,8 @@ input:focus, select:focus {
   z-index: 100;
 }
 
-.header-left, .header-right {
+.header-left,
+.header-right {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -321,7 +359,9 @@ input:focus, select:focus {
   border-radius: var(--radius-pill);
 }
 
-.avatar-container:hover { background: var(--surface-hover); }
+.avatar-container:hover {
+  background: var(--surface-hover);
+}
 
 .avatar {
   width: 38px;
@@ -336,7 +376,10 @@ input:focus, select:focus {
   font-size: 0.9rem;
 }
 
-.user-name { font-weight: 600; font-size: 0.95rem; }
+.user-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
 
 .drawer-overlay {
   position: fixed;
@@ -349,7 +392,10 @@ input:focus, select:focus {
   transition: all 0.3s ease;
 }
 
-.drawer-overlay.open { opacity: 1; visibility: visible; }
+.drawer-overlay.open {
+  opacity: 1;
+  visibility: visible;
+}
 
 .drawer {
   position: fixed;
@@ -363,7 +409,9 @@ input:focus, select:focus {
   padding: 24px;
 }
 
-.drawer.open { left: 0; }
+.drawer.open {
+  left: 0;
+}
 
 .mode-toggle {
   background: transparent;
@@ -373,36 +421,54 @@ input:focus, select:focus {
   border: none;
 }
 
-.mode-toggle:hover { background: var(--surface-hover); }
+.mode-toggle:hover {
+  background: var(--surface-hover);
+}
 
 /* Responsive */
-.mobile-only { display: none !important; }
+.mobile-only {
+  display: none !important;
+}
 
 @media (max-width: 768px) {
-  .mobile-only { display: inline-block !important; }
-  .desktop-only { display: none !important; }
-  .header { padding: 0 12px; }
-  .header-left { gap: 8px; }
+  .mobile-only {
+    display: inline-block !important;
+  }
+
+  .desktop-only {
+    display: none !important;
+  }
+
+  .header {
+    padding: 0 12px;
+  }
+
+  .header-left {
+    gap: 8px;
+  }
 
   /* Mobile layout adjustments */
-  .content { padding: 12px; }
-  
+  .content {
+    padding: 12px;
+  }
+
   .form-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .addon-card {
     flex-direction: column;
     text-align: center;
     padding: 24px 16px;
   }
-  
+
   .addon-card-icon {
     margin: 0 auto;
   }
 
   /* Make tables responsive */
-  .results-table, .results-table-sm {
+  .results-table,
+  .results-table-sm {
     display: block;
     width: 100%;
     overflow-x: auto;
@@ -416,11 +482,12 @@ input:focus, select:focus {
     gap: 16px;
     margin-bottom: 24px;
   }
-  
+
   .stepper-connector {
     width: 2px;
     height: 20px;
-    margin: 0 0 0 21px; /* Align with center of 44px circle */
+    margin: 0 0 0 21px;
+    /* Align with center of 44px circle */
   }
 
   .login-container {
@@ -432,15 +499,17 @@ input:focus, select:focus {
     flex-direction: column;
     align-items: flex-start;
   }
-  
-  .dy-accordion-header > div:last-child {
+
+  .dy-accordion-header>div:last-child {
     margin-top: 16px;
     width: 100%;
     justify-content: space-between;
   }
 
   /* Typography adjustments */
-  h1 { font-size: 1.8rem !important; }
+  h1 {
+    font-size: 1.8rem !important;
+  }
 }
 
 /* Spinner */
@@ -455,12 +524,27 @@ input:focus, select:focus {
   animation: dash 1.5s ease-in-out infinite;
 }
 
-@keyframes rotate { 100% { transform: rotate(360deg); } }
+@keyframes rotate {
+  100% {
+    transform: rotate(360deg);
+  }
+}
 
 @keyframes dash {
-  0% { stroke-dasharray: 1, 150; stroke-dashoffset: 0; }
-  50% { stroke-dasharray: 90, 150; stroke-dashoffset: -35; }
-  100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; }
+  0% {
+    stroke-dasharray: 1, 150;
+    stroke-dashoffset: 0;
+  }
+
+  50% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -35;
+  }
+
+  100% {
+    stroke-dasharray: 90, 150;
+    stroke-dashoffset: -124;
+  }
 }
 
 .btn-loading {
@@ -498,7 +582,7 @@ input:focus, select:focus {
     width: 100%;
     justify-content: center;
   }
-  
+
   .dy-accordion-subtitle {
     flex-direction: column;
     align-items: flex-start;
@@ -643,7 +727,7 @@ input:focus, select:focus {
 .addon-card:hover {
   transform: translateY(-8px);
   border-color: var(--dy-red);
-  box-shadow: 0 15px 30px rgba(0,0,0,0.08);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.08);
 }
 
 .addon-card-icon {
@@ -808,12 +892,12 @@ input:focus, select:focus {
 
 .dy-accordion-body {
   padding: 0 24px 24px;
-  background: rgba(0,0,0,0.01);
+  background: rgba(0, 0, 0, 0.01);
   border-top: 1px dashed var(--border);
 }
 
 .dark-theme .dy-accordion-body {
-  background: rgba(255,255,255,0.01);
+  background: rgba(255, 255, 255, 0.01);
 }
 
 .dy-select {
@@ -881,13 +965,19 @@ input:focus, select:focus {
   animation: fadeIn 0.3s ease;
 }
 
-.success-icon-large, .error-icon-large {
+.success-icon-large,
+.error-icon-large {
   display: inline-flex;
   margin-bottom: 24px;
 }
 
-.success-icon-large { color: var(--success); }
-.error-icon-large { color: var(--error); }
+.success-icon-large {
+  color: var(--success);
+}
+
+.error-icon-large {
+  color: var(--error);
+}
 
 .cot-number-display {
   font-size: 3rem;
@@ -953,11 +1043,12 @@ input:focus, select:focus {
 }
 
 /* Ocultar incrementadores nativos de inputs numéricos en navegadores */
-input[type=number]::-webkit-inner-spin-button, 
-input[type=number]::-webkit-outer-spin-button { 
-  -webkit-appearance: none; 
-  margin: 0; 
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
+
 input[type=number] {
   -moz-appearance: textfield;
 }

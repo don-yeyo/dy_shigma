@@ -1,5 +1,5 @@
 # Manual de Usuario — SHIGMA
-### Sistema de Gestión de Seguridad, Higiene y Medioambiente de Don Yeyo S.A.
+### Sistema de Gestión de Seguridad, Higiene y Medioambiente.
 
 Bienvenido al manual oficial de usuario de **SHIGMA**. Esta herramienta integral ha sido diseñada para registrar, auditar y controlar con precisión todos los aspectos relacionados con los flujos de materiales de descarte, residuos especiales, devoluciones, revalorización y mantenimiento ambiental de nuestra planta industrial.
 
@@ -24,7 +24,7 @@ Bienvenido al manual oficial de usuario de **SHIGMA**. Esta herramienta integral
 ---
 
 ## 1. Introducción al Sistema
-SHIGMA opera como el núcleo de trazabilidad ambiental de **Don Yeyo S.A.**, permitiendo a la empresa certificar sus procesos bajo normas de sustentabilidad, optimización de recursos y economía circular. Su interfaz web premium y adaptativa proporciona una experiencia visual clara tanto en turnos diurnos (Modo Claro) como en trabajos nocturnos de planta (Modo Oscuro).
+SHIGMA opera como el núcleo de trazabilidad ambiental, permitiendo a la empresa certificar sus procesos bajo normas de sustentabilidad, optimización de recursos y economía circular. Su interfaz web adaptativa proporciona una experiencia visual clara tanto en turnos diurnos (Modo Claro) como en trabajos nocturnos de planta (Modo Oscuro).
 
 ---
 
@@ -51,9 +51,9 @@ Es el perfil de control y análisis de gestión de la planta. Sus capacidades so
 
 ### C. Administrador (Soporte y Sistemas)
 Control total de la infraestructura técnica de la plataforma:
-* **Gestión de Cuentas**: Dar de alta nuevos integrantes, suspender accesos (sin borrar su historial) y modificar nombres o contraseñas.
+* **Gestión de Cuentas**: Dar de alta nuevos integrantes, suspender accesos (sin borrar su historial) y modificar nombres o emails.
 * **Asignación de Módulos**: Elegir individualmente qué formularios tiene permitidos ver y cargar cada usuario.
-* **Configuración del Sistema**: Modificar las capacidades límites de las bateas, los operadores autorizados y los parámetros de edición de los registradores.
+* **Configuración del Sistema**: Administrar los operadores autorizados y los parámetros de edición de los registradores.
 
 ---
 
@@ -108,9 +108,10 @@ Este formulario es el núcleo de trazabilidad de desperdicios comunes generados 
 8. Presione **"Registrar Pesaje"**. Se abrirá una ventana emergente premium confirmando el registro con un identificador único único (ej: `SHG-RC-0015`). Pulse *"Volver al Dashboard"* o *"Cargar Otro"* para continuar.
 
 #### Monitor e Inspección de Capacidad de Bateas:
-Los supervisores y administradores tienen acceso al **"Monitor de Bateas"**:
-* Muestra el porcentaje de llenado y peso acumulado de todas las bateas activas.
-* **Vaciar y Reiniciar Batea**: Cuando una batea se llena, el supervisor debe vaciarla físicamente y registrar el vaciado en el sistema:
+El panel de **"Gestión de Bateas"** permite monitorear y configurar el almacenamiento de RINE en tiempo real:
+* Muestra el porcentaje de llenado y peso acumulado de todas las bateas activas en tiempo real.
+* **Ajustar Capacidad**: Cualquier usuario (registrador, supervisor o administrador) que tenga habilitado este módulo puede definir y cambiar la capacidad máxima en kilogramos de cualquier batea de forma dinámica presionando el ícono de **Ajustes / Deslizadores (Sliders)** en la tarjeta correspondiente. Esto permite una flexibilidad inmediata ante cambios operativos en planta.
+* **Vaciar y Reiniciar Batea**: Cuando una batea se llena, se debe vaciar físicamente y registrar el vaciado en el sistema:
   1. Pulse el botón de vaciado correspondiente.
   2. Complete el **Manifiesto de Salida Obligatorio** (Destino del viaje, chofer, patente del camión y observaciones).
   3. Al confirmar, el sistema reinicia el contador de peso de la batea a `0 kg` y genera una **Salida con Estado Pendiente** en el historial para ser auditada posteriormente al ingresar el ticket definitivo de la báscula externa.
@@ -166,7 +167,7 @@ Registra las acciones físicas aplicadas en nuestra planta de reciclaje para tra
 ---
 
 ### Economía Circular (Emisiones Co₂)
-Este módulo no requiere carga de datos independiente. Se alimenta automáticamente de los registros aprobados de revalorización de materiales para calcular en tiempo real el **ahorro ecológico** de Don Yeyo S.A.
+Este módulo no requiere carga de datos independiente. Se alimenta automáticamente de los registros aprobados de revalorización de materiales para calcular en tiempo real el **ahorro ecológico**.
 
 #### Cómo entender los Indicadores:
 * **Emisiones de CO₂ Mitigadas**: Muestra los kilogramos de Dióxido de Carbono que la empresa ha evitado liberar a la atmósfera mediante el reciclaje. Los cálculos se basan en los siguientes coeficientes ambientales de valorización:

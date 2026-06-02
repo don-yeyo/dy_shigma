@@ -7,7 +7,7 @@ import { Card, Input, Select, Textarea, Switch } from '../../components/FormElem
 import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
 import { SHIGMAService } from '../../services/api';
-import { useTheme } from '../../config/ThemeContext';
+import { useTheme, useMobile } from '../../config/ThemeContext';
 import { getLocalISOString, validateRecordDate, getDateConstraints } from '../../utils/dateUtils';
 
 // Componente premium de Input Numérico con botones de +/- integrados
@@ -153,6 +153,9 @@ const ResiduosComunes = () => {
     const [consentChecked, setConsentChecked] = useState(false);
     const [showConsentError, setShowConsentError] = useState(false);
 
+    // Detección responsiva mobile global
+    const isMobile = useMobile();
+
     // Bateas State para disponible
     const [bateas, setBateas] = useState([]);
 
@@ -217,7 +220,7 @@ const ResiduosComunes = () => {
         { id: 'PE', label: 'Pellegrini' }
     ];
 
-    const COMPANY_SHORT = import.meta.env.VITE_COMPANY_NAME_SHORT || 'Don Yeyo';
+    const COMPANY_SHORT = import.meta.env.VITE_COMPANY_NAME_SHORT || 'DEMO';
 
     const tiposResiduo = [
         { id: `Inorgánicos marca ${COMPANY_SHORT}`, label: `Inorgánicos marca ${COMPANY_SHORT}` },
@@ -279,7 +282,7 @@ const ResiduosComunes = () => {
                         const dateObj = new Date(record.createdAt || record.fecha);
                         const fechaCarga = dateObj.toISOString().split('T')[0];
                         const horaCarga = dateObj.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
-                        
+
                         // Parse materials
                         const defaultRecuperados = {
                             'Cartón': { cantidad: '', unidad: 'Kilos' },
@@ -705,7 +708,14 @@ const ResiduosComunes = () => {
                     </div>
 
                     {/* Fecha y Hora de la Carga (Separadas en grilla responsive, con Autofoco) */}
-                    <div className="form-grid" style={{ marginBottom: '24px' }}>
+                    <div className="form-grid" style={isMobile ? {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px',
+                        marginBottom: '24px'
+                    } : {
+                        marginBottom: '24px'
+                    }}>
                         <div>
                             <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
                                 Fecha de la Carga *
@@ -760,7 +770,11 @@ const ResiduosComunes = () => {
                         </div>
                     </div>
 
-                    <div className="form-grid">
+                    <div className="form-grid" style={isMobile ? {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px'
+                    } : {}}>
                         <Select
                             label="Planta Generadora *"
                             name="sector"
@@ -814,7 +828,15 @@ const ResiduosComunes = () => {
                                             const currentMatData = formData.materialesRecuperados[mat];
 
                                             return (
-                                                <div key={mat} style={{
+                                                <div key={mat} style={isMobile ? {
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    gap: '10px',
+                                                    background: 'var(--surface)',
+                                                    padding: '12px',
+                                                    borderRadius: '12px',
+                                                    border: '1px solid var(--border)'
+                                                } : {
                                                     display: 'grid',
                                                     gridTemplateColumns: '120px 1fr 110px',
                                                     alignItems: 'center',
@@ -830,118 +852,235 @@ const ResiduosComunes = () => {
                                                         {mat === 'Cajones' ? 'Cajones Rotos' : mat}
                                                     </span>
 
-                                                    {/* Columna 2: Input de cantidades Ancho doble (180px) para alojar números de hasta 1 millón */}
-                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'stretch', width: '180px', height: '34px' }}>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    const val = parseFloat(currentMatData.cantidad || 0);
-                                                                    const newVal = Math.max(0, val - 1);
-                                                                    handleMaterialQtyChange(mat, newVal > 0 ? String(Math.round(newVal * 10) / 10) : '');
-                                                                }}
-                                                                style={{
-                                                                    padding: 0,
-                                                                    width: '36px',
-                                                                    border: '1px solid var(--border)',
-                                                                    borderRadius: '8px 0 0 8px',
-                                                                    background: 'var(--surface)',
-                                                                    color: 'var(--text)',
-                                                                    fontWeight: 'bold',
-                                                                    cursor: 'pointer',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center'
-                                                                }}
-                                                            >
-                                                                -
-                                                            </button>
-                                                            <input
-                                                                type="number"
-                                                                placeholder="0"
-                                                                value={currentMatData.cantidad}
-                                                                onChange={(e) => handleMaterialQtyChange(mat, e.target.value)}
-                                                                min="0"
-                                                                step={isCajones && currentMatData.unidad === 'Unidades' ? "1" : "0.1"}
-                                                                onFocus={(e) => e.target.select()}
-                                                                onMouseDown={handleInputMouseDown}
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === '-' || e.key === 'e' || e.key === 'E') {
-                                                                        e.preventDefault();
-                                                                    }
-                                                                    if (isCajones && currentMatData.unidad === 'Unidades' && (e.key === '.' || e.key === ',')) {
-                                                                        e.preventDefault();
-                                                                    }
-                                                                }}
-                                                                style={{
-                                                                    flex: 1,
-                                                                    width: '108px', // Ancho aumentado para soportar hasta 1,000,000.0 sin desbordarse
-                                                                    padding: '4px 8px',
-                                                                    border: '1px solid var(--border)',
-                                                                    borderLeft: 'none',
-                                                                    borderRight: 'none',
-                                                                    borderRadius: '0',
-                                                                    textAlign: 'center',
-                                                                    outline: 'none',
-                                                                    fontWeight: '700',
-                                                                    fontSize: '0.95rem',
-                                                                    backgroundColor: 'var(--background)',
-                                                                    color: 'var(--text)'
-                                                                }}
-                                                            />
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    const val = parseFloat(currentMatData.cantidad || 0);
-                                                                    const newVal = val + 1;
-                                                                    handleMaterialQtyChange(mat, String(Math.round(newVal * 10) / 10));
-                                                                }}
-                                                                style={{
-                                                                    padding: 0,
-                                                                    width: '36px',
-                                                                    border: '1px solid var(--border)',
-                                                                    borderRadius: '0 8px 8px 0',
-                                                                    background: 'var(--surface)',
-                                                                    color: 'var(--text)',
-                                                                    fontWeight: 'bold',
-                                                                    cursor: 'pointer',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    justifyContent: 'center'
-                                                                }}
-                                                            >
-                                                                +
-                                                            </button>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Columna 3: Unidad de Medida alineada a la derecha y segura de overflow */}
-                                                    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                                        {isCajones ? (
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                                <span style={{ fontSize: '0.75rem', color: currentMatData.unidad === 'Kilos' ? 'var(--primary)' : 'var(--text-muted)', fontWeight: '700' }}>Kilos</span>
-                                                                <div
-                                                                    onClick={() => handleMaterialUnitChange(mat, currentMatData.unidad === 'Kilos')}
+                                                    {isMobile ? (
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                                                            {/* Control de cantidad */}
+                                                            <div style={{ display: 'flex', alignItems: 'stretch', width: '150px', height: '34px' }}>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const val = parseFloat(currentMatData.cantidad || 0);
+                                                                        const newVal = Math.max(0, val - 1);
+                                                                        handleMaterialQtyChange(mat, newVal > 0 ? String(Math.round(newVal * 10) / 10) : '');
+                                                                    }}
                                                                     style={{
-                                                                        width: '30px', height: '16px',
-                                                                        backgroundColor: currentMatData.unidad === 'Unidades' ? 'var(--dy-red)' : 'var(--border)',
-                                                                        borderRadius: '8px', position: 'relative', cursor: 'pointer', transition: 'all 0.2s'
+                                                                        padding: 0,
+                                                                        width: '32px',
+                                                                        border: '1px solid var(--border)',
+                                                                        borderRadius: '8px 0 0 8px',
+                                                                        background: 'var(--surface)',
+                                                                        color: 'var(--text)',
+                                                                        fontWeight: 'bold',
+                                                                        cursor: 'pointer',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center'
                                                                     }}
                                                                 >
-                                                                    <div style={{
-                                                                        width: '12px', height: '12px', backgroundColor: '#fff', borderRadius: '50%',
-                                                                        position: 'absolute', top: '2px', left: currentMatData.unidad === 'Unidades' ? '16px' : '2px',
-                                                                        transition: 'all 0.2s'
-                                                                    }} />
-                                                                </div>
-                                                                <span style={{ fontSize: '0.75rem', color: currentMatData.unidad === 'Unidades' ? 'var(--dy-red)' : 'var(--text-muted)', fontWeight: '700' }}>Uds</span>
+                                                                    -
+                                                                </button>
+                                                                <input
+                                                                    type="number"
+                                                                    placeholder="0"
+                                                                    value={currentMatData.cantidad}
+                                                                    onChange={(e) => handleMaterialQtyChange(mat, e.target.value)}
+                                                                    min="0"
+                                                                    step={isCajones && currentMatData.unidad === 'Unidades' ? "1" : "0.1"}
+                                                                    onFocus={(e) => e.target.select()}
+                                                                    onMouseDown={handleInputMouseDown}
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === '-' || e.key === 'e' || e.key === 'E') {
+                                                                            e.preventDefault();
+                                                                        }
+                                                                        if (isCajones && currentMatData.unidad === 'Unidades' && (e.key === '.' || e.key === ',')) {
+                                                                            e.preventDefault();
+                                                                        }
+                                                                    }}
+                                                                    style={{
+                                                                        flex: 1,
+                                                                        width: '86px',
+                                                                        padding: '4px 8px',
+                                                                        border: '1px solid var(--border)',
+                                                                        borderLeft: 'none',
+                                                                        borderRight: 'none',
+                                                                        borderRadius: '0',
+                                                                        textAlign: 'center',
+                                                                        outline: 'none',
+                                                                        fontWeight: '700',
+                                                                        fontSize: '0.9rem',
+                                                                        backgroundColor: 'var(--background)',
+                                                                        color: 'var(--text)'
+                                                                    }}
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const val = parseFloat(currentMatData.cantidad || 0);
+                                                                        const newVal = val + 1;
+                                                                        handleMaterialQtyChange(mat, String(Math.round(newVal * 10) / 10));
+                                                                    }}
+                                                                    style={{
+                                                                        padding: 0,
+                                                                        width: '32px',
+                                                                        border: '1px solid var(--border)',
+                                                                        borderRadius: '0 8px 8px 0',
+                                                                        background: 'var(--surface)',
+                                                                        color: 'var(--text)',
+                                                                        fontWeight: 'bold',
+                                                                        cursor: 'pointer',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center'
+                                                                    }}
+                                                                >
+                                                                    +
+                                                                </button>
                                                             </div>
-                                                        ) : (
-                                                            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '700', paddingRight: '4px' }}>
-                                                                Kilos
-                                                            </span>
-                                                        )}
-                                                    </div>
+
+                                                            {/* Selector de unidad */}
+                                                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                                {isCajones ? (
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                        <span style={{ fontSize: '0.7rem', color: currentMatData.unidad === 'Kilos' ? 'var(--primary)' : 'var(--text-muted)', fontWeight: '700' }}>Kilos</span>
+                                                                        <div
+                                                                            onClick={() => handleMaterialUnitChange(mat, currentMatData.unidad === 'Kilos')}
+                                                                            style={{
+                                                                                width: '26px', height: '14px',
+                                                                                backgroundColor: currentMatData.unidad === 'Unidades' ? 'var(--dy-red)' : 'var(--border)',
+                                                                                borderRadius: '7px', position: 'relative', cursor: 'pointer', transition: 'all 0.2s'
+                                                                            }}
+                                                                        >
+                                                                            <div style={{
+                                                                                width: '10px', height: '10px', backgroundColor: '#fff', borderRadius: '50%',
+                                                                                position: 'absolute', top: '2px', left: currentMatData.unidad === 'Unidades' ? '14px' : '2px',
+                                                                                transition: 'all 0.2s'
+                                                                            }} />
+                                                                        </div>
+                                                                        <span style={{ fontSize: '0.7rem', color: currentMatData.unidad === 'Unidades' ? 'var(--dy-red)' : 'var(--text-muted)', fontWeight: '700' }}>Uds</span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700' }}>
+                                                                        Kilos
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            {/* Columna 2: Input de cantidades Ancho doble (180px) para alojar números de hasta 1 millón */}
+                                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'stretch', width: '180px', height: '34px' }}>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            const val = parseFloat(currentMatData.cantidad || 0);
+                                                                            const newVal = Math.max(0, val - 1);
+                                                                            handleMaterialQtyChange(mat, newVal > 0 ? String(Math.round(newVal * 10) / 10) : '');
+                                                                        }}
+                                                                        style={{
+                                                                            padding: 0,
+                                                                            width: '36px',
+                                                                            border: '1px solid var(--border)',
+                                                                            borderRadius: '8px 0 0 8px',
+                                                                            background: 'var(--surface)',
+                                                                            color: 'var(--text)',
+                                                                            fontWeight: 'bold',
+                                                                            cursor: 'pointer',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center'
+                                                                        }}
+                                                                    >
+                                                                        -
+                                                                    </button>
+                                                                    <input
+                                                                        type="number"
+                                                                        placeholder="0"
+                                                                        value={currentMatData.cantidad}
+                                                                        onChange={(e) => handleMaterialQtyChange(mat, e.target.value)}
+                                                                        min="0"
+                                                                        step={isCajones && currentMatData.unidad === 'Unidades' ? "1" : "0.1"}
+                                                                        onFocus={(e) => e.target.select()}
+                                                                        onMouseDown={handleInputMouseDown}
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === '-' || e.key === 'e' || e.key === 'E') {
+                                                                                e.preventDefault();
+                                                                            }
+                                                                            if (isCajones && currentMatData.unidad === 'Unidades' && (e.key === '.' || e.key === ',')) {
+                                                                                e.preventDefault();
+                                                                            }
+                                                                        }}
+                                                                        style={{
+                                                                            flex: 1,
+                                                                            width: '108px', // Ancho aumentado para soportar hasta 1,000,000.0 sin desbordarse
+                                                                            padding: '4px 8px',
+                                                                            border: '1px solid var(--border)',
+                                                                            borderLeft: 'none',
+                                                                            borderRight: 'none',
+                                                                            borderRadius: '0',
+                                                                            textAlign: 'center',
+                                                                            outline: 'none',
+                                                                            fontWeight: '700',
+                                                                            fontSize: '0.95rem',
+                                                                            backgroundColor: 'var(--background)',
+                                                                            color: 'var(--text)'
+                                                                        }}
+                                                                    />
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            const val = parseFloat(currentMatData.cantidad || 0);
+                                                                            const newVal = val + 1;
+                                                                            handleMaterialQtyChange(mat, String(Math.round(newVal * 10) / 10));
+                                                                        }}
+                                                                        style={{
+                                                                            padding: 0,
+                                                                            width: '36px',
+                                                                            border: '1px solid var(--border)',
+                                                                            borderRadius: '0 8px 8px 0',
+                                                                            background: 'var(--surface)',
+                                                                            color: 'var(--text)',
+                                                                            fontWeight: 'bold',
+                                                                            cursor: 'pointer',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center'
+                                                                        }}
+                                                                    >
+                                                                        +
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Columna 3: Unidad de Medida alineada a la derecha y segura de overflow */}
+                                                            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                                                {isCajones ? (
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                        <span style={{ fontSize: '0.75rem', color: currentMatData.unidad === 'Kilos' ? 'var(--primary)' : 'var(--text-muted)', fontWeight: '700' }}>Kilos</span>
+                                                                        <div
+                                                                            onClick={() => handleMaterialUnitChange(mat, currentMatData.unidad === 'Kilos')}
+                                                                            style={{
+                                                                                width: '30px', height: '16px',
+                                                                                backgroundColor: currentMatData.unidad === 'Unidades' ? 'var(--dy-red)' : 'var(--border)',
+                                                                                borderRadius: '8px', position: 'relative', cursor: 'pointer', transition: 'all 0.2s'
+                                                                            }}
+                                                                        >
+                                                                            <div style={{
+                                                                                width: '12px', height: '12px', backgroundColor: '#fff', borderRadius: '50%',
+                                                                                position: 'absolute', top: '2px', left: currentMatData.unidad === 'Unidades' ? '16px' : '2px',
+                                                                                transition: 'all 0.2s'
+                                                                            }} />
+                                                                        </div>
+                                                                        <span style={{ fontSize: '0.75rem', color: currentMatData.unidad === 'Unidades' ? 'var(--dy-red)' : 'var(--text-muted)', fontWeight: '700' }}>Uds</span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '700', paddingRight: '4px' }}>
+                                                                        Kilos
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </>
+                                                    )}
                                                 </div>
                                             );
                                         })}
@@ -953,7 +1092,14 @@ const ResiduosComunes = () => {
 
                     {/* HABILITADO SOLO SI NO ES RECUPERABLE (Los recuperables NO cargan peso general ni destino batea) */}
                     {!isRecuperable && (
-                        <div className="form-grid" style={{ marginTop: '8px' }}>
+                        <div className="form-grid" style={isMobile ? {
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '16px',
+                            marginTop: '8px'
+                        } : {
+                            marginTop: '8px'
+                        }}>
                             {/* Cantidad (Kilos) con incrementador custom y sin placeholders innecesarios */}
                             <NumberInput
                                 label="Cantidad (Kilos) *"
@@ -1079,7 +1225,7 @@ const ResiduosComunes = () => {
                         {editId ? "¡Modificación Guardada!" : "¡Guardado Correctamente!"}
                     </h3>
                     <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '0.95rem' }}>
-                        {editId 
+                        {editId
                             ? "El pesaje de RINE ha sido actualizado correctamente en la base de datos bajo el ID único:"
                             : "El pesaje de RINE ha sido ingresado al historial de trazabilidad con el ID único:"}
                         <br />
@@ -1099,7 +1245,10 @@ const ResiduosComunes = () => {
                             <>
                                 <Button
                                     variant="outline"
-                                    onClick={() => setShowSuccessModal(false)}
+                                    onClick={() => {
+                                        setShowSuccessModal(false);
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                    }}
                                 >
                                     Cargar Otro
                                 </Button>

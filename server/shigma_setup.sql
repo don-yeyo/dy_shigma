@@ -446,3 +446,23 @@ BEGIN
 END$$
 
 DELIMITER ;
+
+-- ------------------------------------------------------------
+-- 13. Tabla de Configuración de Bateas RINE (Dinámica)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `bateas` (
+  `id` varchar(50) NOT NULL,
+  `nombre` varchar(100) NOT NULL,
+  `tipo` varchar(50) NOT NULL,
+  `capacidad` decimal(10, 2) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Semillas por defecto para Bateas
+INSERT INTO `bateas` (`id`, `nombre`, `tipo`, `capacidad`) VALUES
+  ('batea_1_org', 'Batea 1 de Orgánicos', 'Orgánicos', 1000.00),
+  ('batea_2_org', 'Batea 2 de Orgánicos', 'Orgánicos', 1200.00),
+  ('batea_1_inorg', 'Batea 1 de Inorgánicos', 'Inorgánicos', 2000.00),
+  ('batea_2_inorg', 'Batea 2 de Inorgánicos', 'Inorgánicos', 2500.00)
+ON DUPLICATE KEY UPDATE `nombre` = VALUES(`nombre`), `tipo` = VALUES(`tipo`);
+

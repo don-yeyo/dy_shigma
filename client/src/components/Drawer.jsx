@@ -200,7 +200,9 @@ const Drawer = ({ isOpen, onClose }) => {
                             </span>
                         </div>
                     )}
-                    <p style={{ fontSize: '0.8rem', color: 'var(--drawer-footer)', fontWeight: 700, letterSpacing: '0.5px' }}>DON YEYO S.A.</p>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--drawer-footer)', fontWeight: 700, letterSpacing: '0.5px' }}>
+                        {(import.meta.env.VITE_COMPANY_NAME || 'DEMO S.A.').toUpperCase()}
+                    </p>
                     <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>SHIGMA v{__APP_VERSION__}</p>
                 </div>
             </div>
