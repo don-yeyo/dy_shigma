@@ -23,6 +23,7 @@ import HistorialTrazabilidad from './pages/shigma/HistorialTrazabilidad';
 import GestionBateas from './pages/shigma/GestionBateas';
 import GestionOperadores from './pages/shigma/GestionOperadores';
 import GestionUsuarios from './pages/GestionUsuarios';
+import UpdatePrompt from './components/UpdatePrompt';
 
 import logo from './assets/logo-don-yeyo-png-sin-fondo.png';
 import microsoftLogo from './assets/microsoft-logo.png';
@@ -302,6 +303,7 @@ function App() {
         <AuthProvider>
             <ThemeProvider>
                 <Router>
+                    <UpdatePrompt />
                     <AuthGate>
                         <Layout>
                             <Routes>

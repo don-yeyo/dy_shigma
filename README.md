@@ -247,6 +247,17 @@ El proyecto está configurado para desplegarse de manera unificada en **Netlify*
 
 ---
 
+## Soporte PWA (Progressive Web App)
+
+La aplicación está preparada para funcionar como **PWA**, permitiendo a los usuarios instalarla en dispositivos móviles y de escritorio, además de ofrecer capacidades de almacenamiento en caché sin conexión.
+
+### Características PWA
+- **Instalabilidad**: La aplicación cuenta con un manifiesto web (`manifest.webmanifest`) configurado bajo el nombre **"Don Yeyo SHIGMA"** (short_name: **"DY Shigma"**) con íconos adaptativos de alta resolución (`192x192` y `512x512` con soporte *maskable*).
+- **Service Worker**: Controlado por `src/sw.js` (usando `vite-plugin-pwa` en modo `injectManifest`), el cual realiza precaché automático de todos los assets estáticos del build y gestiona el almacenamiento de las respuestas de API mediante una estrategia `NetworkFirst`.
+- **Actualización Inteligente**: Incorpora el componente `<UpdatePrompt />` que notifica a los usuarios con un aviso flotante cuando hay una nueva actualización lista para aplicarse o cuando la aplicación está lista para usarse sin conexión (offline).
+
+---
+
 ## Ejecución del Proyecto
 
 ### 1. Configuración de Base de Datos
