@@ -32,15 +32,18 @@ app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // Middleware de contingencia para entornos serverless (como Netlify Functions)
 app.use((req, res, next) => {
-    if ((!req.body || Object.keys(req.body).length === 0) && req.apiGateway && req.apiGateway.event && req.apiGateway.event.body) {
-        try {
-            let rawBody = req.apiGateway.event.body;
-            if (req.apiGateway.event.isBase64Encoded) {
-                rawBody = Buffer.from(rawBody, 'base64').toString('utf8');
+    if (!req.body || Object.keys(req.body).length === 0) {
+        const event = req.event || req.apiGateway?.event;
+        if (event && event.body) {
+            try {
+                let rawBody = event.body;
+                if (event.isBase64Encoded) {
+                    rawBody = Buffer.from(rawBody, 'base64').toString('utf8');
+                }
+                req.body = JSON.parse(rawBody);
+            } catch (err) {
+                console.error('[SERVERLESS BODY PARSE ERROR]:', err);
             }
-            req.body = JSON.parse(rawBody);
-        } catch (err) {
-            console.error('[SERVERLESS BODY PARSE ERROR]:', err);
         }
     }
     next();
