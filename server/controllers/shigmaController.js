@@ -45,7 +45,8 @@ const formTables = {
     'tratamiento': 'tratamientos',
     'economia-circular': 'economia_circular',
     'pallets': 'pallets',
-    'espacios-verdes': 'espacios_verdes'
+    'espacios-verdes': 'espacios_verdes',
+    'vaciado-bateas': 'bateas_salidas'
 };
 
 // Prefijos de IDs por formulario
@@ -56,7 +57,8 @@ const formPrefixes = {
     'tratamiento': 'TRAT',
     'economia-circular': 'EC',
     'pallets': 'PL',
-    'espacios-verdes': 'EV'
+    'espacios-verdes': 'EV',
+    'vaciado-bateas': 'BSAL'
 };
 
 // Nombres legibles por formulario
@@ -67,7 +69,8 @@ const formNames = {
     'tratamiento': 'Tratamiento de Residuos',
     'economia-circular': 'Economía Circular',
     'pallets': 'Movimiento de Pallets',
-    'espacios-verdes': 'Registro de Espacios Verdes'
+    'espacios-verdes': 'Registro de Espacios Verdes',
+    'vaciado-bateas': 'Vaciado de Bateas'
 };
 
 // ============================================================
@@ -134,13 +137,28 @@ const shigmaController = {
                 : Object.entries(formTables);
 
             const queries = targetEntries.map(async ([type, tableName]) => {
-                let sql = `SELECT * FROM ${tableName}`;
+                let sql;
                 const params = [];
-                if (isRegistrador) {
-                    sql += ` WHERE usuario = ?`;
-                    params.push(userNombre);
+                if (tableName === 'residuos_comunes') {
+                    sql = `
+                        SELECT rc.*, l.nombre AS lugar, s.nombre AS sector 
+                        FROM residuos_comunes rc
+                        LEFT JOIN lugares l ON rc.lugar_id = l.id
+                        LEFT JOIN sectores s ON rc.sector_id = s.id
+                    `;
+                    if (isRegistrador) {
+                        sql += ` WHERE rc.usuario = ?`;
+                        params.push(userNombre);
+                    }
+                    sql += ` ORDER BY rc.created_at DESC`;
+                } else {
+                    sql = `SELECT * FROM ${tableName}`;
+                    if (isRegistrador) {
+                        sql += ` WHERE usuario = ?`;
+                        params.push(userNombre);
+                    }
+                    sql += ` ORDER BY created_at DESC`;
                 }
-                sql += ` ORDER BY created_at DESC`;
 
                 const [rows] = await db.query(sql, params);
                 return rows.map(r => {
@@ -152,6 +170,7 @@ const shigmaController = {
                     };
                 });
             });
+
 
             const results = await Promise.all(queries);
             let combined = results.flat();
@@ -221,15 +240,31 @@ const shigmaController = {
             const isRegistrador = req.currentUser.rol === 'registrador';
             const userNombre = req.currentUser.nombre;
 
-            let sql = `SELECT * FROM ${tableName}`;
+            let sql;
             const params = [];
-            if (isRegistrador) {
-                sql += ` WHERE usuario = ?`;
-                params.push(userNombre);
+            if (tableName === 'residuos_comunes') {
+                sql = `
+                    SELECT rc.*, l.nombre AS lugar, s.nombre AS sector 
+                    FROM residuos_comunes rc
+                    LEFT JOIN lugares l ON rc.lugar_id = l.id
+                    LEFT JOIN sectores s ON rc.sector_id = s.id
+                `;
+                if (isRegistrador) {
+                    sql += ` WHERE rc.usuario = ?`;
+                    params.push(userNombre);
+                }
+                sql += ` ORDER BY rc.created_at DESC`;
+            } else {
+                sql = `SELECT * FROM ${tableName}`;
+                if (isRegistrador) {
+                    sql += ` WHERE usuario = ?`;
+                    params.push(userNombre);
+                }
+                sql += ` ORDER BY created_at DESC`;
             }
-            sql += ` ORDER BY created_at DESC`;
 
             const [rows] = await db.query(sql, params);
+
 
             // Mapear campos snake_case a camelCase para el frontend
             const mapped = rows.map(r => toCamelCaseObj(r));
@@ -284,6 +319,12 @@ const shigmaController = {
             // Convertir a snake_case para la base de datos
             const dbPayload = toSnakeCaseObj(insertData);
 
+            // Eliminar campos que son solo para UI y no están en la tabla física de residuos_comunes
+            if (tableName === 'residuos_comunes') {
+                delete dbPayload.lugar;
+                delete dbPayload.sector;
+            }
+
             // Construcción e Inserción Dinámica
             const keys = ['id'];
             const values = [customId];
@@ -305,10 +346,22 @@ const shigmaController = {
             await db.query(sql, values);
 
             // Recuperar el registro guardado con el timestamp definitivo de la base de datos
-            const [insertedRows] = await db.query(`SELECT * FROM ${tableName} WHERE id = ?`, [customId]);
+            let insertedRows;
+            if (tableName === 'residuos_comunes') {
+                [insertedRows] = await db.query(`
+                    SELECT rc.*, l.nombre AS lugar, s.nombre AS sector 
+                    FROM residuos_comunes rc
+                    LEFT JOIN lugares l ON rc.lugar_id = l.id
+                    LEFT JOIN sectores s ON rc.sector_id = s.id
+                    WHERE rc.id = ?
+                `, [customId]);
+            } else {
+                [insertedRows] = await db.query(`SELECT * FROM ${tableName} WHERE id = ?`, [customId]);
+            }
             const savedRecord = toCamelCaseObj(insertedRows[0]);
 
             res.status(201).json({ message: 'Registro creado con éxito', record: savedRecord });
+
         } catch (error) {
             console.error('Error en createRecord:', error);
             res.status(500).json({ error: 'Error interno del servidor al guardar el registro.' });
@@ -362,6 +415,12 @@ const shigmaController = {
             // Convertir el body entrante a snake_case
             const dbPayload = toSnakeCaseObj(recordData);
 
+            // Eliminar campos que son solo para UI y no están en la tabla física de residuos_comunes
+            if (tableName === 'residuos_comunes') {
+                delete dbPayload.lugar;
+                delete dbPayload.sector;
+            }
+
             // Preparar actualización dinámica
             const sets = [];
             const values = [];
@@ -396,10 +455,22 @@ const shigmaController = {
             await db.query(sql, values);
 
             // Recuperar el registro actualizado
-            const [updatedRows] = await db.query(`SELECT * FROM ${tableName} WHERE id = ?`, [id]);
+            let updatedRows;
+            if (tableName === 'residuos_comunes') {
+                [updatedRows] = await db.query(`
+                    SELECT rc.*, l.nombre AS lugar, s.nombre AS sector 
+                    FROM residuos_comunes rc
+                    LEFT JOIN lugares l ON rc.lugar_id = l.id
+                    LEFT JOIN sectores s ON rc.sector_id = s.id
+                    WHERE rc.id = ?
+                `, [id]);
+            } else {
+                [updatedRows] = await db.query(`SELECT * FROM ${tableName} WHERE id = ?`, [id]);
+            }
             const updatedRecord = toCamelCaseObj(updatedRows[0]);
 
             res.json({ message: 'Registro actualizado con éxito.', record: updatedRecord });
+
         } catch (error) {
             console.error('Error en updateRecord:', error);
             res.status(500).json({ error: 'Error interno del servidor al actualizar el registro.' });
@@ -612,6 +683,26 @@ const shigmaController = {
         } catch (error) {
             console.error('Error en getBateaSalidas:', error);
             res.status(500).json({ error: 'Error al listar las salidas de batea.' });
+        }
+    },
+
+    // Confirmar y aprobar una salida de batea
+    confirmBateaSalida: async (req, res) => {
+        try {
+            const { salidaId } = req.params;
+            const [result] = await db.query(
+                `UPDATE bateas_salidas SET status = 'confirmado' WHERE id = ?`,
+                [salidaId]
+            );
+
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'Salida de batea no encontrada.' });
+            }
+
+            res.json({ message: 'Salida de batea confirmada con éxito.', salidaId });
+        } catch (error) {
+            console.error('Error en confirmBateaSalida:', error);
+            res.status(500).json({ error: 'Error al confirmar la salida de batea.' });
         }
     },
 
@@ -938,6 +1029,36 @@ const shigmaController = {
         } catch (error) {
             console.error('Error en deleteOperador:', error);
             res.status(500).json({ error: 'Error al eliminar el operador de la base de datos.' });
+        }
+    },
+
+    // Obtener todos los lugares
+    getLugares: async (req, res) => {
+        try {
+            const [rows] = await db.query('SELECT * FROM lugares ORDER BY nombre ASC');
+            res.json(rows.map(r => toCamelCaseObj(r)));
+        } catch (error) {
+            console.error('Error en getLugares:', error);
+            res.status(500).json({ error: 'Error al obtener lugares desde la base de datos.' });
+        }
+    },
+
+    // Obtener sectores, opcionalmente filtrados por idLugar
+    getSectores: async (req, res) => {
+        try {
+            const { idLugar } = req.query;
+            let sql = 'SELECT * FROM sectores';
+            const params = [];
+            if (idLugar) {
+                sql += ' WHERE id_lugar = ?';
+                params.push(idLugar);
+            }
+            sql += ' ORDER BY nombre ASC';
+            const [rows] = await db.query(sql, params);
+            res.json(rows.map(r => toCamelCaseObj(r)));
+        } catch (error) {
+            console.error('Error en getSectores:', error);
+            res.status(500).json({ error: 'Error al obtener sectores desde la base de datos.' });
         }
     }
 };

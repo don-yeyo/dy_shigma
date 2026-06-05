@@ -85,6 +85,7 @@ const HistorialTrazabilidad = () => {
     };
 
     const canModify = (record) => {
+        if (record.formType === 'vaciado-bateas') return false;
         if (!user) return false;
         if (user.rol === 'sysadmin' || user.rol === 'supervisor') return true;
         if (user.rol === 'registrador') {
@@ -136,7 +137,8 @@ const HistorialTrazabilidad = () => {
         { id: 'tratamiento', label: 'Tratamiento' },
         { id: 'economia-circular', label: 'Economía Circular' },
         { id: 'pallets', label: 'Gestión de Pallets' },
-        { id: 'espacios-verdes', label: 'Espacios Verdes' }
+        { id: 'espacios-verdes', label: 'Espacios Verdes' },
+        { id: 'vaciado-bateas', label: 'Vaciado de Bateas' }
     ];
 
     const filteredFormTypes = formTypes.filter(ft => {
@@ -180,7 +182,7 @@ const HistorialTrazabilidad = () => {
 
             exportRecords.forEach(r => {
                 const date = new Date(r.createdAt || r.fecha).toLocaleDateString('es-AR');
-                const sector = r.sector || r.sectorOrigen || r.clienteOrigen || r.espacioVerde || 'N/A';
+                const sector = r.sector || r.sectorOrigen || r.clienteOrigen || r.espacioVerde || r.bateaNombre || 'N/A';
                 const detailText = JSON.stringify(r).replace(/"/g, '""');
 
                 const line = `"${r.id}","${date}","${r.formLabel}","${sector}","${r.responsable || r.usuario}","${detailText}"\n`;
@@ -213,8 +215,10 @@ const HistorialTrazabilidad = () => {
         const details = [];
 
         if (record.formType === 'residuos-comunes') {
-            details.push({ label: 'Planta Generadora', value: record.sector === 'ER' ? 'Elguea Roman' : record.sector === 'HY' ? 'Hipólito Yrigoyen' : record.sector === 'PE' ? 'Pellegrini' : record.sector });
+            details.push({ label: 'Planta Generadora', value: record.lugar || 'N/A' });
+            details.push({ label: 'Sector', value: record.sector || 'N/A' });
             details.push({ label: 'Tipo de Residuo', value: record.tipoResiduo });
+
 
             if (record.tipoResiduo === 'Inorgánicos Generales') {
                 details.push({ label: 'Clasificación', value: record.clasificacionInorganico || 'Irrecuperables' });
@@ -275,6 +279,13 @@ const HistorialTrazabilidad = () => {
             details.push({ label: 'Plantaciones', value: `${record.plantasAgregadas} uds (${record.especieAgregada || 'Sin especie'})` });
             details.push({ label: 'Estado Salud', value: record.estadoSalud });
             details.push({ label: 'Equipo Ejecutor', value: record.responsableTarea });
+        } else if (record.formType === 'vaciado-bateas') {
+            details.push({ label: 'Batea Vacía', value: record.bateaNombre || 'N/A' });
+            details.push({ label: 'Nro Manifiesto', value: record.nroManifiesto || 'N/A' });
+            details.push({ label: 'Peso Balanza', value: `${record.pesoBalanza} kg` });
+            details.push({ label: 'Peso Acumulado (RINE)', value: `${record.pesoAcumulado} kg` });
+            details.push({ label: 'Lotes Vinculados', value: `${record.recordIds ? record.recordIds.length : 0} lotes` });
+            details.push({ label: 'Estado', value: record.status ? record.status.toUpperCase() : 'PENDIENTE' });
         }
 
         return (
@@ -477,6 +488,7 @@ const HistorialTrazabilidad = () => {
                         else if (record.formType === 'economia-circular') { tagColor = 'var(--dy-red)'; bgTag = 'rgba(228, 5, 33, 0.08)'; }
                         else if (record.formType === 'pallets') { tagColor = '#14b8a6'; bgTag = 'rgba(20, 184, 166, 0.08)'; }
                         else if (record.formType === 'espacios-verdes') { tagColor = '#84cc16'; bgTag = 'rgba(132, 204, 22, 0.08)'; }
+                        else if (record.formType === 'vaciado-bateas') { tagColor = '#f43f5e'; bgTag = 'rgba(244, 63, 94, 0.08)'; }
 
                         return (
                             <div
@@ -534,10 +546,11 @@ const HistorialTrazabilidad = () => {
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                         <span style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text)' }}>
                                             {record.peso ? `${record.peso} kg` :
-                                                record.cantidad ? `${record.cantidad} ${record.unidad}` :
-                                                    record.cantidadBultos ? `${record.cantidadBultos} bultos` :
-                                                        record.cantidadIngresados ? `${record.cantidadIngresados} pallets` :
-                                                            record.consumoAgua ? `${record.consumoAgua} L` : 'Ver Detalles'}
+                                                record.pesoBalanza ? `${record.pesoBalanza} kg (Balanza)` :
+                                                    record.cantidad ? `${record.cantidad} ${record.unidad}` :
+                                                        record.cantidadBultos ? `${record.cantidadBultos} bultos` :
+                                                            record.cantidadIngresados ? `${record.cantidadIngresados} pallets` :
+                                                                record.consumoAgua ? `${record.consumoAgua} L` : 'Ver Detalles'}
                                         </span>
                                         <button style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                                             {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}

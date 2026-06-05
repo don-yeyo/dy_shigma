@@ -51,6 +51,18 @@ const GestionOperadores = () => {
     const [errorMsg, setErrorMsg] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
+    // Custom Alert Modal state
+    const [alertModal, setAlertModal] = useState({
+        isOpen: false,
+        title: 'Error',
+        message: '',
+        type: 'error'
+    });
+
+    const showAlert = (message, title = 'Error', type = 'error') => {
+        setAlertModal({ isOpen: true, title, message, type });
+    };
+
     useEffect(() => {
         fetchOperadores();
     }, []);
@@ -62,7 +74,7 @@ const GestionOperadores = () => {
             setOperadores(response.data);
         } catch (error) {
             console.error('Error al cargar operadores:', error);
-            alert('Error al recuperar operadores desde el servidor.');
+            showAlert('Error al recuperar operadores desde el servidor.', 'Error', 'error');
         } finally {
             setLoading(false);
         }
@@ -171,7 +183,7 @@ const GestionOperadores = () => {
             fetchOperadores();
         } catch (error) {
             console.error('Error al eliminar operador:', error);
-            alert('Error del servidor al eliminar al operador.');
+            showAlert('Error del servidor al eliminar al operador.', 'Error de Eliminación', 'error');
         }
     };
 
@@ -585,7 +597,44 @@ const GestionOperadores = () => {
                     </p>
                 </div>
             </Modal>
-        </div>
+
+        {/* Modal de Alerta Genérico */}
+        {alertModal.isOpen && (
+            <Modal
+                isOpen={alertModal.isOpen}
+                onClose={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
+                title={alertModal.title}
+                showCancel={false}
+                showFooter={false}
+            >
+                <div style={{ padding: '8px 0', textAlign: 'center' }}>
+                    <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '50%',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        color: 'var(--error)',
+                        marginBottom: '16px'
+                    }}>
+                        <AlertTriangle size={24} />
+                    </div>
+                    <p style={{ color: 'var(--text)', fontSize: '0.95rem', marginBottom: '24px', lineHeight: '1.5' }}>
+                        {alertModal.message}
+                    </p>
+                    <Button
+                        variant="primary"
+                        onClick={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
+                        style={{ margin: '0 auto', display: 'block', minWidth: '120px' }}
+                    >
+                        Entendido
+                    </Button>
+                </div>
+            </Modal>
+        )}
+    </div>
     );
 };
 

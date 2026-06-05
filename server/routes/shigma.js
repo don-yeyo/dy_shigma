@@ -38,5 +38,11 @@ router.get('/bateas', shigmaController.getBateasStatus);
 router.post('/bateas/:bateaId/restart', shigmaController.restartBatea);
 router.put('/bateas/:bateaId/capacity', shigmaController.updateBateaCapacity);
 router.get('/bateas/salidas', shigmaController.getBateaSalidas);
+router.post('/bateas/salidas/:salidaId/confirm', requireRole('sysadmin', 'supervisor'), shigmaController.confirmBateaSalida);
+
+// Rutas de Lugares y Sectores
+router.get('/lugares', shigmaController.getLugares);
+router.get('/sectores', shigmaController.getSectores);
+
 
 module.exports = router;

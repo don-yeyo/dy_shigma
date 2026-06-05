@@ -191,7 +191,8 @@ const ResiduosComunes = () => {
     const [formData, setFormData] = useState({
         fechaCarga: todayStr,
         horaCarga: nowTimeStr,
-        sector: '', // Planta Generadora
+        lugarId: '', // Planta Generadora ID
+        sectorId: '', // Sector ID
         tipoResiduo: '',
         clasificacionInorganico: 'Irrecuperables', // Irrecuperables o Recuperable
         materialesRecuperados: {
@@ -214,11 +215,9 @@ const ResiduosComunes = () => {
         }
     }, []);
 
-    const plantas = [
-        { id: 'ER', label: 'Elguea Roman' },
-        { id: 'HY', label: 'Hipólito Yrigoyen' },
-        { id: 'PE', label: 'Pellegrini' }
-    ];
+    const [lugares, setLugares] = useState([]);
+    const [sectores, setSectores] = useState([]);
+
 
     const COMPANY_SHORT = import.meta.env.VITE_COMPANY_NAME_SHORT || 'DEMO';
 
@@ -267,10 +266,47 @@ const ResiduosComunes = () => {
         }
     };
 
+    const fetchLugaresData = async () => {
+        try {
+            const response = await SHIGMAService.getLugares();
+            setLugares(response.data);
+        } catch (error) {
+            console.error('Error fetching lugares:', error);
+        }
+    };
+
     useEffect(() => {
         fetchBateasData();
         fetchOperadoresData();
+        fetchLugaresData();
     }, []);
+
+    // Cargar sectores de forma reactiva cuando cambia el lugar (Planta Generadora)
+    useEffect(() => {
+        if (!formData.lugarId) {
+            setSectores([]);
+            return;
+        }
+
+        const fetchSectoresData = async () => {
+            try {
+                const response = await SHIGMAService.getSectores(formData.lugarId);
+                const sectorsList = response.data || [];
+                setSectores(sectorsList);
+
+                // Si hay un único sector disponible, preseleccionarlo automáticamente
+                if (sectorsList.length === 1) {
+                    setFormData(prev => ({
+                        ...prev,
+                        sectorId: String(sectorsList[0].id)
+                    }));
+                }
+            } catch (error) {
+                console.error('Error fetching sectores:', error);
+            }
+        };
+        fetchSectoresData();
+    }, [formData.lugarId]);
 
     useEffect(() => {
         if (editId) {
@@ -305,7 +341,8 @@ const ResiduosComunes = () => {
                         setFormData({
                             fechaCarga,
                             horaCarga,
-                            sector: record.sector || '',
+                            lugarId: record.lugarId || '',
+                            sectorId: record.sectorId || '',
                             tipoResiduo: record.tipoResiduo || '',
                             clasificacionInorganico: record.clasificacionInorganico || 'Irrecuperables',
                             materialesRecuperados: defaultRecuperados,
@@ -314,6 +351,7 @@ const ResiduosComunes = () => {
                             responsable: record.responsable || '',
                             observaciones: record.observaciones || ''
                         });
+
                     } else {
                         showAlert('No se encontró el registro a editar.', 'Error', 'error');
                     }
@@ -325,6 +363,7 @@ const ResiduosComunes = () => {
             loadRecord();
         }
     }, [editId]);
+
 
     // Obtener los destinos para el Select: Filtrados por tipo de residuo (Organicos / Inorganicos)
     const getDestinoOptions = () => {
@@ -362,6 +401,9 @@ const ResiduosComunes = () => {
         setFormData(prev => {
             const updated = { ...prev, [name]: value };
 
+            if (name === 'lugarId') {
+                updated.sectorId = '';
+            }
             // Si cambia el tipo de residuo, reseteamos el destino para evitar inconsistencias
             if (name === 'tipoResiduo') {
                 updated.destino = '';
@@ -371,6 +413,8 @@ const ResiduosComunes = () => {
             }
             return updated;
         });
+
+
 
         // Guardar a nivel dispositivo el último operador seleccionado en RINE
         if (name === 'responsable') {
@@ -513,10 +557,18 @@ const ResiduosComunes = () => {
         }
 
         // 1. Planta Generadora (Arriba Izquierda)
-        if (!formData.sector) {
+        if (!formData.lugarId) {
             showAlert('Por favor, seleccione la Planta Generadora.');
             return;
         }
+
+        // 1b. Sector
+        if (!formData.sectorId) {
+            showAlert('Por favor, seleccione el Sector.');
+            return;
+        }
+
+
 
         // 2. Tipo de Residuo (Arriba Derecha)
         if (!formData.tipoResiduo) {
@@ -606,7 +658,8 @@ const ResiduosComunes = () => {
             // Crear payload estructurado
             let payload = {
                 createdAt: `${formData.fechaCarga}T${formData.horaCarga}`,
-                sector: formData.sector,
+                lugarId: parseInt(formData.lugarId, 10),
+                sectorId: parseInt(formData.sectorId, 10),
                 tipoResiduo: formData.tipoResiduo,
                 peso: parseFloat(finalPeso),
                 // Los inorgánicos recuperables NO van a batea, se asigna acopio general
@@ -647,7 +700,8 @@ const ResiduosComunes = () => {
                 setFormData({
                     fechaCarga: constraints.todayStr,
                     horaCarga: constraints.nowTimeStr,
-                    sector: '',
+                    lugarId: '',
+                    sectorId: '',
                     tipoResiduo: '',
                     clasificacionInorganico: 'Irrecuperables',
                     materialesRecuperados: {
@@ -663,6 +717,8 @@ const ResiduosComunes = () => {
                     observaciones: ''
                 });
 
+
+
                 // Refrescar bateas para la siguiente validación
                 fetchBateasData();
             }
@@ -677,6 +733,8 @@ const ResiduosComunes = () => {
     // Batea seleccionada para el bloque informativo sutil
     const selectedBateaObj = bateas.find(b => b.nombre === formData.destino);
     const isRecuperable = formData.tipoResiduo === 'Inorgánicos Generales' && formData.clasificacionInorganico === 'Recuperable';
+    const selectedLugarObj = lugares.find(l => String(l.id) === String(formData.lugarId));
+    const selectedSectorObj = sectores.find(s => String(s.id) === String(formData.sectorId));
 
     return (
         <div className="card-anim" style={{ maxWidth: '800px', margin: '0 auto' }}>
@@ -770,21 +828,40 @@ const ResiduosComunes = () => {
                         </div>
                     </div>
 
-                    <div className="form-grid" style={isMobile ? {
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '16px'
-                    } : {}}>
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+                        gap: '16px',
+                        marginBottom: '24px'
+                    }}>
                         <Select
                             label="Planta Generadora *"
-                            name="sector"
-                            value={formData.sector}
+                            name="lugarId"
+                            value={formData.lugarId}
                             onChange={handleChange}
-                            options={plantas}
+                            options={lugares.map(l => ({ id: l.id, label: l.nombre }))}
                             includePlaceholder={true}
                             required
                         />
 
+                        <Select
+                            label="Sector *"
+                            name="sectorId"
+                            value={formData.sectorId}
+                            onChange={handleChange}
+                            options={sectores.map(s => ({ id: s.id, label: s.nombre }))}
+                            includePlaceholder={true}
+                            required
+                            disabled={!formData.lugarId}
+                        />
+                    </div>
+
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: (isMobile || isRecuperable) ? '1fr' : '1fr 1fr',
+                        gap: '16px',
+                        marginBottom: '24px'
+                    }}>
                         <Select
                             label="Tipo de Residuo *"
                             name="tipoResiduo"
@@ -794,7 +871,21 @@ const ResiduosComunes = () => {
                             includePlaceholder={true}
                             required
                         />
+
+                        {!isRecuperable && (
+                            <NumberInput
+                                label="Cantidad (Kilos) *"
+                                name="peso"
+                                placeholder=""
+                                step={0.5}
+                                min={0.1}
+                                value={formData.peso}
+                                onChange={handleChange}
+                                required
+                            />
+                        )}
                     </div>
+
 
                     {/* CONDICIONAL: Inorgánicos Generales */}
                     {formData.tipoResiduo === 'Inorgánicos Generales' && (
@@ -1092,26 +1183,13 @@ const ResiduosComunes = () => {
 
                     {/* HABILITADO SOLO SI NO ES RECUPERABLE (Los recuperables NO cargan peso general ni destino batea) */}
                     {!isRecuperable && (
-                        <div className="form-grid" style={isMobile ? {
+                        <div style={{
                             display: 'flex',
                             flexDirection: 'column',
                             gap: '16px',
-                            marginTop: '8px'
-                        } : {
+                            marginBottom: '24px',
                             marginTop: '8px'
                         }}>
-                            {/* Cantidad (Kilos) con incrementador custom y sin placeholders innecesarios */}
-                            <NumberInput
-                                label="Cantidad (Kilos) *"
-                                name="peso"
-                                placeholder=""
-                                step={0.5}
-                                min={0.1}
-                                value={formData.peso}
-                                onChange={handleChange}
-                                required
-                            />
-
                             {/* Select de Destino (Filtrado dinámico por tipo de residuo y nombres limpios) */}
                             <div style={{ display: 'flex', flexDirection: 'column' }}>
                                 <Select
@@ -1301,7 +1379,7 @@ const ResiduosComunes = () => {
                                 onClick={() => setWarningModalData(prev => ({ ...prev, isOpen: false }))}
                                 style={{ flex: '1 1 140px', minWidth: '120px' }}
                             >
-                                Ajustar Pesaje
+                                Reasignar batea
                             </Button>
                             <Button
                                 type="button"
@@ -1344,9 +1422,18 @@ const ResiduosComunes = () => {
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
                                 <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Planta Generadora:</span>
                                 <strong style={{ color: 'var(--text)' }}>
-                                    {formData.sector === 'ER' ? 'Elguea Roman' : formData.sector === 'HY' ? 'Hipólito Yrigoyen' : formData.sector === 'PE' ? 'Pellegrini' : formData.sector}
+                                    {selectedLugarObj?.nombre || ''}
                                 </strong>
                             </div>
+
+                            {/* Fila Sector */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+                                <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Sector:</span>
+                                <strong style={{ color: 'var(--text)' }}>
+                                    {selectedSectorObj?.nombre || ''}
+                                </strong>
+                            </div>
+
 
                             {/* Fila Tipo Residuo */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>

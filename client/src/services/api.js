@@ -84,6 +84,13 @@ export const SHIGMAService = {
     deleteRecord: (formType, id) =>
         api.delete(`/shigma/records/${formType}/${id}`),
     
+    // Lugares y Sectores
+    getLugares: () =>
+        api.get('/shigma/lugares'),
+    getSectores: (idLugar) =>
+        api.get('/shigma/sectores', { params: { idLugar } }),
+
+    
     // Bateas API
     getBateasStatus: () =>
         api.get('/shigma/bateas'),
@@ -93,6 +100,8 @@ export const SHIGMAService = {
         api.put(`/shigma/bateas/${bateaId}/capacity`, { capacidad }),
     getBateaSalidas: () =>
         api.get('/shigma/bateas/salidas'),
+    confirmBateaSalida: (salidaId) =>
+        api.post(`/shigma/bateas/salidas/${salidaId}/confirm`),
     
     // Operadores API
     getOperadoresByForm: (formType) =>

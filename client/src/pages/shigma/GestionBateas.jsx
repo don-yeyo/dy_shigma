@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../config/AuthContext';
 import { 
     Scale, ArrowLeft, RefreshCw, AlertTriangle, Calendar, Clock, FileText, CheckCircle, Sliders
 } from 'lucide-react';
@@ -135,6 +136,8 @@ const NumberInput = ({ label, value, onChange, min = 0, step = 1, name, placehol
 
 const GestionBateas = () => {
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const isRegistrador = user?.rol === 'registrador';
     
     // Bateas State
     const [bateas, setBateas] = useState([]);
@@ -158,6 +161,29 @@ const GestionBateas = () => {
     const [selectedBateaForCapacity, setSelectedBateaForCapacity] = useState(null);
     const [capacityValue, setCapacityValue] = useState('');
     const [updatingCapacity, setUpdatingCapacity] = useState(false);
+
+    // Modales de Alerta y Confirmación personalizados
+    const [alertModal, setAlertModal] = useState({
+        isOpen: false,
+        title: 'Notificación',
+        message: '',
+        type: 'info'
+    });
+
+    const showAlert = (message, title = 'Notificación', type = 'info') => {
+        setAlertModal({ isOpen: true, title, message, type });
+    };
+
+    const [confirmModal, setConfirmModal] = useState({
+        isOpen: false,
+        title: 'Confirmación',
+        message: '',
+        onConfirm: null
+    });
+
+    const showConfirm = (message, onConfirm, title = 'Confirmación') => {
+        setConfirmModal({ isOpen: true, title, message, onConfirm });
+    };
 
     // Cargar Bateas y Salidas desde el backend
     const fetchBateasData = async () => {
@@ -205,7 +231,7 @@ const GestionBateas = () => {
     const handleRestartSubmit = async (e) => {
         e.preventDefault();
         if (!restartFormData.fecha || !restartFormData.hora || !restartFormData.nroManifiesto || !restartFormData.pesoBalanza) {
-            alert('Por favor, complete todos los campos obligatorios del manifiesto de reinicio.');
+            showAlert('Por favor, complete todos los campos obligatorios del manifiesto de reinicio.', 'Validación', 'warning');
             return;
         }
 
@@ -221,10 +247,10 @@ const GestionBateas = () => {
             // Actualizar vistas
             fetchBateasData();
             fetchSalidasData();
-            alert(`¡Batea "${selectedBatea.nombre}" reiniciada correctamente! Salida en estado PENDIENTE generada.`);
+            showAlert(`¡Batea "${selectedBatea.nombre}" reiniciada correctamente! Salida en estado PENDIENTE generada.`, 'Éxito', 'success');
         } catch (error) {
             console.error('Error restarting batea:', error);
-            alert('Error al reiniciar la batea.');
+            showAlert('Error al reiniciar la batea.', 'Error', 'error');
         } finally {
             setRestarting(false);
         }
@@ -241,7 +267,7 @@ const GestionBateas = () => {
         e.preventDefault();
         const cap = parseFloat(capacityValue);
         if (isNaN(cap) || cap <= 0) {
-            alert('Por favor ingrese una capacidad válida.');
+            showAlert('Por favor ingrese una capacidad válida.', 'Validación', 'warning');
             return;
         }
 
@@ -253,10 +279,32 @@ const GestionBateas = () => {
             fetchBateasData();
         } catch (error) {
             console.error('Error updating capacity:', error);
-            alert('Error al actualizar la capacidad de la batea.');
+            showAlert('Error al actualizar la capacidad de la batea.', 'Error', 'error');
         } finally {
             setUpdatingCapacity(false);
         }
+    };
+
+    // Lógica para confirmar salida de batea
+    const handleConfirmSalida = (salidaId) => {
+        if (isRegistrador) {
+            showAlert('No tienes permisos para confirmar la recepción de salidas de batea.', 'Acceso Denegado', 'error');
+            return;
+        }
+        showConfirm(
+            `¿Estás seguro de que deseas confirmar y aprobar la salida ${salidaId}?`,
+            async () => {
+                try {
+                    await SHIGMAService.confirmBateaSalida(salidaId);
+                    showAlert('¡Salida de batea confirmada y archivada con éxito!', 'Éxito', 'success');
+                    fetchSalidasData();
+                } catch (error) {
+                    console.error('Error confirming batea salida:', error);
+                    showAlert('Error al confirmar la salida de batea.', 'Error', 'error');
+                }
+            },
+            'Confirmación de Salida'
+        );
     };
 
     return (
@@ -544,13 +592,34 @@ const GestionBateas = () => {
                                                     borderTop: '1px dashed var(--border)',
                                                     fontSize: '0.8rem', 
                                                     display: 'flex', 
-                                                    gap: '12px', 
-                                                    color: 'var(--text-muted)' 
+                                                    gap: '12px',
+                                                    color: 'var(--text-muted)'
                                                 }}>
                                                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Calendar size={13} /> {formattedDate}</span>
                                                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Clock size={13} /> {salida.hora} hs</span>
                                                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}><FileText size={13} /> Lotes: {salida.recordIds.length}</span>
                                                 </div>
+
+                                                {!isRegistrador && (
+                                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
+                                                        <Button
+                                                            variant="primary"
+                                                            onClick={() => handleConfirmSalida(salida.id)}
+                                                            style={{ 
+                                                                background: 'var(--success)', 
+                                                                fontSize: '0.75rem', 
+                                                                padding: '6px 12px',
+                                                                borderRadius: '8px',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: '6px',
+                                                                height: '32px'
+                                                            }}
+                                                        >
+                                                            <CheckCircle size={14} /> Confirmar Recepción
+                                                        </Button>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     );
@@ -732,6 +801,94 @@ const GestionBateas = () => {
                             </Button>
                         </div>
                     </form>
+                </Modal>
+            )}
+
+            {/* Modal de Alerta Genérico */}
+            {alertModal.isOpen && (
+                <Modal
+                    isOpen={alertModal.isOpen}
+                    onClose={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
+                    title={alertModal.title}
+                    showCancel={false}
+                    showFooter={false}
+                >
+                    <div style={{ padding: '8px 0', textAlign: 'center' }}>
+                        <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '50%',
+                            background: alertModal.type === 'error' ? 'rgba(239, 68, 68, 0.1)' : 
+                                        alertModal.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                            color: alertModal.type === 'error' ? 'var(--error)' : 
+                                   alertModal.type === 'success' ? 'var(--success)' : 'var(--warning)',
+                            marginBottom: '16px'
+                        }}>
+                            <CheckCircle size={24} />
+                        </div>
+                        <p style={{ color: 'var(--text)', fontSize: '0.95rem', marginBottom: '24px', lineHeight: '1.5' }}>
+                            {alertModal.message}
+                        </p>
+                        <Button
+                            variant="primary"
+                            onClick={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
+                            style={{ margin: '0 auto', display: 'block', minWidth: '120px' }}
+                        >
+                            Entendido
+                        </Button>
+                    </div>
+                </Modal>
+            )}
+
+            {/* Modal de Confirmación Genérico */}
+            {confirmModal.isOpen && (
+                <Modal
+                    isOpen={confirmModal.isOpen}
+                    onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                    title={confirmModal.title}
+                    showCancel={false}
+                    showFooter={false}
+                >
+                    <div style={{ padding: '8px 0', textAlign: 'center' }}>
+                        <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '50%',
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            color: '#3b82f6',
+                            marginBottom: '16px'
+                        }}>
+                            <AlertTriangle size={24} />
+                        </div>
+                        <p style={{ color: 'var(--text)', fontSize: '0.95rem', marginBottom: '24px', lineHeight: '1.5' }}>
+                            {confirmModal.message}
+                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
+                            <Button
+                                variant="outline"
+                                onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                                style={{ minWidth: '100px' }}
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                variant="primary"
+                                onClick={() => {
+                                    setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                                    if (confirmModal.onConfirm) confirmModal.onConfirm();
+                                }}
+                                style={{ minWidth: '100px', background: 'var(--dy-red)' }}
+                            >
+                                Confirmar
+                            </Button>
+                        </div>
+                    </div>
                 </Modal>
             )}
         </div>

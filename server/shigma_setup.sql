@@ -53,7 +53,8 @@ CREATE TABLE IF NOT EXISTS `bateas_salidas` (
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `residuos_comunes` (
   `id` varchar(30) NOT NULL,
-  `sector` varchar(100) NOT NULL,
+  `lugar_id` int NOT NULL,
+  `sector_id` int NOT NULL,
   `tipo_residuo` varchar(100) NOT NULL,
   `peso` decimal(10, 2) NOT NULL,
   `destino` varchar(150) NOT NULL,
@@ -65,13 +66,19 @@ CREATE TABLE IF NOT EXISTS `residuos_comunes` (
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP(),
   `usuario` varchar(100) DEFAULT '',
   PRIMARY KEY (`id`),
-  KEY `idx_residuos_comunes_sector` (`sector`),
+  KEY `idx_residuos_comunes_lugar` (`lugar_id`),
+  KEY `idx_residuos_comunes_sector` (`sector_id`),
   KEY `idx_residuos_comunes_tipo` (`tipo_residuo`),
   KEY `idx_residuos_comunes_destino` (`destino`),
   KEY `idx_residuos_comunes_created` (`created_at` DESC),
   CONSTRAINT `fk_residuos_comunes_batea_salida` FOREIGN KEY (`batea_salida_id`) 
-    REFERENCES `bateas_salidas` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+    REFERENCES `bateas_salidas` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_residuos_comunes_lugar` FOREIGN KEY (`lugar_id`) 
+    REFERENCES `lugares` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_residuos_comunes_sector` FOREIGN KEY (`sector_id`) 
+    REFERENCES `sectores` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 
 -- ------------------------------------------------------------
 -- 3. Tabla de Residuos Especiales
@@ -195,8 +202,53 @@ CREATE TABLE IF NOT EXISTS `espacios_verdes` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ------------------------------------------------------------
+-- 8b. Tabla de Lugares (Planta Generadora)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `lugares` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `nombre` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Semillas por defecto para Lugares
+INSERT INTO `lugares` (`id`, `nombre`) VALUES
+  (1, 'Elguea Roman'),
+  (2, 'Hipólito Yrigoyen'),
+  (3, 'Pellegrini')
+ON DUPLICATE KEY UPDATE `nombre` = VALUES(`nombre`);
+
+-- ------------------------------------------------------------
+-- 8c. Tabla de Sectores
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `sectores` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `nombre` varchar(100) NOT NULL,
+  `id_lugar` int NOT NULL,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `fk_sectores_lugar` FOREIGN KEY (`id_lugar`) 
+    REFERENCES `lugares` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Semillas por defecto para Sectores
+INSERT INTO `sectores` (`nombre`, `id_lugar`) VALUES
+  -- Elguea Roman (id: 1)
+  ('Producción ER', 1),
+  ('Depósito ER', 1),
+  ('Mantenimiento ER', 1),
+  -- Hipólito Yrigoyen (id: 2)
+  ('Producción HY', 2),
+  ('Administración HY', 2),
+  ('Logística HY', 2),
+  -- Pellegrini (id: 3)
+  ('Producción PE', 3),
+  ('Calidad PE', 3),
+  ('Espacios Verdes PE', 3)
+ON DUPLICATE KEY UPDATE `nombre` = VALUES(`nombre`);
+
+-- ------------------------------------------------------------
 -- 9. Tabla de Operadores (Plural, Minúsculas y Snake Case)
 -- ------------------------------------------------------------
+
 CREATE TABLE IF NOT EXISTS `operadores` (
   `id` int NOT NULL AUTO_INCREMENT,
   `apellido_nombre` varchar(150) NOT NULL,
