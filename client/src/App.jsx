@@ -24,6 +24,8 @@ import GestionBateas from './pages/shigma/GestionBateas';
 import GestionOperadores from './pages/shigma/GestionOperadores';
 import GestionUsuarios from './pages/GestionUsuarios';
 import UpdatePrompt from './components/UpdatePrompt';
+import DbConnectionGuard from './components/DbConnectionGuard';
+
 
 import logo from './assets/logo-don-yeyo-png-sin-fondo.png';
 import microsoftLogo from './assets/microsoft-logo.png';
@@ -304,6 +306,7 @@ function App() {
             <ThemeProvider>
                 <Router>
                     <UpdatePrompt />
+                    <DbConnectionGuard />
                     <AuthGate>
                         <Layout>
                             <Routes>

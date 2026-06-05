@@ -134,7 +134,29 @@ const validateEmail = async (req, res) => {
     }
 };
 
+/**
+ * Verifica el estado de la conexión a la base de datos MySQL.
+ * GET /api/system/db-status
+ */
+const getDbStatus = async (req, res) => {
+    try {
+        const connection = await pool.getConnection();
+        await connection.query("SELECT 1");
+        connection.release();
+        return res.json({ status: 'ok', database: 'connected' });
+    } catch (error) {
+        console.error('[Healthcheck] Database connection failed:', error.message);
+        return res.status(500).json({
+            status: 'error',
+            database: 'disconnected',
+            message: error.message
+        });
+    }
+};
+
 module.exports = {
     getVersion,
-    validateEmail
+    validateEmail,
+    getDbStatus
 };
+

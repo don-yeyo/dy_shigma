@@ -4,6 +4,24 @@ const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:5000/api'),
 });
 
+// Interceptor para detectar fallos en peticiones y reportar al guardián de conexión
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        // Ignorar errores del propio endpoint de estado de conexión para evitar bucles
+        if (error.config && !error.config.url.includes('/system/db-status')) {
+            const eventDetail = {
+                status: error.response?.status,
+                message: error.message,
+                data: error.response?.data
+            };
+            window.dispatchEvent(new CustomEvent('api-request-failed', { detail: eventDetail }));
+        }
+        return Promise.reject(error);
+    }
+);
+
+
 /**
  * Establece el email del usuario autenticado como header por defecto en todas
  * las requests de esta instancia de Axios. Se llama desde AuthContext apenas
@@ -47,7 +65,10 @@ export const SystemService = {
         api.get(`/system/version${v ? `?v=${v}` : ''}`),
     validateEmail: (email) =>
         api.get(`/system/validate-email`, { params: { email } }),
+    getDbStatus: () =>
+        api.get('/system/db-status'),
 };
+
 
 export const SHIGMAService = {
     getStats: (fechaDesde, fechaHasta) =>

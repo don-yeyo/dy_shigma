@@ -53,7 +53,14 @@ Pantalla de auditoría de trazabilidad completa dotada de:
 - **Exportación a CSV con Rango**: Al exportar, un modal permite configurar el rango de exportación a formato CSV de auditoría (todo el historial o a partir de una fecha determinada), integrando filtros activos de búsqueda/formulario y aplicando el UTF-8 BOM para un soporte perfecto de caracteres en Microsoft Excel.
 - **Modales de Confirmación y Éxito**: Todos los mensajes de confirmación de eliminación y alertas de éxito de modificación/creación han sido reemplazados por modales interactivos y estilizados que respetan la estética visual y el contraste de la aplicación, eliminando por completo el uso de `alert()` o `confirm()` nativos de JavaScript.
 
+### 4. Monitoreo de Conexión a Base de Datos
+- **Detección Activa y Reactiva**: Monitoreo continuo mediante un guardián visual (`DbConnectionGuard`) en el cliente React que detecta de forma inmediata e interactiva la pérdida de conexión con la base de datos MySQL (por ejemplo, caídas del servicio de RDS o fallas de red).
+- **Polling Personalizable**: Realiza un sondeo periódico de salud del servidor (endpoint `/api/system/db-status`) con un intervalo configurable en segundos mediante la variable `VITE_DB_CONNECTION_CHECK_INTERVAL`.
+- **Integración con Axios**: Escucha proactivamente fallos de red o respuestas 500 del servidor a través de interceptores globales para gatillar de inmediato una validación y prevenir que el usuario intente realizar operaciones fallidas.
+- **Modal de Bloqueo Premium**: Muestra un aviso de pantalla completa elegante (con efecto de vidrio/glassmorphism, animaciones fluidas y botones de reintento manual) que impide continuar operando hasta restablecer la conexión.
+
 ---
+
 
 ## Sistema de Autenticación y Control de Acceso
 
