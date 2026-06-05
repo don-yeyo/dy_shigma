@@ -587,7 +587,7 @@ const shigmaController = {
             const { bateaId } = req.params;
             const { fecha, hora, nroManifiesto, pesoBalanza, usuario } = req.body;
 
-            if (!fecha || !hora || !nroManifiesto || !pesoBalanza) {
+            if (!fecha || !hora || !nroManifiesto || pesoBalanza === undefined || pesoBalanza === null || pesoBalanza === '') {
                 return res.status(400).json({ error: 'Faltan campos obligatorios: fecha, hora, nroManifiesto y pesoBalanza son obligatorios.' });
             }
 

@@ -250,7 +250,8 @@ const GestionBateas = () => {
             showAlert(`¡Batea "${selectedBatea.nombre}" reiniciada correctamente! Salida en estado PENDIENTE generada.`, 'Éxito', 'success');
         } catch (error) {
             console.error('Error restarting batea:', error);
-            showAlert('Error al reiniciar la batea.', 'Error', 'error');
+            const errorMsg = error.response?.data?.error || 'Error al reiniciar la batea.';
+            showAlert(errorMsg, 'Error', 'error');
         } finally {
             setRestarting(false);
         }
@@ -279,7 +280,8 @@ const GestionBateas = () => {
             fetchBateasData();
         } catch (error) {
             console.error('Error updating capacity:', error);
-            showAlert('Error al actualizar la capacidad de la batea.', 'Error', 'error');
+            const errorMsg = error.response?.data?.error || 'Error al actualizar la capacidad de la batea.';
+            showAlert(errorMsg, 'Error', 'error');
         } finally {
             setUpdatingCapacity(false);
         }
@@ -300,7 +302,8 @@ const GestionBateas = () => {
                     fetchSalidasData();
                 } catch (error) {
                     console.error('Error confirming batea salida:', error);
-                    showAlert('Error al confirmar la salida de batea.', 'Error', 'error');
+                    const errorMsg = error.response?.data?.error || 'Error al confirmar la salida de batea.';
+                    showAlert(errorMsg, 'Error', 'error');
                 }
             },
             'Confirmación de Salida'
@@ -475,6 +478,7 @@ const GestionBateas = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => handleOpenRestartModal(b)}
+                                                    disabled={b.pesoAcumulado <= 0}
                                                     style={{
                                                         padding: '8px 16px',
                                                         borderRadius: '12px',
@@ -483,11 +487,12 @@ const GestionBateas = () => {
                                                         color: isFull ? '#fff' : 'var(--text)',
                                                         fontSize: '0.8rem',
                                                         fontWeight: '700',
-                                                        cursor: 'pointer',
+                                                        cursor: b.pesoAcumulado <= 0 ? 'not-allowed' : 'pointer',
                                                         display: 'flex',
                                                         alignItems: 'center',
                                                         gap: '6px',
-                                                        transition: 'all 0.2s'
+                                                        transition: 'all 0.2s',
+                                                        opacity: b.pesoAcumulado <= 0 ? 0.5 : 1
                                                     }}
                                                 >
                                                     <RefreshCw size={14} /> Despachar / Vaciar
