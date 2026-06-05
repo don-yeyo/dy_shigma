@@ -478,7 +478,6 @@ const GestionBateas = () => {
                                                 <button
                                                     type="button"
                                                     onClick={() => handleOpenRestartModal(b)}
-                                                    disabled={b.pesoAcumulado <= 0}
                                                     style={{
                                                         padding: '8px 16px',
                                                         borderRadius: '12px',
@@ -487,12 +486,11 @@ const GestionBateas = () => {
                                                         color: isFull ? '#fff' : 'var(--text)',
                                                         fontSize: '0.8rem',
                                                         fontWeight: '700',
-                                                        cursor: b.pesoAcumulado <= 0 ? 'not-allowed' : 'pointer',
+                                                        cursor: 'pointer',
                                                         display: 'flex',
                                                         alignItems: 'center',
                                                         gap: '6px',
-                                                        transition: 'all 0.2s',
-                                                        opacity: b.pesoAcumulado <= 0 ? 0.5 : 1
+                                                        transition: 'all 0.2s'
                                                     }}
                                                 >
                                                     <RefreshCw size={14} /> Despachar / Vaciar

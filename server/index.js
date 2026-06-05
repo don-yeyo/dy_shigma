@@ -30,6 +30,22 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
+// Middleware de contingencia para entornos serverless (como Netlify Functions)
+app.use((req, res, next) => {
+    if ((!req.body || Object.keys(req.body).length === 0) && req.apiGateway && req.apiGateway.event && req.apiGateway.event.body) {
+        try {
+            let rawBody = req.apiGateway.event.body;
+            if (req.apiGateway.event.isBase64Encoded) {
+                rawBody = Buffer.from(rawBody, 'base64').toString('utf8');
+            }
+            req.body = JSON.parse(rawBody);
+        } catch (err) {
+            console.error('[SERVERLESS BODY PARSE ERROR]:', err);
+        }
+    }
+    next();
+});
+
 // Aplicar rate-limit a todas las rutas de la API
 app.use('/api', limiter);
 
