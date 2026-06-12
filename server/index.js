@@ -21,10 +21,21 @@ app.use((req, res, next) => {
         if (event && event.body) {
             try {
                 let rawBody = event.body;
-                if (event.isBase64Encoded) {
+                
+                // Si viene como buffer serializado de AWS / Netlify: { type: 'Buffer', data: [...] }
+                if (rawBody && typeof rawBody === 'object' && rawBody.type === 'Buffer' && Array.isArray(rawBody.data)) {
+                    rawBody = Buffer.from(rawBody.data).toString('utf8');
+                } else if (Buffer.isBuffer(rawBody)) {
+                    rawBody = rawBody.toString('utf8');
+                } else if (event.isBase64Encoded && typeof rawBody === 'string') {
                     rawBody = Buffer.from(rawBody, 'base64').toString('utf8');
                 }
-                req.body = JSON.parse(rawBody);
+                
+                if (typeof rawBody === 'string') {
+                    req.body = JSON.parse(rawBody);
+                } else if (typeof rawBody === 'object') {
+                    req.body = rawBody;
+                }
             } catch (err) {
                 console.error('[SERVERLESS BODY PARSE ERROR]:', err);
             }
