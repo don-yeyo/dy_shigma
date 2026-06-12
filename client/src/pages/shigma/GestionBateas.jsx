@@ -249,9 +249,13 @@ const GestionBateas = () => {
             fetchSalidasData();
             showAlert(`¡Batea "${selectedBatea.nombre}" reiniciada correctamente! Salida en estado PENDIENTE generada.`, 'Éxito', 'success');
         } catch (error) {
-            console.error('Error restarting batea:', error);
+            console.error('Error restarting batea completo:', error);
+            if (error.response && error.response.data) {
+                console.error('Data del error del servidor:', error.response.data);
+            }
             const errorMsg = error.response?.data?.error || 'Error al reiniciar la batea.';
-            showAlert(errorMsg, 'Error', 'error');
+            const debugInfo = error.response?.data?.debugReceived ? `\n\nExtraídos: ${JSON.stringify(error.response.data.debugReceived)}` : '';
+            showAlert(errorMsg + debugInfo, 'Error', 'error');
         } finally {
             setRestarting(false);
         }
