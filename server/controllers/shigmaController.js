@@ -585,14 +585,25 @@ const shigmaController = {
             await connection.beginTransaction();
 
             const { bateaId } = req.params;
-            const { fecha, hora, nroManifiesto, pesoBalanza, usuario } = req.body;
+            
+            // Soportar tanto camelCase como snake_case que Netlify a veces deforma o altera
+            const body = req.body || {};
+            const fecha = body.fecha || body.fecha_despacho;
+            const hora = body.hora || body.hora_despacho;
+            const nroManifiesto = body.nroManifiesto || body.nro_manifiesto || body.nromanifiesto;
+            const pesoBalanza = body.pesoBalanza !== undefined ? body.pesoBalanza : body.peso_balanza;
+            const usuario = body.usuario || 'Gabriel Tonelli';
 
             console.log('[DEBUG restartBatea] Params bateaId:', bateaId);
-            console.log('[DEBUG restartBatea] Body:', req.body);
+            console.log('[DEBUG restartBatea] Body:', body);
             console.log('[DEBUG restartBatea] Extraídos:', { fecha, hora, nroManifiesto, pesoBalanza, usuario });
 
             if (!fecha || !hora || !nroManifiesto || pesoBalanza === undefined || pesoBalanza === null || pesoBalanza === '') {
-                return res.status(400).json({ error: 'Faltan campos obligatorios: fecha, hora, nroManifiesto y pesoBalanza son obligatorios.' });
+                return res.status(400).json({ 
+                    error: 'Faltan campos obligatorios: fecha, hora, nroManifiesto y pesoBalanza son obligatorios.',
+                    debugReceived: { fecha, hora, nroManifiesto, pesoBalanza, usuario },
+                    rawBody: body
+                });
             }
 
             // Consultar la batea específica de la base de datos
