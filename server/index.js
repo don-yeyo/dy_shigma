@@ -33,7 +33,7 @@ app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 // Middleware de contingencia para entornos serverless (como Netlify Functions)
 app.use((req, res, next) => {
     if (!req.body || Object.keys(req.body).length === 0) {
-        const event = req.event || req.apiGateway?.event;
+        const event = req.event || (req.apiGateway && req.apiGateway.event);
         if (event && event.body) {
             try {
                 let rawBody = event.body;

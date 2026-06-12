@@ -300,3 +300,17 @@ npm run dev
 
 Uso interno.
 División Seguridad e Higiene Industrial y Medio Ambiente.
+
+---
+
+## Documentación en SharePoint
+
+Si deseas crear y publicar una página interna de documentación en el SharePoint de tu organización con el contenido actualizado de este README, puedes utilizar el script automatizado provisto en la raíz del proyecto:
+
+1. Abre una terminal de **PowerShell**.
+2. Ejecuta el script:
+   ```powershell
+   .\create_sharepoint_page.ps1
+   ```
+3. El script verificará e instalará automáticamente el módulo oficial `PnP.PowerShell` (de ser necesario), te solicitará la URL de tu sitio de SharePoint e iniciará sesión de manera interactiva con tu cuenta habitual (sin requerir permisos de administrador global), para luego crear y publicar la página `SHIGMA-Seguridad-Higiene-y-Medio-Ambiente`.
+
