@@ -20,29 +20,40 @@ app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // Middleware de contingencia para entornos serverless (como Netlify Functions)
 app.use((req, res, next) => {
+    console.log('[DEBUG MIDDLEWARE] req.body inicial:', req.body);
+    const event = req.event || (req.apiGateway && req.apiGateway.event);
+    console.log('[DEBUG MIDDLEWARE] event detectado:', !!event, event ? Object.keys(event) : 'none');
+    
     if (!req.body || Object.keys(req.body).length === 0) {
-        const event = req.event || (req.apiGateway && req.apiGateway.event);
         if (event && event.body) {
             try {
                 let rawBody = event.body;
+                console.log('[DEBUG MIDDLEWARE] event.body tipo:', typeof rawBody, rawBody ? 'tiene valor' : 'vacio');
                 
                 // Si viene como buffer serializado de AWS / Netlify: { type: 'Buffer', data: [...] }
                 if (rawBody && typeof rawBody === 'object' && rawBody.type === 'Buffer' && Array.isArray(rawBody.data)) {
+                    console.log('[DEBUG MIDDLEWARE] Detectado Buffer serializado');
                     rawBody = Buffer.from(rawBody.data).toString('utf8');
                 } else if (Buffer.isBuffer(rawBody)) {
+                    console.log('[DEBUG MIDDLEWARE] Detectado Buffer real');
                     rawBody = rawBody.toString('utf8');
                 } else if (event.isBase64Encoded && typeof rawBody === 'string') {
+                    console.log('[DEBUG MIDDLEWARE] Detectado Base64 string');
                     rawBody = Buffer.from(rawBody, 'base64').toString('utf8');
                 }
                 
                 if (typeof rawBody === 'string') {
                     req.body = JSON.parse(rawBody);
+                    console.log('[DEBUG MIDDLEWARE] JSON parsed:', req.body);
                 } else if (typeof rawBody === 'object') {
                     req.body = rawBody;
+                    console.log('[DEBUG MIDDLEWARE] Object assigned:', req.body);
                 }
             } catch (err) {
                 console.error('[SERVERLESS BODY PARSE ERROR]:', err);
             }
+        } else {
+            console.log('[DEBUG MIDDLEWARE] No hay event.body');
         }
     }
     next();
