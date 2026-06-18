@@ -9,6 +9,7 @@ import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
 import { SHIGMAService } from '../../services/api';
 import { useAuth } from '../../config/AuthContext';
+import * as XLSX from 'xlsx';
 
 const HistorialTrazabilidad = () => {
     const navigate = useNavigate();
@@ -147,8 +148,8 @@ const HistorialTrazabilidad = () => {
         return hasModulo(ft.id);
     });
 
-    // Exportar a CSV (Pide rango: Todo o Desde una fecha)
-    const handleExportCSV = async () => {
+    // Exportar a Excel (Pide rango: Todo o Desde una fecha)
+    const handleExportExcel = async () => {
         const exportType = exportModal.exportType;
         const sinceDateVal = exportModal.sinceDate;
         
@@ -173,36 +174,73 @@ const HistorialTrazabilidad = () => {
                 return;
             }
 
-            let csvContent = "data:text/csv;charset=utf-8,";
-            // UTF-8 BOM para soporte correcto de eñes y tildes en Excel
-            csvContent = "\uFEFF" + csvContent;
-
-            // Encabezados
-            csvContent += "ID,Fecha,Tipo de Registro,Sector/Origen,Responsable,Datos Detalle\n";
-
-            exportRecords.forEach(r => {
+            // Preparar las filas estructuradas para Excel
+            const excelRows = exportRecords.map(r => {
                 const date = new Date(r.createdAt || r.fecha).toLocaleDateString('es-AR');
                 const sector = r.sector || r.sectorOrigen || r.clienteOrigen || r.espacioVerde || r.bateaNombre || 'N/A';
-                const detailText = JSON.stringify(r).replace(/"/g, '""');
+                
+                // Generar un desglose amigable del detalle de registro
+                let detalleAmigable = '';
+                if (r.formType === 'residuos-comunes') {
+                    detalleAmigable = `Planta: ${r.lugar || 'N/A'}, Residuo: ${r.tipoResiduo}, Peso: ${r.peso} kg, Destino: ${r.destino}`;
+                    if (r.materialesRecuperados) {
+                        const mats = Object.entries(r.materialesRecuperados)
+                            .map(([m, d]) => `${m}: ${d.cantidad} ${d.unidad}`)
+                            .join(', ');
+                        detalleAmigable += ` (Recuperados - ${mats})`;
+                    }
+                } else if (r.formType === 'residuos-especiales') {
+                    detalleAmigable = `Tipo: ${r.tipoResiduoEspecial}, Peligro: ${r.categoriaPeligro}, Cantidad: ${r.cantidad} ${r.unidad}, Envase: ${r.tipoEnvase}`;
+                } else if (r.formType === 'devoluciones') {
+                    detalleAmigable = `Producto: ${r.productoDevuelto}, Bultos: ${r.cantidadBultos}, Peso: ${r.pesoEstimado || 0} kg, Motivo: ${r.motivoDevolucion}, Destino: ${r.disposicionFinal}`;
+                } else if (r.formType === 'tratamiento') {
+                    detalleAmigable = `Proceso: ${r.procesoTratamiento}, Material: ${r.materialEntrada}, Cantidad: ${r.cantidadProcesada} kg, Subproducto: ${r.subproductoObtenido}`;
+                } else if (r.formType === 'economia-circular') {
+                    detalleAmigable = `Material: ${r.materialRevalorizado}, Reinserción: ${r.destinoReinsercion}, Cantidad: ${r.cantidad} ${r.unidad}, CO₂ Mitigado: ${r.co2Evitado} kg`;
+                } else if (r.formType === 'pallets') {
+                    detalleAmigable = `Tipo: ${r.tipoPallet}, Ingresados: ${r.cantidadIngresados}, Reparados: ${r.cantidadReparados}, Descartados: ${r.cantidadDescartados}, Circular: ${r.cantidadCircular}`;
+                } else if (r.formType === 'espacios-verdes') {
+                    detalleAmigable = `Tarea: ${r.tareaRealizada}, Agua: ${r.consumoAgua} L, Plantas: ${r.plantasAgregadas} (${r.especieAgregada || 'N/A'})`;
+                } else if (r.formType === 'vaciado-bateas') {
+                    detalleAmigable = `Batea: ${r.bateaNombre}, Manifiesto: ${r.nroManifiesto}, Peso Balanza: ${r.pesoBalanza} kg, Peso Acumulado: ${r.pesoAcumulado} kg, Estado: ${r.status || 'pendiente'}`;
+                } else {
+                    detalleAmigable = JSON.stringify(r);
+                }
 
-                const line = `"${r.id}","${date}","${r.formLabel}","${sector}","${r.responsable || r.usuario}","${detailText}"\n`;
-                csvContent += line;
+                return {
+                    'ID Registro': r.id,
+                    'Fecha': date,
+                    'Tipo de Registro': r.formLabel,
+                    'Sector / Origen': sector,
+                    'Responsable / Inspector': r.responsable || r.usuario,
+                    'Detalle del Registro': detalleAmigable
+                };
             });
 
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", `auditoria_shigma_${new Date().toISOString().slice(0, 10)}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            // Crear libro de trabajo (Workbook) y hoja de cálculo (Worksheet)
+            const worksheet = XLSX.utils.json_to_sheet(excelRows);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Auditoría SHIGMA");
+
+            // Auto-ajustar ancho de las columnas
+            const colWidths = Object.keys(excelRows[0] || {}).map(key => {
+                const maxLength = Math.max(
+                    key.length,
+                    ...excelRows.map(row => String(row[key] || '').length)
+                );
+                return { wch: Math.min(maxLength + 3, 50) }; // límite de 50 de ancho para que no se extienda infinitamente el detalle
+            });
+            worksheet['!cols'] = colWidths;
+
+            // Descargar el archivo .xlsx
+            XLSX.writeFile(workbook, `auditoria_shigma_${new Date().toISOString().slice(0, 10)}.xlsx`);
+
         } catch (err) {
-            console.error('Error exporting CSV:', err);
+            console.error('Error exporting Excel:', err);
             setDeleteStatusModal({
                 isOpen: true,
                 title: 'Error de Exportación',
-                message: 'Ocurrió un error al intentar descargar los registros del servidor.',
+                message: 'Ocurrió un error al intentar descargar los registros en formato Excel.',
                 type: 'error'
             });
         } finally {
@@ -388,7 +426,7 @@ const HistorialTrazabilidad = () => {
                         onClick={() => setExportModal(prev => ({ ...prev, isOpen: true }))}
                         style={{ display: 'flex', alignItems: 'center', gap: '8px', border: '2px solid var(--success)', color: 'var(--success)' }}
                     >
-                        <Download size={18} /> Exportar CSV
+                        <Download size={18} /> Exportar Excel
                     </Button>
                 )}
             </div>
@@ -685,17 +723,17 @@ const HistorialTrazabilidad = () => {
                 </Modal>
             )}
 
-            {/* Export CSV Configuration Modal */}
+            {/* Export Excel Configuration Modal */}
             {exportModal.isOpen && (
                 <Modal
                     isOpen={exportModal.isOpen}
                     onClose={() => setExportModal(prev => ({ ...prev, isOpen: false }))}
-                    title="Exportar a CSV"
+                    title="Exportar a Excel"
                     showFooter={false}
                 >
                     <div style={{ padding: '8px 0' }}>
                         <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '0.95rem', lineHeight: '1.5' }}>
-                            Configure el rango de fechas para la exportación del historial completo a formato CSV de auditoría. Se aplicarán los filtros activos de tipo de formulario y búsqueda.
+                            Configure el rango de fechas para la exportación del historial completo a formato Excel (.xlsx) de auditoría. Se aplicarán los filtros activos de tipo de formulario y búsqueda.
                         </p>
                         
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
@@ -706,7 +744,7 @@ const HistorialTrazabilidad = () => {
                                     checked={exportModal.exportType === 'all'}
                                     onChange={() => setExportModal(prev => ({ ...prev, exportType: 'all' }))}
                                     style={{ width: '18px', height: '18px', accentColor: 'var(--success)' }}
-                                />
+                                  />
                                 Exportar todo el historial sin límite de fecha
                             </label>
                             
@@ -755,10 +793,10 @@ const HistorialTrazabilidad = () => {
                             </Button>
                             <Button
                                 variant="primary"
-                                onClick={handleExportCSV}
+                                onClick={handleExportExcel}
                                 style={{ background: 'var(--success)', color: '#fff' }}
                             >
-                                <Download size={18} style={{ marginRight: '8px', display: 'inline-block', verticalAlign: 'middle' }} /> Exportar a CSV
+                                <Download size={18} style={{ marginRight: '8px', display: 'inline-block', verticalAlign: 'middle' }} /> Exportar a Excel
                             </Button>
                         </div>
                     </div>

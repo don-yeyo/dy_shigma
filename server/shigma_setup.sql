@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS `bateas_salidas` (
   `peso_acumulado` decimal(10, 2) NOT NULL,
   `record_ids` json NOT NULL, -- Lista estructurada de IDs vinculados
   `status` varchar(30) DEFAULT 'pendiente',
+  `nro_certificado` varchar(30) DEFAULT NULL, -- Número de certificado al confirmar
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP(),
   `usuario` varchar(100) DEFAULT '',
   PRIMARY KEY (`id`),
@@ -49,20 +50,43 @@ CREATE TABLE IF NOT EXISTS `bateas_salidas` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ------------------------------------------------------------
+-- 1b. Tabla de Salidas de Depósito (Despachos de Recuperables)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `depositos_salidas` (
+  `id` varchar(30) NOT NULL,
+  `material` varchar(100) NOT NULL,
+  `proveedor` varchar(255) NOT NULL,
+  `fecha` varchar(15) NOT NULL,
+  `hora` varchar(15) NOT NULL,
+  `nro_manifiesto` varchar(100) DEFAULT NULL, -- NO OBLIGATORIO
+  `peso_balanza` decimal(10, 2) NOT NULL,
+  `peso_acumulado` decimal(10, 2) NOT NULL,
+  `record_ids` json NOT NULL, -- Lista estructurada de IDs vinculados
+  `status` varchar(30) DEFAULT 'pendiente',
+  `nro_certificado` varchar(30) DEFAULT NULL, -- NO OBLIGATORIO
+  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP(),
+  `usuario` varchar(100) DEFAULT '',
+  PRIMARY KEY (`id`),
+  KEY `idx_depositos_salidas_created` (`created_at` DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ------------------------------------------------------------
 -- 2. Tabla de Residuos Industriales No Especiales (RINE / Comunes)
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `residuos_comunes` (
   `id` varchar(30) NOT NULL,
   `lugar_id` int NOT NULL,
-  `sector_id` int NOT NULL,
+  `sector_id` int DEFAULT NULL,
   `tipo_residuo` varchar(100) NOT NULL,
   `peso` decimal(10, 2) NOT NULL,
   `destino` varchar(150) NOT NULL,
   `responsable` varchar(100) DEFAULT '',
   `observaciones` text NULL,
   `clasificacion_inorganico` varchar(50) DEFAULT 'Irrecuperables',
+  `subcategoria_inorganico` varchar(50) DEFAULT NULL, -- Húmedo o Seco para Elguea Roman
   `materiales_recuperados` json NULL, -- Diccionario de cantidades y unidades
   `batea_salida_id` varchar(30) NULL,  -- Vinculación a salida de batea
+  `deposito_salida_id` varchar(30) NULL,  -- Vinculación a salida de depósito
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP(),
   `usuario` varchar(100) DEFAULT '',
   PRIMARY KEY (`id`),
@@ -73,6 +97,8 @@ CREATE TABLE IF NOT EXISTS `residuos_comunes` (
   KEY `idx_residuos_comunes_created` (`created_at` DESC),
   CONSTRAINT `fk_residuos_comunes_batea_salida` FOREIGN KEY (`batea_salida_id`) 
     REFERENCES `bateas_salidas` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_residuos_comunes_deposito_salida` FOREIGN KEY (`deposito_salida_id`) 
+    REFERENCES `depositos_salidas` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
   CONSTRAINT `fk_residuos_comunes_lugar` FOREIGN KEY (`lugar_id`) 
     REFERENCES `lugares` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_residuos_comunes_sector` FOREIGN KEY (`sector_id`) 

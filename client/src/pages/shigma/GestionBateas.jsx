@@ -291,27 +291,48 @@ const GestionBateas = () => {
         }
     };
 
+    // Modal de Confirmación de Recepción con Número de Certificado
+    const [showConfirmRecepcionModal, setShowConfirmRecepcionModal] = useState(false);
+    const [selectedSalidaId, setSelectedSalidaId] = useState(null);
+    const [nroCertificadoInput, setNroCertificadoInput] = useState('');
+    const [confirmingRecepcion, setConfirmingRecepcion] = useState(false);
+
     // Lógica para confirmar salida de batea
     const handleConfirmSalida = (salidaId) => {
         if (isRegistrador) {
             showAlert('No tienes permisos para confirmar la recepción de salidas de batea.', 'Acceso Denegado', 'error');
             return;
         }
-        showConfirm(
-            `¿Estás seguro de que deseas confirmar y aprobar la salida ${salidaId}?`,
-            async () => {
-                try {
-                    await SHIGMAService.confirmBateaSalida(salidaId);
-                    showAlert('¡Salida de batea confirmada y archivada con éxito!', 'Éxito', 'success');
-                    fetchSalidasData();
-                } catch (error) {
-                    console.error('Error confirming batea salida:', error);
-                    const errorMsg = error.response?.data?.error || 'Error al confirmar la salida de batea.';
-                    showAlert(errorMsg, 'Error', 'error');
-                }
-            },
-            'Confirmación de Salida'
-        );
+        setSelectedSalidaId(salidaId);
+        setNroCertificadoInput('');
+        setShowConfirmRecepcionModal(true);
+    };
+
+    const handleConfirmRecepcionSubmit = async (e) => {
+        e.preventDefault();
+        const cert = nroCertificadoInput.trim();
+        if (!cert) {
+            showAlert('Por favor ingrese el número de certificado.', 'Validación', 'warning');
+            return;
+        }
+        if (cert.length > 30) {
+            showAlert('El número de certificado no puede exceder los 30 caracteres.', 'Validación', 'warning');
+            return;
+        }
+
+        setConfirmingRecepcion(true);
+        try {
+            await SHIGMAService.confirmBateaSalida(selectedSalidaId, { nroCertificado: cert });
+            setShowConfirmRecepcionModal(false);
+            showAlert('¡Salida de batea confirmada y archivada con éxito!', 'Éxito', 'success');
+            fetchSalidasData();
+        } catch (error) {
+            console.error('Error confirming batea salida:', error);
+            const errorMsg = error.response?.data?.error || 'Error al confirmar la salida de batea.';
+            showAlert(errorMsg, 'Error', 'error');
+        } finally {
+            setConfirmingRecepcion(false);
+        }
     };
 
     return (
@@ -805,6 +826,52 @@ const GestionBateas = () => {
                                 style={{ background: 'var(--primary)' }}
                             >
                                 {updatingCapacity ? 'Guardando...' : 'Guardar Capacidad'}
+                            </Button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
+
+            {/* Modal para ingresar Número de Certificado y Confirmar Recepción */}
+            {showConfirmRecepcionModal && (
+                <Modal
+                    isOpen={showConfirmRecepcionModal}
+                    onClose={() => setShowConfirmRecepcionModal(false)}
+                    title="Confirmación de Recepción"
+                    showFooter={false}
+                >
+                    <form onSubmit={handleConfirmRecepcionSubmit} style={{ padding: '8px 0' }}>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '16px', lineHeight: '1.4' }}>
+                            Para confirmar y archivar la recepción de la salida <strong>{selectedSalidaId}</strong>, es obligatorio ingresar el número de certificado de disposición final.
+                        </p>
+
+                        <Input
+                            label="Número de Certificado *"
+                            type="text"
+                            placeholder="Ej: CERT-12345"
+                            value={nroCertificadoInput}
+                            onChange={(e) => setNroCertificadoInput(e.target.value)}
+                            maxLength={30}
+                            required
+                        />
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '24px' }}>
+                            <Button 
+                                type="button" 
+                                variant="outline" 
+                                onClick={() => setShowConfirmRecepcionModal(false)}
+                                disabled={confirmingRecepcion}
+                            >
+                                Cancelar
+                            </Button>
+                            <Button 
+                                type="submit" 
+                                variant="primary" 
+                                className={confirmingRecepcion ? 'btn-loading' : ''}
+                                disabled={confirmingRecepcion}
+                                style={{ background: 'var(--success)' }}
+                            >
+                                {confirmingRecepcion ? 'Confirmando...' : 'Confirmar Recepción'}
                             </Button>
                         </div>
                     </form>

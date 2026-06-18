@@ -21,6 +21,7 @@ import Pallets from './pages/shigma/Pallets';
 import EspaciosVerdes from './pages/shigma/EspaciosVerdes';
 import HistorialTrazabilidad from './pages/shigma/HistorialTrazabilidad';
 import GestionBateas from './pages/shigma/GestionBateas';
+import GestionDeposito from './pages/shigma/GestionDeposito';
 import GestionOperadores from './pages/shigma/GestionOperadores';
 import GestionUsuarios from './pages/GestionUsuarios';
 import UpdatePrompt from './components/UpdatePrompt';
@@ -322,6 +323,11 @@ function App() {
                                 <Route path="/gestion-bateas" element={
                                     <RouteGuard requiredModulo="gestion-bateas">
                                         <GestionBateas />
+                                    </RouteGuard>
+                                } />
+                                <Route path="/gestion-deposito" element={
+                                    <RouteGuard requiredModulo="gestion-bateas">
+                                        <GestionDeposito />
                                     </RouteGuard>
                                 } />
                                 <Route path="/residuos-especiales" element={

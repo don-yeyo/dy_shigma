@@ -1,24 +1,9 @@
 ---------MVP
 
-credenciales de la aplicacion en microsoft
-
-env vars y deploy en netlify
-
-permitir setear capacidad de la batea
-
 ver cuales desplegables deberian ser tablas maestras
 
 revisar vistas mobile
 
-----
-cambiar mensaje de batea llena para que elija otra
-
-cuando es orgánico o inorgánico falta definir el sector
-HY - panificado
-PE - Panificado
-ER - Tapas / Pastas
-
-expor a excel
 
 ----------Next Features
 

@@ -195,11 +195,13 @@ const ResiduosComunes = () => {
         sectorId: '', // Sector ID
         tipoResiduo: '',
         clasificacionInorganico: 'Irrecuperables', // Irrecuperables o Recuperable
+        subcategoriaInorganico: '', // Húmedo o Seco para Elguea Roman
         materialesRecuperados: {
             'Cartón': { cantidad: '', unidad: 'Kilos' },
             'Metal': { cantidad: '', unidad: 'Kilos' },
             'Cajones': { cantidad: '', unidad: 'Kilos' },
             'Conos de Film Streech': { cantidad: '', unidad: 'Kilos' },
+            'Aceite vegetal': { cantidad: '', unidad: 'Kilos' },
             'Otros': { cantidad: '', unidad: 'Kilos' }
         },
         peso: '',
@@ -227,7 +229,7 @@ const ResiduosComunes = () => {
         { id: 'Orgánicos', label: 'Orgánicos' }
     ];
 
-    const materialesDisponibles = ['Cartón', 'Metal', 'Cajones', 'Conos de Film Streech', 'Otros'];
+    const materialesDisponibles = ['Cartón', 'Metal', 'Cajones', 'Conos de Film Streech', 'Aceite vegetal', 'Otros'];
 
     // Cargar Bateas desde el backend
     const fetchBateasData = async () => {
@@ -325,6 +327,7 @@ const ResiduosComunes = () => {
                             'Metal': { cantidad: '', unidad: 'Kilos' },
                             'Cajones': { cantidad: '', unidad: 'Kilos' },
                             'Conos de Film Streech': { cantidad: '', unidad: 'Kilos' },
+                            'Aceite vegetal': { cantidad: '', unidad: 'Kilos' },
                             'Otros': { cantidad: '', unidad: 'Kilos' }
                         };
                         if (record.materialesRecuperados) {
@@ -345,6 +348,7 @@ const ResiduosComunes = () => {
                             sectorId: record.sectorId || '',
                             tipoResiduo: record.tipoResiduo || '',
                             clasificacionInorganico: record.clasificacionInorganico || 'Irrecuperables',
+                            subcategoriaInorganico: record.subcategoriaInorganico || '',
                             materialesRecuperados: defaultRecuperados,
                             peso: String(record.peso) || '',
                             destino: record.destino || '',
@@ -403,12 +407,16 @@ const ResiduosComunes = () => {
 
             if (name === 'lugarId') {
                 updated.sectorId = '';
+                updated.subcategoriaInorganico = '';
             }
             // Si cambia el tipo de residuo, reseteamos el destino para evitar inconsistencias
             if (name === 'tipoResiduo') {
                 updated.destino = '';
                 if (value !== 'Inorgánicos Generales') {
                     updated.clasificacionInorganico = 'Irrecuperables';
+                    updated.subcategoriaInorganico = '';
+                } else {
+                    updated.sectorId = '';
                 }
             }
             return updated;
@@ -556,6 +564,10 @@ const ResiduosComunes = () => {
             return;
         }
 
+        const selectedLugarObj = lugares.find(l => String(l.id) === String(formData.lugarId));
+        const esElgueaRoman = selectedLugarObj?.nombre === 'Elguea Roman';
+        const esInorganicoGeneral = formData.tipoResiduo === 'Inorgánicos Generales';
+
         // 1. Planta Generadora (Arriba Izquierda)
         if (!formData.lugarId) {
             showAlert('Por favor, seleccione la Planta Generadora.');
@@ -563,12 +575,16 @@ const ResiduosComunes = () => {
         }
 
         // 1b. Sector
-        if (!formData.sectorId) {
+        if (!esInorganicoGeneral && !formData.sectorId) {
             showAlert('Por favor, seleccione el Sector.');
             return;
         }
 
-
+        // 1c. Humedad (Subcategoría) si es Elguea Roman e Inorgánicos Generales
+        if (esInorganicoGeneral && esElgueaRoman && !formData.subcategoriaInorganico) {
+            showAlert('Por favor, seleccione si el residuo es Húmedo o Seco.');
+            return;
+        }
 
         // 2. Tipo de Residuo (Arriba Derecha)
         if (!formData.tipoResiduo) {
@@ -642,6 +658,9 @@ const ResiduosComunes = () => {
         setShowConfirmModal(false);
         try {
             const isRecuperable = formData.tipoResiduo === 'Inorgánicos Generales' && formData.clasificacionInorganico === 'Recuperable';
+            const selectedLugarObj = lugares.find(l => String(l.id) === String(formData.lugarId));
+            const esElgueaRoman = selectedLugarObj?.nombre === 'Elguea Roman';
+            const esInorganicoGeneral = formData.tipoResiduo === 'Inorgánicos Generales';
 
             // Calcular peso total sumado en el background para recuperables
             let finalPeso = formData.peso;
@@ -659,13 +678,14 @@ const ResiduosComunes = () => {
             let payload = {
                 createdAt: `${formData.fechaCarga}T${formData.horaCarga}`,
                 lugarId: parseInt(formData.lugarId, 10),
-                sectorId: parseInt(formData.sectorId, 10),
+                sectorId: esInorganicoGeneral ? null : parseInt(formData.sectorId, 10),
                 tipoResiduo: formData.tipoResiduo,
                 peso: parseFloat(finalPeso),
                 // Los inorgánicos recuperables NO van a batea, se asigna acopio general
                 destino: isRecuperable ? 'Acopio de Recuperables' : formData.destino,
                 responsable: formData.responsable,
-                observaciones: formData.observaciones
+                observaciones: formData.observaciones,
+                subcategoriaInorganico: (esInorganicoGeneral && esElgueaRoman) ? formData.subcategoriaInorganico : null
             };
 
             if (formData.tipoResiduo === 'Inorgánicos Generales') {
@@ -704,11 +724,13 @@ const ResiduosComunes = () => {
                     sectorId: '',
                     tipoResiduo: '',
                     clasificacionInorganico: 'Irrecuperables',
+                    subcategoriaInorganico: '',
                     materialesRecuperados: {
                         'Cartón': { cantidad: '', unidad: 'Kilos' },
                         'Metal': { cantidad: '', unidad: 'Kilos' },
                         'Cajones': { cantidad: '', unidad: 'Kilos' },
                         'Conos de Film Streech': { cantidad: '', unidad: 'Kilos' },
+                        'Aceite vegetal': { cantidad: '', unidad: 'Kilos' },
                         'Otros': { cantidad: '', unidad: 'Kilos' }
                     },
                     peso: '',
@@ -735,6 +757,8 @@ const ResiduosComunes = () => {
     const isRecuperable = formData.tipoResiduo === 'Inorgánicos Generales' && formData.clasificacionInorganico === 'Recuperable';
     const selectedLugarObj = lugares.find(l => String(l.id) === String(formData.lugarId));
     const selectedSectorObj = sectores.find(s => String(s.id) === String(formData.sectorId));
+    const esElgueaRoman = selectedLugarObj?.nombre === 'Elguea Roman';
+    const esInorganicoGeneral = formData.tipoResiduo === 'Inorgánicos Generales';
 
     return (
         <div className="card-anim" style={{ maxWidth: '800px', margin: '0 auto' }}>
@@ -830,7 +854,7 @@ const ResiduosComunes = () => {
 
                     <div style={{
                         display: 'grid',
-                        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+                        gridTemplateColumns: (isMobile || (esInorganicoGeneral && !esElgueaRoman)) ? '1fr' : '1fr 1fr',
                         gap: '16px',
                         marginBottom: '24px'
                     }}>
@@ -844,16 +868,31 @@ const ResiduosComunes = () => {
                             required
                         />
 
-                        <Select
-                            label="Sector *"
-                            name="sectorId"
-                            value={formData.sectorId}
-                            onChange={handleChange}
-                            options={sectores.map(s => ({ id: s.id, label: s.nombre }))}
-                            includePlaceholder={true}
-                            required
-                            disabled={!formData.lugarId}
-                        />
+                        {!esInorganicoGeneral ? (
+                            <Select
+                                label="Sector *"
+                                name="sectorId"
+                                value={formData.sectorId}
+                                onChange={handleChange}
+                                options={sectores.map(s => ({ id: s.id, label: s.nombre }))}
+                                includePlaceholder={true}
+                                required
+                                disabled={!formData.lugarId}
+                            />
+                        ) : esElgueaRoman ? (
+                            <Select
+                                label="Humedad del Residuo *"
+                                name="subcategoriaInorganico"
+                                value={formData.subcategoriaInorganico}
+                                onChange={handleChange}
+                                options={[
+                                    { id: 'Húmedo', label: 'Húmedo' },
+                                    { id: 'Seco', label: 'Seco' }
+                                ]}
+                                includePlaceholder={true}
+                                required
+                            />
+                        ) : null}
                     </div>
 
                     <div style={{
@@ -915,7 +954,7 @@ const ResiduosComunes = () => {
 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                         {materialesDisponibles.map(mat => {
-                                            const isCajones = mat === 'Cajones';
+                                            const isCajones = false;
                                             const currentMatData = formData.materialesRecuperados[mat];
 
                                             return (

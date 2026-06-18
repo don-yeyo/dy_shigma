@@ -2,14 +2,15 @@
 
 - `[x]` Configuración de Entorno e Infraestructura
   - `[x]` Instalar dependencia `mysql2` en el servidor
-  - `[x]` Crear script de base de datos `server/shigma_setup.sql`
-  - `[x]` Actualizar `.env` y `.env.template` del servidor con variables de MySQL, VAPID y Feature Flags
+  - `[x]` Ejecutar alteración de base de datos para la tabla `depositos_salidas` y clave foránea
+- `[/]` Modificar `shigma_setup.sql` con el nuevo esquema del depósitor con variables de MySQL, VAPID y Feature Flags
   - `[x]` Actualizar `.env` y `.env.template` del cliente con Azure AD, Google Login y Version Check
 - `[x]` Conexión de Base de Datos y Zona Horaria (GMT-3)
   - `[x]` Crear `server/config/db.js` con el pool de conexiones and el hook `acquire` de zona horaria
-- `[x]` Refactorización del Backend (`shigmaController.js`)
-  - `[x]` Importar y utilizar el pool de base de datos MySQL
-  - `[x]` Refactorizar `getAllRecords` para combinar registros de las tablas MySQL de forma concurrente
+- `[x]` Actualizar backend (`shigmaController.js`) para soportar `subcategoriaInorganico` y `nroCertificado`
+- `[x]` Actualizar frontend (`GestionBateas.jsx`):
+    - `[x]` Pedir Número de Certificado de 30 caracteres en modal obligatorio al Confirmar Recepción
+- `[x]` Validar y verificar cambiostros de las tablas MySQL de forma concurrente
   - `[x]` Refactorizar `getRecordsByForm` para leer de la tabla correspondiente
   - `[x]` Refactorizar `createRecord` para insertar registros y generar IDs incrementales premium en MySQL
   - `[x]` Refactorizar `getBateasStatus` para consultar ocupación directo de la base de datos

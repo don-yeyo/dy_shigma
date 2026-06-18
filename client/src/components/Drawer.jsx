@@ -25,6 +25,7 @@ const Drawer = ({ isOpen, onClose }) => {
     const formItems = [
         { icon: <Trash2 size={18} />, label: 'Residuos No Especiales (RINE)', path: '/residuos-comunes', modulo: 'residuos-comunes' },
         { icon: <Scale size={18} />, label: 'Gestión de Bateas', path: '/gestion-bateas', modulo: 'gestion-bateas' },
+        { icon: <Package size={18} />, label: 'Gestión de Depósito', path: '/gestion-deposito', modulo: 'gestion-bateas' },
         { icon: <ShieldAlert size={18} />, label: 'Residuos Especiales', path: '/residuos-especiales', modulo: 'residuos-especiales' },
         { icon: <CornerUpLeft size={18} />, label: 'Devoluciones', path: '/devoluciones', modulo: 'devoluciones' },
         { icon: <RefreshCw size={18} />, label: 'Tratamiento', path: '/tratamiento', modulo: 'tratamiento' },

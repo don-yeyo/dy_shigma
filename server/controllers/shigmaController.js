@@ -705,9 +705,19 @@ const shigmaController = {
     confirmBateaSalida: async (req, res) => {
         try {
             const { salidaId } = req.params;
+            const { nroCertificado } = req.body;
+
+            if (!nroCertificado || nroCertificado.trim() === '') {
+                return res.status(400).json({ error: 'El número de certificado es obligatorio para confirmar la recepción.' });
+            }
+
+            if (nroCertificado.length > 30) {
+                return res.status(400).json({ error: 'El número de certificado no puede exceder los 30 caracteres.' });
+            }
+
             const [result] = await db.query(
-                `UPDATE bateas_salidas SET status = 'confirmado' WHERE id = ?`,
-                [salidaId]
+                `UPDATE bateas_salidas SET status = 'confirmado', nro_certificado = ? WHERE id = ?`,
+                [nroCertificado.trim(), salidaId]
             );
 
             if (result.affectedRows === 0) {
@@ -1074,6 +1084,252 @@ const shigmaController = {
         } catch (error) {
             console.error('Error en getSectores:', error);
             res.status(500).json({ error: 'Error al obtener sectores desde la base de datos.' });
+        }
+    },
+
+    // ============================================================
+    // Módulos de Depósito de Recuperables
+    // ============================================================
+
+    getDepositoStatus: async (req, res) => {
+        try {
+            const [rows] = await db.query(`
+                SELECT materiales_recuperados 
+                FROM residuos_comunes
+                WHERE clasificacion_inorganico = 'Recuperable' AND deposito_salida_id IS NULL
+            `);
+
+            const stock = {
+                'Cartón': 0,
+                'Metal': 0,
+                'Cajones': 0,
+                'Conos de Film Streech': 0,
+                'Aceite vegetal': 0,
+                'Otros': 0
+            };
+
+            rows.forEach(row => {
+                let mats = row.materiales_recuperados;
+                if (mats && typeof mats === 'string') {
+                    try { mats = JSON.parse(mats); } catch (e) { mats = null; }
+                }
+                if (mats && typeof mats === 'object') {
+                    Object.entries(mats).forEach(([mat, data]) => {
+                        if (stock[mat] !== undefined) {
+                            stock[mat] += parseFloat(data.cantidad || 0);
+                        }
+                    });
+                }
+            });
+
+            Object.keys(stock).forEach(key => {
+                stock[key] = Math.round(stock[key] * 10) / 10;
+            });
+
+            res.json(stock);
+        } catch (error) {
+            console.error('Error en getDepositoStatus:', error);
+            res.status(500).json({ error: 'Error al obtener el stock del depósito.' });
+        }
+    },
+
+    despacharDeposito: async (req, res) => {
+        const connection = await db.getConnection();
+        try {
+            await connection.beginTransaction();
+
+            const { material, proveedor, fecha, hora, nroManifiesto, pesoBalanza, usuario } = req.body;
+
+            if (!material || !proveedor || !fecha || !hora || pesoBalanza === undefined || pesoBalanza === null || pesoBalanza === '') {
+                await connection.rollback();
+                return res.status(400).json({ error: 'Faltan campos obligatorios: material, proveedor, fecha, hora y pesoBalanza son obligatorios.' });
+            }
+
+            // Capitalizar proveedor (primera letra de cada palabra en mayúscula)
+            const proveedorCapitalizado = proveedor.trim()
+                .toLowerCase()
+                .replace(/\b\w/g, c => c.toUpperCase());
+
+            const [activeRecords] = await connection.query(
+                `SELECT id, materiales_recuperados FROM residuos_comunes WHERE clasificacion_inorganico = 'Recuperable' AND deposito_salida_id IS NULL FOR UPDATE`
+            );
+
+            // Filtrar únicamente los registros que contengan el material a despachar con cantidad > 0
+            const matchingRecords = [];
+            let pesoAcumulado = 0;
+
+            activeRecords.forEach(row => {
+                let mats = row.materiales_recuperados;
+                if (mats && typeof mats === 'string') {
+                    try { mats = JSON.parse(mats); } catch (e) { mats = null; }
+                }
+                if (mats && typeof mats === 'object' && mats[material]) {
+                    const cantidad = parseFloat(mats[material].cantidad || 0);
+                    if (cantidad > 0) {
+                        pesoAcumulado += cantidad;
+                        matchingRecords.push(row.id);
+                    }
+                }
+            });
+
+            if (matchingRecords.length === 0) {
+                await connection.rollback();
+                return res.status(400).json({ error: `No hay stock disponible del material ${material} para despachar.` });
+            }
+
+            const [lastSalidas] = await connection.query(
+                `SELECT id FROM depositos_salidas WHERE id LIKE 'SHG-DSAL-%' ORDER BY id DESC LIMIT 1`
+            );
+            let nextIndex = 1;
+            if (lastSalidas.length > 0) {
+                const lastId = lastSalidas[0].id;
+                const lastNum = parseInt(lastId.substring(lastId.lastIndexOf('-') + 1), 10);
+                if (!isNaN(lastNum)) {
+                    nextIndex = lastNum + 1;
+                }
+            }
+            const paddedIndex = String(nextIndex).padStart(4, '0');
+            const customSalidaId = `SHG-DSAL-${paddedIndex}`;
+
+            const insertSql = `
+                INSERT INTO depositos_salidas (id, material, proveedor, fecha, hora, nro_manifiesto, peso_balanza, peso_acumulado, record_ids, status, usuario)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?)
+            `;
+            await connection.query(insertSql, [
+                customSalidaId,
+                material,
+                proveedorCapitalizado,
+                fecha,
+                hora,
+                nroManifiesto || null,
+                parseFloat(pesoBalanza),
+                pesoAcumulado,
+                JSON.stringify(matchingRecords),
+                usuario || 'Gabriel Tonelli'
+            ]);
+
+            // Vincular únicamente los registros coincidentes
+            const placeholders = matchingRecords.map(() => '?').join(', ');
+            await connection.query(
+                `UPDATE residuos_comunes SET deposito_salida_id = ? WHERE id IN (${placeholders})`,
+                [customSalidaId, ...matchingRecords]
+            );
+
+            await connection.commit();
+
+            const [insertedSalida] = await db.query(`SELECT * FROM depositos_salidas WHERE id = ?`, [customSalidaId]);
+            res.status(201).json({
+                message: 'Despacho de depósito registrado con éxito',
+                salida: toCamelCaseObj(insertedSalida[0])
+            });
+        } catch (error) {
+            await connection.rollback();
+            console.error('Error en despacharDeposito:', error);
+            res.status(500).json({ error: 'Error al procesar el despacho del depósito en la base de datos.' });
+        } finally {
+            connection.release();
+        }
+    },
+
+    getDepositoSalidas: async (req, res) => {
+        try {
+            const [rows] = await db.query(`SELECT * FROM depositos_salidas ORDER BY created_at DESC`);
+            res.json(rows.map(r => toCamelCaseObj(r)));
+        } catch (error) {
+            console.error('Error en getDepositoSalidas:', error);
+            res.status(500).json({ error: 'Error al listar las salidas de depósito.' });
+        }
+    },
+
+    confirmDepositoSalida: async (req, res) => {
+        try {
+            const { salidaId } = req.params;
+            const { nroCertificado } = req.body;
+
+            const cert = nroCertificado ? nroCertificado.trim() : null;
+
+            if (cert && cert.length > 30) {
+                return res.status(400).json({ error: 'El número de certificado no puede exceder los 30 caracteres.' });
+            }
+
+            const [result] = await db.query(
+                `UPDATE depositos_salidas SET status = 'confirmado', nro_certificado = ? WHERE id = ?`,
+                [cert, salidaId]
+            );
+
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'Salida de depósito no encontrada.' });
+            }
+
+            res.json({ message: 'Salida de depósito confirmada con éxito.', salidaId });
+        } catch (error) {
+            console.error('Error en confirmDepositoSalida:', error);
+            res.status(500).json({ error: 'Error al confirmar la salida del depósito.' });
+        }
+    },
+
+    ajustarDeposito: async (req, res) => {
+        try {
+            const { material, cantidadDiferencia, observaciones } = req.body;
+
+            if (!material || cantidadDiferencia === undefined || cantidadDiferencia === null || isNaN(parseFloat(cantidadDiferencia))) {
+                return res.status(400).json({ error: 'Faltan campos obligatorios: material y cantidadDiferencia (número) son obligatorios.' });
+            }
+
+            const diff = parseFloat(cantidadDiferencia);
+            if (diff === 0) {
+                return res.status(400).json({ error: 'La diferencia de ajuste no puede ser cero.' });
+            }
+
+            // Crear un lote de ajuste RINE virtual para representar el aumento o disminución física en el stock
+            const [lastRows] = await db.query(
+                `SELECT id FROM residuos_comunes WHERE id LIKE 'SHG-RC-%' ORDER BY id DESC LIMIT 1`
+            );
+            let nextIndex = 1;
+            if (lastRows.length > 0) {
+                const lastId = lastRows[0].id;
+                const lastNum = parseInt(lastId.substring(lastId.lastIndexOf('-') + 1), 10);
+                if (!isNaN(lastNum)) {
+                    nextIndex = lastNum + 1;
+                }
+            }
+            const paddedIndex = String(nextIndex).padStart(4, '0');
+            const customId = `SHG-RC-${paddedIndex}`;
+
+            // Configurar los materiales recuperados del lote de ajuste
+            const materialesRecuperados = {
+                [material]: {
+                    cantidad: diff,
+                    unidad: 'kg'
+                }
+            };
+
+            const insertSql = `
+                INSERT INTO residuos_comunes 
+                (id, lugar_id, sector_id, tipo_residuo, peso, destino, responsable, observaciones, clasificacion_inorganico, materiales_recuperados, usuario)
+                VALUES (?, 1, NULL, 'Inorgánico Generales', ?, 'Acopio de Recuperables', 'Ajuste de Stock', ?, 'Recuperable', ?, ?)
+            `;
+
+            const obs = observaciones ? observaciones.trim() : `Ajuste manual de stock de ${material}`;
+            const userNombre = req.currentUser.nombre || 'Gabriel Tonelli';
+
+            await db.query(insertSql, [
+                customId,
+                diff,
+                obs,
+                JSON.stringify(materialesRecuperados),
+                userNombre
+            ]);
+
+            res.status(201).json({
+                message: 'Ajuste de stock registrado con éxito mediante lote de control.',
+                id: customId,
+                material,
+                cantidadDiferencia: diff
+            });
+        } catch (error) {
+            console.error('Error en ajustarDeposito:', error);
+            res.status(500).json({ error: 'Error al registrar el ajuste de stock en el depósito.' });
         }
     }
 };

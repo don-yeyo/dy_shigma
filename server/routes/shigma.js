@@ -40,6 +40,13 @@ router.put('/bateas/:bateaId/capacity', shigmaController.updateBateaCapacity);
 router.get('/bateas/salidas', shigmaController.getBateaSalidas);
 router.post('/bateas/salidas/:salidaId/confirm', requireRole('sysadmin', 'supervisor'), shigmaController.confirmBateaSalida);
 
+// Rutas de Depósito
+router.get('/deposito/status', shigmaController.getDepositoStatus);
+router.post('/deposito/despachar', shigmaController.despacharDeposito);
+router.post('/deposito/ajustar', shigmaController.ajustarDeposito);
+router.get('/deposito/salidas', shigmaController.getDepositoSalidas);
+router.post('/deposito/salidas/:salidaId/confirm', requireRole('sysadmin', 'supervisor'), shigmaController.confirmDepositoSalida);
+
 // Rutas de Lugares y Sectores
 router.get('/lugares', shigmaController.getLugares);
 router.get('/sectores', shigmaController.getSectores);

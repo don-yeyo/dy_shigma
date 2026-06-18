@@ -100,8 +100,20 @@ export const SHIGMAService = {
         api.put(`/shigma/bateas/${bateaId}/capacity`, { capacidad }),
     getBateaSalidas: () =>
         api.get('/shigma/bateas/salidas'),
-    confirmBateaSalida: (salidaId) =>
-        api.post(`/shigma/bateas/salidas/${salidaId}/confirm`),
+    confirmBateaSalida: (salidaId, data) =>
+        api.post(`/shigma/bateas/salidas/${salidaId}/confirm`, data),
+
+    // Depósito API
+    getDepositoStatus: () =>
+        api.get('/shigma/deposito/status'),
+    despacharDeposito: (data) =>
+        api.post('/shigma/deposito/despachar', data),
+    ajustarDeposito: (data) =>
+        api.post('/shigma/deposito/ajustar', data),
+    getDepositoSalidas: () =>
+        api.get('/shigma/deposito/salidas'),
+    confirmDepositoSalida: (salidaId, data) =>
+        api.post(`/shigma/deposito/salidas/${salidaId}/confirm`, data),
     
     // Operadores API
     getOperadoresByForm: (formType) =>
