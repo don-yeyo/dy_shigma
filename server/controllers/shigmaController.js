@@ -46,7 +46,8 @@ const formTables = {
     'economia-circular': 'economia_circular',
     'pallets': 'pallets',
     'espacios-verdes': 'espacios_verdes',
-    'vaciado-bateas': 'bateas_salidas'
+    'vaciado-bateas': 'bateas_salidas',
+    'despacho-deposito': 'depositos_salidas'
 };
 
 // Prefijos de IDs por formulario
@@ -58,7 +59,8 @@ const formPrefixes = {
     'economia-circular': 'EC',
     'pallets': 'PL',
     'espacios-verdes': 'EV',
-    'vaciado-bateas': 'BSAL'
+    'vaciado-bateas': 'BSAL',
+    'despacho-deposito': 'DSAL'
 };
 
 // Nombres legibles por formulario
@@ -70,7 +72,8 @@ const formNames = {
     'economia-circular': 'Economía Circular',
     'pallets': 'Movimiento de Pallets',
     'espacios-verdes': 'Registro de Espacios Verdes',
-    'vaciado-bateas': 'Vaciado de Bateas'
+    'vaciado-bateas': 'Vaciado de Bateas',
+    'despacho-deposito': 'Despacho de Depósito'
 };
 
 // ============================================================
@@ -385,6 +388,45 @@ const shigmaController = {
                 return res.status(404).json({ error: 'Registro no encontrado.' });
             }
             const record = rows[0];
+
+            // Validar que el ajuste de stock no resulte en cantidad negativa
+            if (tableName === 'residuos_comunes' && record.responsable === 'Ajuste de Stock') {
+                let newMaterial = '';
+                let newDiff = 0;
+                let newMats = recordData.materialesRecuperados || recordData.materiales_recuperados;
+                if (newMats && typeof newMats === 'string') {
+                    try { newMats = JSON.parse(newMats); } catch (e) { newMats = null; }
+                }
+                if (newMats && typeof newMats === 'object') {
+                    const entries = Object.entries(newMats);
+                    if (entries.length > 0) {
+                        newMaterial = entries[0][0];
+                        newDiff = parseFloat(entries[0][1].cantidad || entries[0][1].amount || 0);
+                    }
+                }
+
+                if (newMaterial) {
+                    const [stockRows] = await db.query(`
+                        SELECT id, materiales_recuperados 
+                        FROM residuos_comunes
+                        WHERE clasificacion_inorganico = 'Recuperable' AND deposito_salida_id IS NULL AND id != ?
+                    `, [id]);
+                    let stockSinRegistro = 0;
+                    stockRows.forEach(row => {
+                        let mats = row.materiales_recuperados;
+                        if (mats && typeof mats === 'string') {
+                            try { mats = JSON.parse(mats); } catch (e) { mats = null; }
+                        }
+                        if (mats && typeof mats === 'object' && mats[newMaterial]) {
+                            stockSinRegistro += parseFloat(mats[newMaterial].cantidad || mats[newMaterial].amount || 0);
+                        }
+                    });
+
+                    if (stockSinRegistro + newDiff < 0) {
+                        return res.status(400).json({ error: `El ajuste solicitado (${newDiff} kg) supera el stock disponible de ${newMaterial} (${stockSinRegistro} kg). El stock resultante no puede ser negativo.` });
+                    }
+                }
+            }
 
             // 2. Aplicar validaciones de rol
             if (req.currentUser.rol === 'registrador') {
@@ -1151,12 +1193,18 @@ const shigmaController = {
                 .replace(/\b\w/g, c => c.toUpperCase());
 
             const [activeRecords] = await connection.query(
-                `SELECT id, materiales_recuperados FROM residuos_comunes WHERE clasificacion_inorganico = 'Recuperable' AND deposito_salida_id IS NULL FOR UPDATE`
+                `SELECT * FROM residuos_comunes WHERE clasificacion_inorganico = 'Recuperable' AND deposito_salida_id IS NULL ORDER BY created_at ASC, id ASC FOR UPDATE`
             );
 
+            const pesoADespachar = parseFloat(pesoBalanza);
+            if (isNaN(pesoADespachar) || pesoADespachar <= 0) {
+                await connection.rollback();
+                return res.status(400).json({ error: 'El peso de balanza a despachar debe ser un número positivo mayor a 0.' });
+            }
+
             // Filtrar únicamente los registros que contengan el material a despachar con cantidad > 0
-            const matchingRecords = [];
-            let pesoAcumulado = 0;
+            const recordsConMaterial = [];
+            let totalStockMaterial = 0;
 
             activeRecords.forEach(row => {
                 let mats = row.materiales_recuperados;
@@ -1164,17 +1212,103 @@ const shigmaController = {
                     try { mats = JSON.parse(mats); } catch (e) { mats = null; }
                 }
                 if (mats && typeof mats === 'object' && mats[material]) {
-                    const cantidad = parseFloat(mats[material].cantidad || 0);
+                    const cantidad = parseFloat(mats[material].cantidad || mats[material].amount || 0);
                     if (cantidad > 0) {
-                        pesoAcumulado += cantidad;
-                        matchingRecords.push(row.id);
+                        totalStockMaterial += cantidad;
+                        recordsConMaterial.push({ row, cantidad });
                     }
                 }
             });
 
-            if (matchingRecords.length === 0) {
+            if (recordsConMaterial.length === 0) {
                 await connection.rollback();
                 return res.status(400).json({ error: `No hay stock disponible del material ${material} para despachar.` });
+            }
+
+            if (pesoADespachar > totalStockMaterial) {
+                await connection.rollback();
+                return res.status(400).json({ error: `El peso a despachar (${pesoADespachar} kg) no puede superar el stock actual del material (${totalStockMaterial} kg).` });
+            }
+
+            let restante = pesoADespachar;
+            const matchingRecords = [];
+            let pesoAcumulado = 0;
+
+            for (const item of recordsConMaterial) {
+                if (restante <= 0) break;
+
+                const { row, cantidad } = item;
+                if (cantidad <= restante) {
+                    // Vincular el registro completo
+                    matchingRecords.push(row.id);
+                    pesoAcumulado += cantidad;
+                    restante -= cantidad;
+                } else {
+                    // Dividir el registro (despacho parcial)
+                    let mats = row.materiales_recuperados;
+                    if (mats && typeof mats === 'string') {
+                        try { mats = JSON.parse(mats); } catch (e) { mats = null; }
+                    }
+                    if (!mats || typeof mats !== 'object') mats = {};
+
+                    // Modificar la cantidad del registro actual a la fracción despachada
+                    mats[material].cantidad = restante;
+                    mats[material].amount = restante;
+
+                    await connection.query(
+                        `UPDATE residuos_comunes SET peso = ?, materiales_recuperados = ? WHERE id = ?`,
+                        [restante, JSON.stringify(mats), row.id]
+                    );
+
+                    matchingRecords.push(row.id);
+                    pesoAcumulado += restante;
+
+                    // Crear un nuevo registro remanente con la cantidad sobrante
+                    const leftoverQty = cantidad - restante;
+                    let leftoverMats = JSON.parse(JSON.stringify(mats));
+                    leftoverMats[material].cantidad = leftoverQty;
+                    leftoverMats[material].amount = leftoverQty;
+
+                    // Obtener nuevo ID secuencial de residuo común
+                    const [lastRows] = await connection.query(
+                        `SELECT id FROM residuos_comunes WHERE id LIKE 'SHG-RC-%' ORDER BY id DESC LIMIT 1`
+                    );
+                    let nextIndex = 1;
+                    if (lastRows.length > 0) {
+                        const lastId = lastRows[0].id;
+                        const lastNum = parseInt(lastId.substring(lastId.lastIndexOf('-') + 1), 10);
+                        if (!isNaN(lastNum)) {
+                            nextIndex = lastNum + 1;
+                        }
+                    }
+                    const paddedIndex = String(nextIndex).padStart(4, '0');
+                    const customRCId = `SHG-RC-${paddedIndex}`;
+
+                    const insertSql = `
+                        INSERT INTO residuos_comunes 
+                        (id, lugar_id, sector_id, tipo_residuo, peso, destino, responsable, observaciones, clasificacion_inorganico, materiales_recuperados, usuario, operador, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    `;
+                    const obsLeftover = row.observaciones ? `${row.observaciones} (Remanente de despacho parcial)` : 'Remanente de despacho parcial';
+                    await connection.query(insertSql, [
+                        customRCId,
+                        row.lugar_id,
+                        row.sector_id,
+                        row.tipo_residuo,
+                        leftoverQty,
+                        row.destino,
+                        row.responsable,
+                        obsLeftover,
+                        row.clasificacion_inorganico,
+                        JSON.stringify(leftoverMats),
+                        row.usuario,
+                        row.operador,
+                        row.created_at
+                    ]);
+
+                    restante = 0;
+                    break;
+                }
             }
 
             const [lastSalidas] = await connection.query(
@@ -1208,7 +1342,7 @@ const shigmaController = {
                 usuario || 'Gabriel Tonelli'
             ]);
 
-            // Vincular únicamente los registros coincidentes
+            // Vincular los registros correspondientes
             const placeholders = matchingRecords.map(() => '?').join(', ');
             await connection.query(
                 `UPDATE residuos_comunes SET deposito_salida_id = ? WHERE id IN (${placeholders})`,
@@ -1285,6 +1419,27 @@ const shigmaController = {
                 return res.status(400).json({ error: 'La diferencia de ajuste no puede ser cero.' });
             }
 
+            // Validar que el stock resultante no sea negativo
+            const [stockRows] = await db.query(`
+                SELECT materiales_recuperados 
+                FROM residuos_comunes
+                WHERE clasificacion_inorganico = 'Recuperable' AND deposito_salida_id IS NULL
+            `);
+            let stockActual = 0;
+            stockRows.forEach(row => {
+                let mats = row.materiales_recuperados;
+                if (mats && typeof mats === 'string') {
+                    try { mats = JSON.parse(mats); } catch (e) { mats = null; }
+                }
+                if (mats && typeof mats === 'object' && mats[material]) {
+                    stockActual += parseFloat(mats[material].cantidad || mats[material].amount || 0);
+                }
+            });
+
+            if (stockActual + diff < 0) {
+                return res.status(400).json({ error: `El ajuste solicitado (${diff} kg) supera el stock disponible de ${material} (${stockActual} kg). El stock resultante no puede ser negativo.` });
+            }
+
             // Crear un lote de ajuste RINE virtual para representar el aumento o disminución física en el stock
             const [lastRows] = await db.query(
                 `SELECT id FROM residuos_comunes WHERE id LIKE 'SHG-RC-%' ORDER BY id DESC LIMIT 1`
@@ -1353,13 +1508,34 @@ const shigmaController = {
             }
 
             // Para otros roles, listamos los operadores asociados a su usuario
-            const [ops] = await db.query(`
+            let [ops] = await db.query(`
                 SELECT o.id, o.apellido_nombre, o.legajo
                 FROM operadores o
                 JOIN usuarios_operadores uo ON o.id = uo.operador_id
                 WHERE uo.usuario_id = ? AND o.activo = 1
                 ORDER BY o.apellido_nombre ASC
             `, [user.id]);
+
+            // Fallback 1: Si no tiene operadores asignados, cargar los de 'residuos-comunes' (RINE)
+            if (ops.length === 0) {
+                [ops] = await db.query(`
+                    SELECT o.id, o.apellido_nombre, o.legajo
+                    FROM operadores o
+                    JOIN operadores_formularios op_form ON o.id = op_form.operador_id
+                    WHERE op_form.formulario_tipo = 'residuos-comunes' AND o.activo = 1
+                    ORDER BY o.apellido_nombre ASC
+                `);
+            }
+
+            // Fallback 2: Si aun así no hay asignados, listamos todos los activos
+            if (ops.length === 0) {
+                [ops] = await db.query(`
+                    SELECT id, apellido_nombre, legajo
+                    FROM operadores
+                    WHERE activo = 1
+                    ORDER BY apellido_nombre ASC
+                `);
+            }
 
             res.json(ops.map(r => toCamelCaseObj(r)));
         } catch (error) {

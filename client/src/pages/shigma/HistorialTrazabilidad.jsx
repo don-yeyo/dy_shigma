@@ -4,7 +4,7 @@ import {
     History, ArrowLeft, Search, Filter, Calendar, FileText, ChevronDown, ChevronUp,
     Download, Pencil, Check, X, Loader2, AlertCircle, Trash2
 } from 'lucide-react';
-import { Card } from '../../components/FormElements';
+import { Card, Input, Select } from '../../components/FormElements';
 import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
 import { SHIGMAService } from '../../services/api';
@@ -42,6 +42,72 @@ const HistorialTrazabilidad = () => {
         exportType: 'all', // 'all' or 'date'
         sinceDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0] // default 30 days back
     });
+
+    const [operadores, setOperadores] = useState([]);
+    const [editAjusteModal, setEditAjusteModal] = useState({
+        isOpen: false,
+        record: null,
+        material: '',
+        cantidadDiferencia: '',
+        operador: '',
+        observaciones: ''
+    });
+    const [savingAjuste, setSavingAjuste] = useState(false);
+
+    const fetchOperadores = async () => {
+        try {
+            const response = await SHIGMAService.getDepositoOperadores();
+            setOperadores(response.data);
+        } catch (error) {
+            console.error('Error fetching operadores:', error);
+        }
+    };
+
+    const handleEditAjusteSubmit = async (e) => {
+        if (e) e.preventDefault();
+        const diff = parseFloat(editAjusteModal.cantidadDiferencia);
+        if (isNaN(diff) || diff === 0) {
+            alert('Por favor, ingrese una cantidad de ajuste válida distinta de cero.');
+            return;
+        }
+        if (!editAjusteModal.operador) {
+            alert('Por favor, seleccione un operador.');
+            return;
+        }
+
+        setSavingAjuste(true);
+        try {
+            const materialesRecuperados = {
+                [editAjusteModal.material]: {
+                    amount: diff,
+                    cantidad: diff,
+                    unidad: 'kg'
+                }
+            };
+            
+            await SHIGMAService.updateRecord('residuos-comunes', editAjusteModal.record.id, {
+                peso: diff,
+                observaciones: editAjusteModal.observaciones,
+                materialesRecuperados,
+                operador: editAjusteModal.operador
+            });
+
+            setEditAjusteModal(prev => ({ ...prev, isOpen: false, record: null }));
+            
+            setDeleteStatusModal({
+                isOpen: true,
+                title: 'Ajuste Modificado',
+                message: `El ajuste de stock para ${editAjusteModal.material} fue modificado con éxito.`,
+                type: 'success'
+            });
+            fetchRecords(currentPage);
+        } catch (error) {
+            console.error('Error updating ajuste:', error);
+            alert(error.response?.data?.error || 'Error al modificar el ajuste.');
+        } finally {
+            setSavingAjuste(false);
+        }
+    };
 
     const fetchRecords = async (pageToFetch = 1) => {
         setLoading(true);
@@ -86,7 +152,7 @@ const HistorialTrazabilidad = () => {
     };
 
     const canModify = (record) => {
-        if (record.formType === 'vaciado-bateas') return false;
+        if (record.formType === 'vaciado-bateas' || record.formType === 'despacho-deposito') return false;
         if (!user) return false;
         if (user.rol === 'sysadmin' || user.rol === 'supervisor') return true;
         if (user.rol === 'registrador') {
@@ -126,6 +192,10 @@ const HistorialTrazabilidad = () => {
         fetchRecords(currentPage);
     }, [searchQuery, filterFormType, currentPage]);
 
+    useEffect(() => {
+        fetchOperadores();
+    }, []);
+
     const toggleExpand = (id) => {
         setExpandedRecordId(expandedRecordId === id ? null : id);
     };
@@ -139,7 +209,8 @@ const HistorialTrazabilidad = () => {
         { id: 'economia-circular', label: 'Economía Circular' },
         { id: 'pallets', label: 'Gestión de Pallets' },
         { id: 'espacios-verdes', label: 'Espacios Verdes' },
-        { id: 'vaciado-bateas', label: 'Vaciado de Bateas' }
+        { id: 'vaciado-bateas', label: 'Vaciado de Bateas' },
+        { id: 'despacho-deposito', label: 'Despacho de Depósito' }
     ];
 
     const filteredFormTypes = formTypes.filter(ft => {
@@ -251,8 +322,26 @@ const HistorialTrazabilidad = () => {
     const renderDetailGrid = (record) => {
         // Renderizar dinámicamente según el tipo de formulario
         const details = [];
+        const isAjuste = record.formType === 'residuos-comunes' && record.responsable === 'Ajuste de Stock';
 
-        if (record.formType === 'residuos-comunes') {
+        if (isAjuste) {
+            let material = 'Desconocido';
+            let cantidad = record.peso || 0;
+            if (record.materialesRecuperados) {
+                const entries = Object.entries(record.materialesRecuperados);
+                if (entries.length > 0) {
+                    material = entries[0][0];
+                    cantidad = entries[0][1].cantidad || entries[0][1].amount || cantidad;
+                }
+            }
+            const cantidadFormateada = cantidad > 0 ? `+${cantidad} kg` : `${cantidad} kg`;
+
+            details.push({ label: 'Tipo de Operación', value: 'Ajuste Manual de Stock RINE' });
+            details.push({ label: 'Material Ajustado', value: material });
+            details.push({ label: 'Cantidad del Ajuste', value: cantidadFormateada });
+            details.push({ label: 'Operador', value: record.operador || 'No asignado' });
+            details.push({ label: 'Registrado por', value: record.usuario || 'N/A' });
+        } else if (record.formType === 'residuos-comunes') {
             details.push({ label: 'Planta Generadora', value: record.lugar || 'N/A' });
             details.push({ label: 'Sector', value: record.sector || 'N/A' });
             details.push({ label: 'Tipo de Residuo', value: record.tipoResiduo });
@@ -324,6 +413,17 @@ const HistorialTrazabilidad = () => {
             details.push({ label: 'Peso Acumulado (RINE)', value: `${record.pesoAcumulado} kg` });
             details.push({ label: 'Lotes Vinculados', value: `${record.recordIds ? record.recordIds.length : 0} lotes` });
             details.push({ label: 'Estado', value: record.status ? record.status.toUpperCase() : 'PENDIENTE' });
+        } else if (record.formType === 'despacho-deposito') {
+            details.push({ label: 'Material Despachado', value: record.material === 'Cajones' ? 'Cajones Rotos' : record.material });
+            details.push({ label: 'Proveedor / Destino', value: record.proveedor || 'N/A' });
+            details.push({ label: 'Nro Manifiesto', value: record.nroManifiesto || 'N/A' });
+            details.push({ label: 'Peso Balanza', value: `${record.pesoBalanza} kg` });
+            details.push({ label: 'Peso Calculado (RINE)', value: `${record.pesoAcumulado} kg` });
+            details.push({ label: 'Lotes Vinculados', value: `${record.recordIds ? record.recordIds.length : 0} lotes` });
+            details.push({ label: 'Estado', value: record.status ? record.status.toUpperCase() : 'PENDIENTE' });
+            if (record.nroCertificado) {
+                details.push({ label: 'Certificado Disp. Final', value: record.nroCertificado });
+            }
         }
 
         return (
@@ -382,12 +482,27 @@ const HistorialTrazabilidad = () => {
                             className="btn-modify-record"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                if (record.formType === 'residuos-comunes' && record.responsable === 'Ajuste de Stock') {
-                                    navigate(`/gestion-deposito?edit=${record.id}`);
+                                if (isAjuste) {
+                                    let material = '';
+                                    let cantidad = record.peso || 0;
+                                    if (record.materialesRecuperados) {
+                                        const entries = Object.entries(record.materialesRecuperados);
+                                        if (entries.length > 0) {
+                                            material = entries[0][0];
+                                            cantidad = entries[0][1].cantidad || entries[0][1].amount || cantidad;
+                                        }
+                                    }
+                                    setEditAjusteModal({
+                                        isOpen: true,
+                                        record,
+                                        material,
+                                        cantidadDiferencia: String(cantidad),
+                                        operador: record.operador || '',
+                                        observaciones: record.observaciones || ''
+                                    });
                                 } else {
                                     navigate(`/${record.formType}?edit=${record.id}`);
                                 }
-
                             }}
                             style={{
                                 display: 'flex',
@@ -524,7 +639,8 @@ const HistorialTrazabilidad = () => {
                         // Colores distintivos de etiquetas de tipo de formulario
                         let tagColor = 'var(--text-muted)';
                         let bgTag = 'var(--surface-hover)';
-                        if (record.formType === 'residuos-comunes') { tagColor = 'var(--success)'; bgTag = 'rgba(16, 185, 129, 0.08)'; }
+                        if (record.responsable === 'Ajuste de Stock') { tagColor = 'var(--dy-red)'; bgTag = 'rgba(228, 5, 33, 0.08)'; }
+                        else if (record.formType === 'residuos-comunes') { tagColor = 'var(--success)'; bgTag = 'rgba(16, 185, 129, 0.08)'; }
                         else if (record.formType === 'residuos-especiales') { tagColor = 'var(--warning)'; bgTag = 'rgba(245, 158, 11, 0.08)'; }
                         else if (record.formType === 'devoluciones') { tagColor = '#3b82f6'; bgTag = 'rgba(59, 130, 246, 0.08)'; }
                         else if (record.formType === 'tratamiento') { tagColor = '#a855f7'; bgTag = 'rgba(168, 85, 247, 0.08)'; }
@@ -532,6 +648,7 @@ const HistorialTrazabilidad = () => {
                         else if (record.formType === 'pallets') { tagColor = '#14b8a6'; bgTag = 'rgba(20, 184, 166, 0.08)'; }
                         else if (record.formType === 'espacios-verdes') { tagColor = '#84cc16'; bgTag = 'rgba(132, 204, 22, 0.08)'; }
                         else if (record.formType === 'vaciado-bateas') { tagColor = '#f43f5e'; bgTag = 'rgba(244, 63, 94, 0.08)'; }
+                        else if (record.formType === 'despacho-deposito') { tagColor = '#06b6d4'; bgTag = 'rgba(6, 182, 212, 0.08)'; }
 
                         return (
                             <div
@@ -556,7 +673,7 @@ const HistorialTrazabilidad = () => {
                                                 background: bgTag,
                                                 textTransform: 'uppercase'
                                             }}>
-                                                {record.formLabel}
+                                                {record.responsable === 'Ajuste de Stock' ? 'Ajuste de Depósito' : record.formLabel}
                                             </span>
                                         </div>
                                         <div className="dy-accordion-subtitle" style={{ marginTop: '8px' }}>
@@ -565,7 +682,7 @@ const HistorialTrazabilidad = () => {
                                             </span>
                                             <span style={{ margin: '0 8px' }}>•</span>
                                             <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                <FileText size={14} /> Inspector: {record.responsable || record.usuario}
+                                                <FileText size={14} /> {record.responsable === 'Ajuste de Stock' ? 'Operador' : 'Inspector'}: {record.responsable === 'Ajuste de Stock' ? (record.operador || 'No asignado') : (record.responsable || record.usuario)}
                                             </span>
                                             {record.ediciones > 0 && (
                                                 <>
@@ -805,6 +922,92 @@ const HistorialTrazabilidad = () => {
                             </Button>
                         </div>
                     </div>
+                </Modal>
+            )}
+            {/* Modal de Modificación de Ajuste de Stock */}
+            {editAjusteModal.isOpen && (
+                <Modal
+                    isOpen={editAjusteModal.isOpen}
+                    onClose={() => setEditAjusteModal(prev => ({ ...prev, isOpen: false, record: null }))}
+                    title={
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <span>Ajuste {editAjusteModal.material}</span>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>
+                                Cant. ajustada: <span style={{ color: '#888888', fontWeight: '500' }}>{parseFloat(editAjusteModal.cantidadDiferencia) > 0 ? `+${editAjusteModal.cantidadDiferencia}` : editAjusteModal.cantidadDiferencia} kg</span>
+                            </span>
+                        </div>
+                    }
+                    showFooter={false}
+                >
+                    <form onSubmit={handleEditAjusteSubmit} style={{ padding: '4px 0' }}>
+                        <div style={{
+                            background: 'var(--surface-hover)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '8px',
+                            padding: '12px',
+                            marginBottom: '16px',
+                            fontSize: '0.9rem',
+                            color: 'var(--text-muted)'
+                        }}>
+                            <strong>Registro ID:</strong> {editAjusteModal.record?.id} <br />
+                            <strong>Material:</strong> {editAjusteModal.material}
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <Input
+                                label="Cantidad de Ajuste (kg) *"
+                                type="number"
+                                step="any"
+                                allowNegative={true}
+                                placeholder="Ej: 150 o -75"
+                                value={editAjusteModal.cantidadDiferencia}
+                                onChange={(e) => setEditAjusteModal(prev => ({ ...prev, cantidadDiferencia: e.target.value }))}
+                                required
+                            />
+
+                            <Select
+                                label="Operador *"
+                                name="operador"
+                                value={editAjusteModal.operador}
+                                onChange={(e) => setEditAjusteModal(prev => ({ ...prev, operador: e.target.value }))}
+                                required
+                                includePlaceholder={true}
+                                options={operadores.map(op => ({
+                                    id: op.apellidoNombre,
+                                    label: `${op.apellidoNombre} (${op.legajo})`
+                                }))}
+                            />
+                        </div>
+
+                        <Input
+                            label="Observaciones / Motivo *"
+                            type="text"
+                            placeholder="Ej: Corrección por inventario visual"
+                            value={editAjusteModal.observaciones}
+                            onChange={(e) => setEditAjusteModal(prev => ({ ...prev, observaciones: e.target.value }))}
+                            required
+                        />
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+                            <Button 
+                                type="button" 
+                                variant="outline" 
+                                onClick={() => setEditAjusteModal(prev => ({ ...prev, isOpen: false, record: null }))}
+                                disabled={savingAjuste}
+                            >
+                                Cancelar
+                            </Button>
+                            <Button 
+                                type="submit" 
+                                variant="primary" 
+                                className={savingAjuste ? 'btn-loading' : ''}
+                                disabled={savingAjuste}
+                                style={{ background: 'var(--dy-red)' }}
+                            >
+                                {savingAjuste ? 'Guardando...' : 'Guardar Cambios'}
+                            </Button>
+                        </div>
+                    </form>
                 </Modal>
             )}
 

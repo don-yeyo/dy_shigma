@@ -764,7 +764,7 @@ const GestionDeposito = () => {
                         }}>
                             <AlertTriangle size={18} style={{ flexShrink: 0 }} />
                             <span>
-                                Confirmar este despacho vaciará el stock actual de <strong>{selectedMaterial}</strong> en el depósito. Se creará una salida en estado <strong>pendiente</strong>.
+                                Confirmar este despacho registrará la salida del peso ingresado y reducirá el stock actual de <strong>{selectedMaterial}</strong> en el depósito. Se creará una salida en estado <strong>pendiente</strong>.
                             </span>
                         </div>
 
@@ -861,15 +861,23 @@ const GestionDeposito = () => {
                 <Modal
                     isOpen={showAjusteModal}
                     onClose={() => setShowAjusteModal(false)}
-                    title={`Ajustar Stock: ${ajusteFormData.material} (Stock: ${(stock[ajusteFormData.material] || 0).toLocaleString()} kg)`}
+                    title={
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <span>Ajuste {ajusteFormData.material}</span>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>
+                                Cant. actual: <span style={{ color: '#888888', fontWeight: '500' }}>{(stock[ajusteFormData.material] || 0).toLocaleString()} kg</span>
+                            </span>
+                        </div>
+                    }
                     showFooter={false}
                 >
                     <form onSubmit={handleAjusteSubmit} style={{ padding: '4px 0' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '4px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                             <Input
                                 label="Cantidad de Ajuste (kg) *"
                                 type="number"
                                 step="any"
+                                allowNegative={true}
                                 placeholder="Ej: 150 o -75"
                                 value={ajusteFormData.cantidadDiferencia}
                                 onChange={(e) => setAjusteFormData(prev => ({ ...prev, cantidadDiferencia: e.target.value }))}
@@ -882,14 +890,12 @@ const GestionDeposito = () => {
                                 value={ajusteFormData.operador}
                                 onChange={(e) => setAjusteFormData(prev => ({ ...prev, operador: e.target.value }))}
                                 required
-                            >
-                                <option value="">Seleccione...</option>
-                                {operadores.map(op => (
-                                    <option key={op.id} value={op.apellidoNombre}>
-                                        {op.apellidoNombre} ({op.legajo})
-                                    </option>
-                                ))}
-                            </Select>
+                                includePlaceholder={true}
+                                options={operadores.map(op => ({
+                                    id: op.apellidoNombre,
+                                    label: `${op.apellidoNombre} (${op.legajo})`
+                                }))}
+                            />
                         </div>
 
                         <Input

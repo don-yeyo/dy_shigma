@@ -18,7 +18,7 @@ export const Card = ({ children, className = '', style = {}, ...props }) => {
     );
 };
 
-export const Input = ({ label, containerId, ...props }) => {
+export const Input = ({ label, containerId, allowNegative = false, ...props }) => {
     const isNumber = props.type === 'number';
 
     const handleMouseDown = (e) => {
@@ -42,7 +42,10 @@ export const Input = ({ label, containerId, ...props }) => {
     };
 
     const handleKeyDown = (e) => {
-        if (isNumber && (e.key === '-' || e.key === 'e' || e.key === 'E')) {
+        if (isNumber && !allowNegative && e.key === '-') {
+            e.preventDefault();
+        }
+        if (isNumber && (e.key === 'e' || e.key === 'E')) {
             e.preventDefault();
         }
         if (props.onKeyDown) {
@@ -51,7 +54,7 @@ export const Input = ({ label, containerId, ...props }) => {
     };
 
     const handleChange = (e) => {
-        if (isNumber) {
+        if (isNumber && !allowNegative) {
             let val = e.target.value;
             if (val.includes('-')) {
                 val = val.replace(/-/g, '');
