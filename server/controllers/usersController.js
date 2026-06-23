@@ -11,7 +11,8 @@ const MODULOS_DISPONIBLES = [
     'pallets',
     'espacios-verdes',
     'historial',
-    'gestion-operadores'
+    'gestion-operadores',
+    'ajustes-deposito'
 ];
 
 /**
@@ -25,9 +26,11 @@ const getUsuarios = async (req, res) => {
             `SELECT
                 u.id, u.email, u.nombre, u.rol, u.activo,
                 u.created_at, u.created_by,
-                GROUP_CONCAT(um.modulo ORDER BY um.modulo SEPARATOR ',') AS modulos_str
+                GROUP_CONCAT(DISTINCT um.modulo ORDER BY um.modulo SEPARATOR ',') AS modulos_str,
+                GROUP_CONCAT(DISTINCT uo.operador_id SEPARATOR ',') AS operadores_str
              FROM usuarios u
              LEFT JOIN usuarios_modulos um ON um.usuario_id = u.id
+             LEFT JOIN usuarios_operadores uo ON uo.usuario_id = u.id
              GROUP BY u.id
              ORDER BY FIELD(u.rol, 'sysadmin', 'supervisor', 'registrador'), u.nombre`
         );
@@ -40,7 +43,8 @@ const getUsuarios = async (req, res) => {
             activo: Boolean(u.activo),
             created_at: u.created_at,
             created_by: u.created_by,
-            modulos: u.modulos_str ? u.modulos_str.split(',') : []
+            modulos: u.modulos_str ? u.modulos_str.split(',') : [],
+            operadores: u.operadores_str ? u.operadores_str.split(',').map(Number) : []
         }));
 
         res.json({ usuarios, modulos_disponibles: MODULOS_DISPONIBLES });
@@ -73,10 +77,16 @@ const getUsuarioById = async (req, res) => {
             [id]
         );
 
+        const [operadores] = await pool.query(
+            'SELECT operador_id FROM usuarios_operadores WHERE usuario_id = ?',
+            [id]
+        );
+
         res.json({
             ...user,
             activo: Boolean(user.activo),
-            modulos: modulos.map(m => m.modulo)
+            modulos: modulos.map(m => m.modulo),
+            operadores: operadores.map(op => op.operador_id)
         });
     } catch (error) {
         console.error('[getUsuarioById]', error.message);
@@ -86,11 +96,11 @@ const getUsuarioById = async (req, res) => {
 
 /**
  * POST /api/users
- * Crear un nuevo usuario con sus módulos.
+ * Crear un nuevo usuario con sus módulos y operadores asociados.
  * Solo sysadmin.
  */
 const createUsuario = async (req, res) => {
-    const { email, nombre, rol, modulos = [] } = req.body;
+    const { email, nombre, rol, modulos = [], operadores = [] } = req.body;
 
     if (!email || !nombre || !rol) {
         return res.status(400).json({ error: 'email, nombre y rol son requeridos.' });
@@ -114,6 +124,11 @@ const createUsuario = async (req, res) => {
             await conn.query('INSERT INTO usuarios_modulos (usuario_id, modulo) VALUES ?', [values]);
         }
 
+        if (operadores.length > 0) {
+            const values = operadores.map(opId => [newId, opId]);
+            await conn.query('INSERT INTO usuarios_operadores (usuario_id, operador_id) VALUES ?', [values]);
+        }
+
         await conn.commit();
         res.status(201).json({ id: newId, message: 'Usuario creado exitosamente.' });
     } catch (error) {
@@ -130,12 +145,12 @@ const createUsuario = async (req, res) => {
 
 /**
  * PUT /api/users/:id
- * Editar un usuario (nombre, rol, activo).
+ * Editar un usuario (nombre, rol, activo, operadores).
  * Solo sysadmin.
  */
 const updateUsuario = async (req, res) => {
     const { id } = req.params;
-    const { nombre, rol, activo } = req.body;
+    const { nombre, rol, activo, operadores } = req.body;
 
     const fields = [];
     const values = [];
@@ -149,23 +164,38 @@ const updateUsuario = async (req, res) => {
     }
     if (activo !== undefined) { fields.push('activo = ?'); values.push(activo ? 1 : 0); }
 
-    if (fields.length === 0) {
-        return res.status(400).json({ error: 'No hay campos para actualizar.' });
-    }
-
-    values.push(id);
+    const conn = await pool.getConnection();
     try {
-        const [result] = await pool.query(
-            `UPDATE usuarios SET ${fields.join(', ')} WHERE id = ?`,
-            values
-        );
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ error: 'Usuario no encontrado.' });
+        await conn.beginTransaction();
+
+        if (fields.length > 0) {
+            values.push(id);
+            const [result] = await conn.query(
+                `UPDATE usuarios SET ${fields.join(', ')} WHERE id = ?`,
+                values
+            );
+            if (result.affectedRows === 0) {
+                await conn.rollback();
+                return res.status(404).json({ error: 'Usuario no encontrado.' });
+            }
         }
+
+        if (operadores !== undefined) {
+            await conn.query('DELETE FROM usuarios_operadores WHERE usuario_id = ?', [id]);
+            if (operadores.length > 0) {
+                const valuesOp = operadores.map(opId => [id, opId]);
+                await conn.query('INSERT INTO usuarios_operadores (usuario_id, operador_id) VALUES ?', [valuesOp]);
+            }
+        }
+
+        await conn.commit();
         res.json({ message: 'Usuario actualizado.' });
     } catch (error) {
+        await conn.rollback();
         console.error('[updateUsuario]', error.message);
         res.status(500).json({ error: 'Error al actualizar el usuario.' });
+    } finally {
+        conn.release();
     }
 };
 

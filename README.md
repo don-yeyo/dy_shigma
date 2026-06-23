@@ -118,6 +118,7 @@ Pantalla de auditoría de trazabilidad completa dotada de:
 | `espacios-verdes` | Espacios Verdes |
 | `historial` | Historial de Registros |
 | `gestion-operadores` | Gestión de Operadores |
+| `ajustes-deposito` | Ajustes de Stock Físico (Depósito) |
 
 ### Panel de Gestión de Usuarios (`/gestion-usuarios`)
 
@@ -125,6 +126,7 @@ Accesible solo para `sysadmin`. Permite:
 - Ver todos los usuarios con su rol, módulos y estado.
 - Crear nuevos usuarios con email, nombre, rol y módulos asignados.
 - Editar nombre, rol y módulos de un usuario existente.
+- Asociar operarios específicos autorizados para realizar ajustes físicos de stock a cada usuario cuando se habilita el módulo `ajustes-deposito`.
 - Activar / desactivar usuarios (soft delete — el historial se preserva).
 
 ---

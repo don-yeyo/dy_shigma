@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../config/AuthContext';
 import { 
     Package, ArrowLeft, RefreshCw, AlertTriangle, Calendar, Clock, FileText, CheckCircle, Boxes
 } from 'lucide-react';
-import { Card, Input } from '../../components/FormElements';
+import { Card, Input, Select } from '../../components/FormElements';
 import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
 import { SHIGMAService } from '../../services/api';
+
 
 // Componente premium de Input Numérico con botones de +/- integrados
 const NumberInput = ({ label, value, onChange, min = 0, step = 1, name, placeholder, required }) => {
@@ -165,16 +166,22 @@ const GestionDeposito = () => {
     const [showAjusteModal, setShowAjusteModal] = useState(false);
     const [ajustando, setAjustando] = useState(false);
     const [ajusteFormData, setAjusteFormData] = useState({
+        id: null,
         material: '',
         cantidadDiferencia: '',
-        observaciones: ''
+        observaciones: '',
+        operador: ''
     });
+    const [operadores, setOperadores] = useState([]);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const editId = searchParams.get('edit');
 
     // Modal de Confirmación de Recepción
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [selectedSalidaId, setSelectedSalidaId] = useState(null);
     const [nroCertificadoInput, setNroCertificadoInput] = useState('');
     const [confirming, setConfirming] = useState(false);
+
 
     // Alertas
     const [alertModal, setAlertModal] = useState({
@@ -223,11 +230,57 @@ const GestionDeposito = () => {
         }
     };
 
+    const fetchOperadores = async () => {
+        try {
+            const response = await SHIGMAService.getDepositoOperadores();
+            setOperadores(response.data);
+        } catch (error) {
+            console.error('Error fetching operadores:', error);
+        }
+    };
+
+    const fetchRecordAndEdit = async (id) => {
+        try {
+            const response = await SHIGMAService.getAllRecords({ search: id });
+            const records = response.data.records || [];
+            const record = records.find(r => r.id === id);
+            if (record) {
+                // Obtener el material y cantidad del JSON de materialesRecuperados
+                let material = '';
+                let cantidad = 0;
+                if (record.materialesRecuperados) {
+                    const entries = Object.entries(record.materialesRecuperados);
+                    if (entries.length > 0) {
+                        material = entries[0][0];
+                        cantidad = entries[0][1].cantidad || entries[0][1].amount || 0;
+                    }
+                }
+                setAjusteFormData({
+                    id: record.id,
+                    material,
+                    cantidadDiferencia: String(cantidad),
+                    observaciones: record.observaciones || '',
+                    operador: record.operador || ''
+                });
+                setShowAjusteModal(true);
+            }
+        } catch (error) {
+            console.error('Error fetching record to edit:', error);
+            showAlert('Error al recuperar los datos del registro a editar.', 'Error', 'error');
+        }
+    };
+
     useEffect(() => {
         fetchStockData();
         fetchSalidasData();
         cargarProveedoresDeMemoria();
-    }, []);
+        fetchOperadores();
+        
+        if (editId) {
+            fetchRecordAndEdit(editId);
+        }
+    }, [editId]);
+
 
     const handleOpenDespachoModal = (material) => {
         const pesoMaterial = stock[material] || 0;
@@ -302,9 +355,11 @@ const GestionDeposito = () => {
 
     const handleOpenAjusteModal = (material) => {
         setAjusteFormData({
+            id: null,
             material,
             cantidadDiferencia: '',
-            observaciones: ''
+            observaciones: '',
+            operador: ''
         });
         setShowAjusteModal(true);
     };
@@ -318,24 +373,54 @@ const GestionDeposito = () => {
             return;
         }
 
-        // Si es un ajuste negativo, verificar que no supere el stock actual
+        if (!ajusteFormData.operador) {
+            showAlert('Por favor, seleccione un operador. Es obligatorio.', 'Validación', 'warning');
+            return;
+        }
+
+        // Si es un ajuste negativo, verificar que no supere el stock actual (solo al crear nuevo, o si modificamos y el nuevo es negativo)
         const stockActual = stock[ajusteFormData.material] || 0;
-        if (diff < 0 && Math.abs(diff) > stockActual) {
+        if (diff < 0 && Math.abs(diff) > stockActual && !ajusteFormData.id) {
             showAlert(`El ajuste negativo (${Math.abs(diff)} kg) no puede superar el stock actual del material (${stockActual} kg).`, 'Validación', 'warning');
             return;
         }
 
         setAjustando(true);
         try {
-            await SHIGMAService.ajustarDeposito({
-                material: ajusteFormData.material,
-                cantidadDiferencia: diff,
-                observaciones: ajusteFormData.observaciones
-            });
+            if (ajusteFormData.id) {
+                // Actualizar registro existente
+                // Configurar los materiales recuperados de forma homologada
+                const materialesRecuperados = {
+                    [ajusteFormData.material]: {
+                        amount: diff,
+                        cantidad: diff,
+                        unidad: 'kg'
+                    }
+                };
+                
+                await SHIGMAService.updateRecord('residuos-comunes', ajusteFormData.id, {
+                    peso: diff,
+                    observaciones: ajusteFormData.observaciones,
+                    materialesRecuperados,
+                    operador: ajusteFormData.operador
+                });
+                
+                // Limpiar el parámetro de edición de la URL
+                setSearchParams({});
+                showAlert(`Ajuste de stock modificado con éxito.`, 'Éxito', 'success');
+            } else {
+                // Registrar nuevo ajuste
+                await SHIGMAService.ajustarDeposito({
+                    material: ajusteFormData.material,
+                    cantidadDiferencia: diff,
+                    observaciones: ajusteFormData.observaciones,
+                    operador: ajusteFormData.operador
+                });
+                showAlert(`Ajuste de stock para ${ajusteFormData.material} registrado con éxito.`, 'Éxito', 'success');
+            }
 
             setShowAjusteModal(false);
             fetchStockData();
-            showAlert(`Ajuste de stock para ${ajusteFormData.material} registrado con éxito.`, 'Éxito', 'success');
         } catch (error) {
             console.error('Error adjusting stock:', error);
             const errorMsg = error.response?.data?.error || 'Error al procesar el ajuste de stock.';
@@ -344,6 +429,7 @@ const GestionDeposito = () => {
             setAjustando(false);
         }
     };
+
 
     const handleOpenConfirmModal = (salidaId) => {
         if (isRegistrador) {
@@ -775,45 +861,47 @@ const GestionDeposito = () => {
                 <Modal
                     isOpen={showAjusteModal}
                     onClose={() => setShowAjusteModal(false)}
-                    title={`Ajustar Stock Físico: ${ajusteFormData.material}`}
+                    title={`Ajustar Stock: ${ajusteFormData.material} (Stock: ${(stock[ajusteFormData.material] || 0).toLocaleString()} kg)`}
                     showFooter={false}
                 >
-                    <form onSubmit={handleAjusteSubmit} style={{ padding: '8px 0' }}>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '16px', lineHeight: '1.4' }}>
-                            Ingrese el valor del ajuste en kilogramos. Use números positivos para <strong>incrementar</strong> (ej: <code>100</code>) o negativos para <strong>reducir</strong> (ej: <code>-50</code>).
-                        </p>
+                    <form onSubmit={handleAjusteSubmit} style={{ padding: '4px 0' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '4px' }}>
+                            <Input
+                                label="Cantidad de Ajuste (kg) *"
+                                type="number"
+                                step="any"
+                                placeholder="Ej: 150 o -75"
+                                value={ajusteFormData.cantidadDiferencia}
+                                onChange={(e) => setAjusteFormData(prev => ({ ...prev, cantidadDiferencia: e.target.value }))}
+                                required
+                            />
 
-                        <div style={{
-                            marginBottom: '16px',
-                            padding: '12px',
-                            background: 'var(--surface-hover)',
-                            border: '1px solid var(--border)',
-                            borderRadius: '8px',
-                            fontSize: '0.85rem'
-                        }}>
-                            <strong>Stock Actual en Sistema:</strong> {(stock[ajusteFormData.material] || 0).toLocaleString()} kg
+                            <Select
+                                label="Operador *"
+                                name="operador"
+                                value={ajusteFormData.operador}
+                                onChange={(e) => setAjusteFormData(prev => ({ ...prev, operador: e.target.value }))}
+                                required
+                            >
+                                <option value="">Seleccione...</option>
+                                {operadores.map(op => (
+                                    <option key={op.id} value={op.apellidoNombre}>
+                                        {op.apellidoNombre} ({op.legajo})
+                                    </option>
+                                ))}
+                            </Select>
                         </div>
 
                         <Input
-                            label="Cantidad de Ajuste (kg) *"
-                            type="number"
-                            step="any"
-                            placeholder="Ej: 150 o -75"
-                            value={ajusteFormData.cantidadDiferencia}
-                            onChange={(e) => setAjusteFormData(prev => ({ ...prev, cantidadDiferencia: e.target.value }))}
-                            required
-                        />
-
-                        <Input
-                            label="Observaciones / Motivo de Ajuste *"
+                            label="Observaciones / Motivo *"
                             type="text"
-                            placeholder="Ej: Corrección por diferencia de inventario visual"
+                            placeholder="Ej: Corrección por inventario visual"
                             value={ajusteFormData.observaciones}
                             onChange={(e) => setAjusteFormData(prev => ({ ...prev, observaciones: e.target.value }))}
                             required
                         />
 
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '24px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
                             <Button 
                                 type="button" 
                                 variant="outline" 
@@ -829,7 +917,7 @@ const GestionDeposito = () => {
                                 disabled={ajustando}
                                 style={{ background: 'var(--dy-red)' }}
                             >
-                                {ajustando ? 'Guardando...' : 'Aplicar Ajuste'}
+                                {ajustando ? 'Guardando...' : 'Aplicar'}
                             </Button>
                         </div>
                     </form>

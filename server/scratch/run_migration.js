@@ -1,38 +1,39 @@
-require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
-const db = require('../config/db');
+require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+const pool = require('../config/db');
+const fs = require('fs');
+const path = require('path');
 
-async function run() {
+
+(async () => {
     try {
-        console.log('Iniciando migración de base de datos...');
+        const sqlPath = path.join(__dirname, 'migracion_usuarios_operadores.sql');
+        const sql = fs.readFileSync(sqlPath, 'utf8');
         
-        // Agregar columna subcategoria_inorganico a residuos_comunes si no existe
-        const [rcCols] = await db.query("SHOW COLUMNS FROM residuos_comunes LIKE 'subcategoria_inorganico'");
-        if (rcCols.length === 0) {
-            await db.query("ALTER TABLE residuos_comunes ADD COLUMN subcategoria_inorganico VARCHAR(50) DEFAULT NULL");
-            console.log('Columna subcategoria_inorganico agregada a residuos_comunes.');
-        } else {
-            console.log('La columna subcategoria_inorganico ya existe en residuos_comunes.');
+        // Ejecutar las sentencias por separado
+        const statements = sql
+            .split(';')
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
+
+        for (const statement of statements) {
+            console.log('Ejecutando:', statement.substring(0, 50) + '...');
+            try {
+                await pool.query(statement);
+            } catch (err) {
+                // Ignorar error de columna duplicada (ER_DUP_FIELDNAME)
+                if (err.errno === 1060) {
+                    console.log('La columna ya existe. Omitiendo...');
+                } else {
+                    throw err;
+                }
+            }
         }
 
-        // Permitir sector_id como NULL en residuos_comunes
-        await db.query("ALTER TABLE residuos_comunes MODIFY sector_id INT DEFAULT NULL");
-        console.log('Restricción de sector_id modificada a DEFAULT NULL en residuos_comunes.');
-
-        // Agregar columna nro_certificado a bateas_salidas si no existe
-        const [bsCols] = await db.query("SHOW COLUMNS FROM bateas_salidas LIKE 'nro_certificado'");
-        if (bsCols.length === 0) {
-            await db.query("ALTER TABLE bateas_salidas ADD COLUMN nro_certificado VARCHAR(30) DEFAULT NULL");
-            console.log('Columna nro_certificado agregada a bateas_salidas.');
-        } else {
-            console.log('La columna nro_certificado ya existe en bateas_salidas.');
-        }
-
-        console.log('Migración completada con éxito.');
+        
+        console.log('¡Migración ejecutada con éxito!');
         process.exit(0);
     } catch (err) {
-        console.error('Error durante la migración:', err);
+        console.error('Error al ejecutar la migración:', err);
         process.exit(1);
     }
-}
-
-run();
+})();

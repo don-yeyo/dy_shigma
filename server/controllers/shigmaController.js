@@ -1270,10 +1270,14 @@ const shigmaController = {
 
     ajustarDeposito: async (req, res) => {
         try {
-            const { material, cantidadDiferencia, observaciones } = req.body;
+            const { material, cantidadDiferencia, observaciones, operador } = req.body;
 
             if (!material || cantidadDiferencia === undefined || cantidadDiferencia === null || isNaN(parseFloat(cantidadDiferencia))) {
                 return res.status(400).json({ error: 'Faltan campos obligatorios: material y cantidadDiferencia (número) son obligatorios.' });
+            }
+
+            if (!operador || !operador.trim()) {
+                return res.status(400).json({ error: 'El operador es obligatorio para registrar un ajuste.' });
             }
 
             const diff = parseFloat(cantidadDiferencia);
@@ -1299,6 +1303,7 @@ const shigmaController = {
             // Configurar los materiales recuperados del lote de ajuste
             const materialesRecuperados = {
                 [material]: {
+                    amount: diff, // para consistencia RINE
                     cantidad: diff,
                     unidad: 'kg'
                 }
@@ -1306,8 +1311,8 @@ const shigmaController = {
 
             const insertSql = `
                 INSERT INTO residuos_comunes 
-                (id, lugar_id, sector_id, tipo_residuo, peso, destino, responsable, observaciones, clasificacion_inorganico, materiales_recuperados, usuario)
-                VALUES (?, 1, NULL, 'Inorgánico Generales', ?, 'Acopio de Recuperables', 'Ajuste de Stock', ?, 'Recuperable', ?, ?)
+                (id, lugar_id, sector_id, tipo_residuo, peso, destino, responsable, observaciones, clasificacion_inorganico, materiales_recuperados, usuario, operador)
+                VALUES (?, 1, NULL, 'Inorgánico Generales', ?, 'Acopio de Recuperables', 'Ajuste de Stock', ?, 'Recuperable', ?, ?, ?)
             `;
 
             const obs = observaciones ? observaciones.trim() : `Ajuste manual de stock de ${material}`;
@@ -1318,20 +1323,51 @@ const shigmaController = {
                 diff,
                 obs,
                 JSON.stringify(materialesRecuperados),
-                userNombre
+                userNombre,
+                operador.trim()
             ]);
 
             res.status(201).json({
                 message: 'Ajuste de stock registrado con éxito mediante lote de control.',
                 id: customId,
                 material,
-                cantidadDiferencia: diff
+                cantidadDiferencia: diff,
+                operador: operador.trim()
             });
         } catch (error) {
             console.error('Error en ajustarDeposito:', error);
             res.status(500).json({ error: 'Error al registrar el ajuste de stock en el depósito.' });
         }
+    },
+
+    getDepositoOperadores: async (req, res) => {
+        try {
+            const user = req.currentUser;
+            
+            // Si es sysadmin, listamos todos los operadores activos
+            if (user.rol === 'sysadmin') {
+                const [allOps] = await db.query(
+                    `SELECT id, apellido_nombre, legajo FROM operadores WHERE activo = 1 ORDER BY apellido_nombre ASC`
+                );
+                return res.json(allOps.map(r => toCamelCaseObj(r)));
+            }
+
+            // Para otros roles, listamos los operadores asociados a su usuario
+            const [ops] = await db.query(`
+                SELECT o.id, o.apellido_nombre, o.legajo
+                FROM operadores o
+                JOIN usuarios_operadores uo ON o.id = uo.operador_id
+                WHERE uo.usuario_id = ? AND o.activo = 1
+                ORDER BY o.apellido_nombre ASC
+            `, [user.id]);
+
+            res.json(ops.map(r => toCamelCaseObj(r)));
+        } catch (error) {
+            console.error('Error en getDepositoOperadores:', error);
+            res.status(500).json({ error: 'Error al obtener los operadores de depósito para este usuario.' });
+        }
     }
 };
 
 module.exports = shigmaController;
+

@@ -382,7 +382,12 @@ const HistorialTrazabilidad = () => {
                             className="btn-modify-record"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                navigate(`/${record.formType}?edit=${record.id}`);
+                                if (record.formType === 'residuos-comunes' && record.responsable === 'Ajuste de Stock') {
+                                    navigate(`/gestion-deposito?edit=${record.id}`);
+                                } else {
+                                    navigate(`/${record.formType}?edit=${record.id}`);
+                                }
+
                             }}
                             style={{
                                 display: 'flex',

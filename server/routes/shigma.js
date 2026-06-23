@@ -46,6 +46,8 @@ router.post('/deposito/despachar', shigmaController.despacharDeposito);
 router.post('/deposito/ajustar', shigmaController.ajustarDeposito);
 router.get('/deposito/salidas', shigmaController.getDepositoSalidas);
 router.post('/deposito/salidas/:salidaId/confirm', requireRole('sysadmin', 'supervisor'), shigmaController.confirmDepositoSalida);
+router.get('/deposito/operadores', shigmaController.getDepositoOperadores);
+
 
 // Rutas de Lugares y Sectores
 router.get('/lugares', shigmaController.getLugares);

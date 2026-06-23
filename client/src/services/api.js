@@ -114,6 +114,9 @@ export const SHIGMAService = {
         api.get('/shigma/deposito/salidas'),
     confirmDepositoSalida: (salidaId, data) =>
         api.post(`/shigma/deposito/salidas/${salidaId}/confirm`, data),
+    getDepositoOperadores: () =>
+        api.get('/shigma/deposito/operadores'),
+
     
     // Operadores API
     getOperadoresByForm: (formType) =>

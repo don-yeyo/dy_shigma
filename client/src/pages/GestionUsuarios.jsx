@@ -19,6 +19,7 @@ const MODULO_LABELS = {
     'espacios-verdes': 'Espacios Verdes',
     'historial': 'Historial de Registros',
     'gestion-operadores': 'Gestión de Operadores',
+    'ajustes-deposito': 'Ajustes de Stock Físico (Depósito)',
 };
 
 const ROL_CONFIG = {
@@ -70,22 +71,40 @@ const Toast = ({ msg, type, onClose }) => {
 
 // ─── Modal de Crear / Editar Usuario ─────────────────────────────────────────
 
-const UserModal = ({ initialData, modulosDisponibles, onSave, onClose, isCreating }) => {
-    const [form, setForm] = useState(initialData || EMPTY_FORM);
+const UserModal = ({ initialData, modulosDisponibles, operadoresDisponibles, onSave, onClose, isCreating }) => {
+    const [form, setForm] = useState(initialData || { ...EMPTY_FORM, operadores: [] });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
 
     const toggleModulo = (mod) => {
+        setForm(f => {
+            const nextModulos = f.modulos.includes(mod)
+                ? f.modulos.filter(m => m !== mod)
+                : [...f.modulos, mod];
+            // Si desmarca 'ajustes-deposito', limpiar operadores seleccionados
+            const nextOperadores = nextModulos.includes('ajustes-deposito') ? f.operadores : [];
+            return {
+                ...f,
+                modulos: nextModulos,
+                operadores: nextOperadores
+            };
+        });
+    };
+
+    const toggleOperador = (opId) => {
         setForm(f => ({
             ...f,
-            modulos: f.modulos.includes(mod)
-                ? f.modulos.filter(m => m !== mod)
-                : [...f.modulos, mod]
+            operadores: f.operadores.includes(opId)
+                ? f.operadores.filter(id => id !== opId)
+                : [...f.operadores, opId]
         }));
     };
 
     const selectAllModulos = () => setForm(f => ({ ...f, modulos: modulosDisponibles }));
-    const clearModulos = () => setForm(f => ({ ...f, modulos: [] }));
+    const clearModulos = () => setForm(f => ({ ...f, modulos: [], operadores: [] }));
+
+    const selectAllOperadores = () => setForm(f => ({ ...f, operadores: operadoresDisponibles.map(op => op.id) }));
+    const clearOperadores = () => setForm(f => ({ ...f, operadores: [] }));
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -105,6 +124,7 @@ const UserModal = ({ initialData, modulosDisponibles, onSave, onClose, isCreatin
     };
 
     const isSysadmin = form.rol === 'sysadmin';
+    const showAjustesDeposito = !isSysadmin && form.modulos.includes('ajustes-deposito');
 
     return (
         <div style={{
@@ -242,10 +262,69 @@ const UserModal = ({ initialData, modulosDisponibles, onSave, onClose, isCreatin
                                     );
                                 })}
                             </div>
-                            {isSysadmin && (
-                                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '8px', fontStyle: 'italic' }}>
-                                    El sysadmin tiene acceso a todos los módulos automáticamente.
+                        </div>
+                    )}
+
+                    {/* Operadores Asignados — Solo si 'ajustes-deposito' está marcado y no es sysadmin */}
+                    {showAjustesDeposito && (
+                        <div style={{
+                            marginBottom: '20px',
+                            padding: '16px',
+                            borderRadius: '12px',
+                            background: 'var(--surface-2)',
+                            border: '1px solid var(--border)'
+                        }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    Operadores autorizados para Ajustes
+                                </label>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button type="button" onClick={selectAllOperadores}
+                                        style={{ fontSize: '0.72rem', color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                                        Todos
+                                    </button>
+                                    <button type="button" onClick={clearOperadores}
+                                        style={{ fontSize: '0.72rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                                        Limpiar
+                                    </button>
+                                </div>
+                            </div>
+                            {operadoresDisponibles.length === 0 ? (
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0, fontStyle: 'italic' }}>
+                                    No hay operadores registrados en el sistema.
                                 </p>
+                            ) : (
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '6px', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
+                                    {operadoresDisponibles.map(op => {
+                                        const checked = form.operadores.includes(op.id);
+                                        return (
+                                            <label
+                                                key={op.id}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '8px',
+                                                    padding: '6px 10px',
+                                                    borderRadius: '8px',
+                                                    cursor: 'pointer',
+                                                    fontSize: '0.82rem',
+                                                    color: 'var(--text)',
+                                                    background: checked ? 'rgba(59,130,246,0.08)' : 'var(--surface)',
+                                                    border: checked ? '1px solid rgba(59,130,246,0.3)' : '1px solid var(--border)',
+                                                    transition: 'all 0.15s'
+                                                }}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    onChange={() => toggleOperador(op.id)}
+                                                    style={{ accentColor: '#3b82f6', width: '14px', height: '14px' }}
+                                                />
+                                                <span>{op.apellidoNombre} <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>({op.legajo})</span></span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
                             )}
                         </div>
                     )}
@@ -299,6 +378,7 @@ const GestionUsuarios = () => {
 
     const [usuarios, setUsuarios] = useState([]);
     const [modulosDisponibles, setModulosDisponibles] = useState([]);
+    const [operadoresDisponibles, setOperadoresDisponibles] = useState([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState(null);
     const [modalState, setModalState] = useState({ open: false, data: null, isCreating: false });
@@ -313,8 +393,12 @@ const GestionUsuarios = () => {
             const res = await UsersService.getUsuarios();
             setUsuarios(res.data.usuarios);
             setModulosDisponibles(res.data.modulos_disponibles);
+            
+            // Cargar operadores disponibles
+            const resOps = await SHIGMAService.getOperadores();
+            setOperadoresDisponibles(resOps.data || []);
         } catch (err) {
-            showToast('Error al cargar usuarios.', 'error');
+            showToast('Error al cargar usuarios u operadores.', 'error');
         } finally {
             setLoading(false);
         }
@@ -322,12 +406,12 @@ const GestionUsuarios = () => {
 
     useEffect(() => { fetchUsuarios(); }, [fetchUsuarios]);
 
-    const openCreate = () => setModalState({ open: true, data: EMPTY_FORM, isCreating: true });
+    const openCreate = () => setModalState({ open: true, data: { ...EMPTY_FORM, operadores: [] }, isCreating: true });
 
     const openEdit = (u) => setModalState({
         open: true,
         isCreating: false,
-        data: { email: u.email, nombre: u.nombre, rol: u.rol, modulos: u.modulos }
+        data: { email: u.email, nombre: u.nombre, rol: u.rol, modulos: u.modulos, operadores: u.operadores || [] }
     });
 
     const closeModal = () => setModalState({ open: false, data: null, isCreating: false });
@@ -340,7 +424,7 @@ const GestionUsuarios = () => {
             // Buscar el usuario que se está editando
             const target = usuarios.find(u => u.email === form.email);
             if (target) {
-                await UsersService.updateUsuario(target.id, { nombre: form.nombre, rol: form.rol });
+                await UsersService.updateUsuario(target.id, { nombre: form.nombre, rol: form.rol, operadores: form.operadores });
                 await UsersService.updateModulos(target.id, form.modulos);
             }
             showToast(`Usuario actualizado.`);
@@ -391,6 +475,7 @@ const GestionUsuarios = () => {
                 <UserModal
                     initialData={modalState.data}
                     modulosDisponibles={modulosDisponibles}
+                    operadoresDisponibles={operadoresDisponibles}
                     onSave={handleSave}
                     onClose={closeModal}
                     isCreating={modalState.isCreating}
