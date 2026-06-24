@@ -263,7 +263,7 @@ const HistorialTrazabilidad = () => {
                 } else if (r.formType === 'residuos-especiales') {
                     detalleAmigable = `Tipo: ${r.tipoResiduoEspecial}, Peligro: ${r.categoriaPeligro}, Cantidad: ${r.cantidad} ${r.unidad}, Envase: ${r.tipoEnvase}`;
                 } else if (r.formType === 'devoluciones') {
-                    detalleAmigable = `Producto: ${r.productoDevuelto}, Bultos: ${r.cantidadBultos}, Peso: ${r.pesoEstimado || 0} kg, Motivo: ${r.motivoDevolucion}, Destino: ${r.disposicionFinal}`;
+                    detalleAmigable = `Sector: ${r.sector}, Kilos: ${r.kilos} kg`;
                 } else if (r.formType === 'tratamiento') {
                     detalleAmigable = `Proceso: ${r.procesoTratamiento}, Material: ${r.materialEntrada}, Cantidad: ${r.cantidadProcesada} kg, Subproducto: ${r.subproductoObtenido}`;
                 } else if (r.formType === 'economia-circular') {
@@ -372,13 +372,8 @@ const HistorialTrazabilidad = () => {
             details.push({ label: 'Tipo Envase', value: record.tipoEnvase });
             details.push({ label: 'Certificado Acopio', value: record.certificadoAcopio || 'Ninguno' });
         } else if (record.formType === 'devoluciones') {
-            details.push({ label: 'Cliente / Origen', value: record.clienteOrigen });
-            details.push({ label: 'Producto Devuelto', value: record.productoDevuelto });
-            details.push({ label: 'Cantidad Bultos', value: `${record.cantidadBultos} uds` });
-            details.push({ label: 'Peso Estimado', value: record.pesoEstimado ? `${record.pesoEstimado} kg` : 'N/A' });
-            details.push({ label: 'Motivo Devolución', value: record.motivoDevolucion });
-            details.push({ label: 'Resultado Inspección', value: record.inspeccionCalidad });
-            details.push({ label: 'Disposición Final', value: record.disposicionFinal });
+            details.push({ label: 'Sector de Origen', value: record.sector });
+            details.push({ label: 'Kilos', value: `${record.kilos} kg` });
         } else if (record.formType === 'tratamiento') {
             details.push({ label: 'Proceso', value: record.procesoTratamiento });
             details.push({ label: 'Material Entrada', value: record.materialEntrada });
@@ -706,11 +701,12 @@ const HistorialTrazabilidad = () => {
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                         <span style={{ fontSize: '0.9rem', fontWeight: '800', color: 'var(--text)' }}>
                                             {record.peso ? `${record.peso} kg` :
-                                                record.pesoBalanza ? `${record.pesoBalanza} kg (Balanza)` :
-                                                    record.cantidad ? `${record.cantidad} ${record.unidad}` :
-                                                        record.cantidadBultos ? `${record.cantidadBultos} bultos` :
-                                                            record.cantidadIngresados ? `${record.cantidadIngresados} pallets` :
-                                                                record.consumoAgua ? `${record.consumoAgua} L` : 'Ver Detalles'}
+                                                record.kilos ? `${record.kilos} kg` :
+                                                    record.pesoBalanza ? `${record.pesoBalanza} kg (Balanza)` :
+                                                        record.cantidad ? `${record.cantidad} ${record.unidad}` :
+                                                            record.cantidadBultos ? `${record.cantidadBultos} bultos` :
+                                                                record.cantidadIngresados ? `${record.cantidadIngresados} pallets` :
+                                                                    record.consumoAgua ? `${record.consumoAgua} L` : 'Ver Detalles'}
                                         </span>
                                         <button style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                                             {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}

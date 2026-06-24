@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CornerUpLeft, ArrowLeft, Send, CheckCircle } from 'lucide-react';
-import { Card, Input, Select, Textarea } from '../../components/FormElements';
+import { CornerUpLeft, ArrowLeft, Send } from 'lucide-react';
+import { Card, Input, Select, Textarea, NumberInput } from '../../components/FormElements';
 import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
 import { SHIGMAService } from '../../services/api';
-import { getLocalISOString, validateRecordDate, getDateConstraints } from '../../utils/dateUtils';
+import { validateRecordDate, getDateConstraints } from '../../utils/dateUtils';
 import { useMobile } from '../../config/ThemeContext';
-
 
 const Devoluciones = () => {
     const isMobile = useMobile();
@@ -40,13 +39,8 @@ const Devoluciones = () => {
     const [formData, setFormData] = useState({
         fechaCarga: todayStr,
         horaCarga: nowTimeStr,
-        clienteOrigen: '',
-        productoDevuelto: '',
-        cantidadBultos: '',
-        pesoEstimado: '',
-        motivoDevolucion: '',
-        inspeccionCalidad: '',
-        disposicionFinal: '',
+        kilos: '',
+        sector: '',
         responsable: '',
         observaciones: ''
     });
@@ -58,26 +52,9 @@ const Devoluciones = () => {
         }
     }, []);
 
-    const motivos = [
-        { id: 'Vencimiento de producto', label: 'Vencimiento de producto' },
-        { id: 'Defecto de empaque / Rotura', label: 'Defecto de empaque / Rotura' },
-        { id: 'Error de despacho / Logística', label: 'Error de despacho / Logística' },
-        { id: 'Rechazo de control de calidad', label: 'Rechazo de control de calidad' }
-    ];
-
-    const estadosInspeccion = [
-        { id: 'Apto para reproceso interno', label: 'Apto para reproceso interno' },
-        { id: 'Apto para Economía Circular / Donación', label: 'Apto para Economía Circular / Donación' },
-        { id: 'Descarte / Destrucción Directa', label: 'Descarte / Destrucción Directa' }
-    ];
-
-    const disposiciones = [
-        { id: 'Reutilizar pallets/cajas secundarias', label: 'Reutilizar pallets / cajas secundarias' },
-        { id: 'Compostaje Interno (Orgánicos)', label: 'Compostaje Interno (Orgánicos)' },
-        { id: 'Reciclado de Plástico/Cartón exterior', label: 'Reciclado de Plástico/Cartón exterior' },
-        { id: 'Donación a Banco de Alimentos', label: 'Donación a Banco de Alimentos' },
-        { id: 'Relleno Sanitario (No recuperable)', label: 'Relleno Sanitario (No recuperable)' }
-    ];
+    const sectoresOpciones = (import.meta.env.VITE_SECTORES_DEVOLUCIONES || 'Panificados,Tapas,Pastas')
+        .split(',')
+        .map(sec => ({ id: sec.trim(), label: sec.trim() }));
 
     const fetchOperadores = async () => {
         try {
@@ -116,13 +93,8 @@ const Devoluciones = () => {
                         setFormData({
                             fechaCarga,
                             horaCarga,
-                            clienteOrigen: record.clienteOrigen || '',
-                            productoDevuelto: record.productoDevuelto || '',
-                            cantidadBultos: String(record.cantidadBultos) || '',
-                            pesoEstimado: record.pesoEstimado ? String(record.pesoEstimado) : '',
-                            motivoDevolucion: record.motivoDevolucion || '',
-                            inspeccionCalidad: record.inspeccionCalidad || '',
-                            disposicionFinal: record.disposicionFinal || '',
+                            kilos: record.kilos ? String(record.kilos) : '',
+                            sector: record.sector || '',
                             responsable: record.responsable || '',
                             observaciones: record.observaciones || ''
                         });
@@ -164,7 +136,7 @@ const Devoluciones = () => {
             return;
         }
 
-        if (!formData.clienteOrigen || !formData.productoDevuelto || !formData.cantidadBultos || !formData.motivoDevolucion || !formData.inspeccionCalidad || !formData.disposicionFinal || !formData.responsable) {
+        if (!formData.kilos || !formData.sector || !formData.responsable) {
             showAlert('Por favor, complete todos los campos obligatorios marcados con *');
             return;
         }
@@ -175,8 +147,7 @@ const Devoluciones = () => {
             const payload = {
                 ...rest,
                 createdAt: combinedCreatedAt,
-                cantidadBultos: parseInt(formData.cantidadBultos),
-                pesoEstimado: formData.pesoEstimado ? parseFloat(formData.pesoEstimado) : 0
+                kilos: parseFloat(formData.kilos)
             };
 
             if (editId) {
@@ -194,13 +165,8 @@ const Devoluciones = () => {
                 setFormData({
                     fechaCarga: constraints.todayStr,
                     horaCarga: constraints.nowTimeStr,
-                    clienteOrigen: '',
-                    productoDevuelto: '',
-                    cantidadBultos: '',
-                    pesoEstimado: '',
-                    motivoDevolucion: '',
-                    inspeccionCalidad: '',
-                    disposicionFinal: '',
+                    kilos: '',
+                    sector: '',
                     responsable: localStorage.getItem('shigma_last_operator_devoluciones') || '',
                     observaciones: ''
                 });
@@ -226,10 +192,10 @@ const Devoluciones = () => {
                 </Button>
                 <div>
                     <h1 style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--primary)' }}>
-                        {editId ? 'Modificar' : 'Clasificación de'} Devoluciones<span style={{ color: 'var(--dy-red)' }}>.</span>
+                        Devoluciones<span style={{ color: 'var(--dy-red)' }}>.</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
-                        {editId ? `Editando registro ${editId} del historial.` : 'Clasificación e inspección de mercadería retornada para canalizar su reciclaje, compostaje o reutilización.'}
+                        {editId ? `Editando registro ${editId} del historial.` : 'Registro de mermas y devoluciones de mercadería.'}
                     </p>
                 </div>
             </div>
@@ -240,7 +206,7 @@ const Devoluciones = () => {
                         Datos del Lote Devuelto
                     </div>
 
-                    {/* Fecha y Hora de la Carga (Separadas en grilla responsive, con Autofoco) */}
+                    {/* Fecha y Hora de la Carga */}
                     <div className="form-grid" style={isMobile ? {
                         display: 'flex',
                         flexDirection: 'column',
@@ -250,7 +216,7 @@ const Devoluciones = () => {
                         marginBottom: '24px'
                     }}>
                         <div>
-                            <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
+                            <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '500', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
                                 Fecha de la Carga *
                             </label>
                             <input
@@ -279,7 +245,7 @@ const Devoluciones = () => {
                             />
                         </div>
                         <div>
-                            <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
+                            <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '500', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
                                 Hora de la Carga *
                             </label>
                             <input
@@ -308,93 +274,27 @@ const Devoluciones = () => {
                         flexDirection: 'column',
                         gap: '16px'
                     } : {}}>
-                        <Input
-                            label="Cliente / Origen de Devolución *"
-                            type="text"
-                            name="clienteOrigen"
-                            placeholder="Ej: Distribuidora Norte S.A. o Sucursal Palermo"
-                            value={formData.clienteOrigen}
+                        <NumberInput
+                            label="Kilos *"
+                            name="kilos"
+                            placeholder=""
+                            step={0.5}
+                            min={0.1}
+                            value={formData.kilos}
                             onChange={handleChange}
                             required
-                        />
-
-                        <Input
-                            label="Producto / Material Devuelto *"
-                            type="text"
-                            name="productoDevuelto"
-                            placeholder={`Ej: Galletitas ${import.meta.env.VITE_COMPANY_NAME_SHORT || 'marca'} Dulces 400g`}
-                            value={formData.productoDevuelto}
-                            onChange={handleChange}
-                            required
-                        />
-                    </div>
-
-                    <div className="form-grid" style={isMobile ? {
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '16px',
-                        marginTop: '8px'
-                    } : {
-                        marginTop: '8px'
-                    }}>
-                        <Input
-                            label="Cantidad de Bultos / Cajas *"
-                            type="number"
-                            name="cantidadBultos"
-                            placeholder="Ej: 15"
-                            min="1"
-                            value={formData.cantidadBultos}
-                            onChange={handleChange}
-                            required
-                        />
-
-                        <Input
-                            label="Peso Estimado Total (kg) - Opcional"
-                            type="number"
-                            name="pesoEstimado"
-                            placeholder="Ej: 120.5"
-                            step="0.1"
-                            value={formData.pesoEstimado}
-                            onChange={handleChange}
-                        />
-                    </div>
-
-                    <div className="form-section-title" style={{ marginTop: '24px', color: '#3b82f6', borderColor: 'rgba(59, 130, 246, 0.2)' }}>
-                        Inspección Ambiental y Disposición
-                    </div>
-
-                    <div className="form-grid" style={isMobile ? {
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '16px'
-                    } : {}}>
-                        <Select
-                            label="Motivo de la Devolución *"
-                            name="motivoDevolucion"
-                            value={formData.motivoDevolucion}
-                            onChange={handleChange}
-                            options={motivos}
-                            includePlaceholder={true}
                         />
 
                         <Select
-                            label="Resultado Inspección de Calidad *"
-                            name="inspeccionCalidad"
-                            value={formData.inspeccionCalidad}
+                            label="Sector *"
+                            name="sector"
+                            value={formData.sector}
                             onChange={handleChange}
-                            options={estadosInspeccion}
+                            options={sectoresOpciones}
                             includePlaceholder={true}
+                            required
                         />
                     </div>
-
-                    <Select
-                        label="Disposición Final Adoptada (Canal Verde) *"
-                        name="disposicionFinal"
-                        value={formData.disposicionFinal}
-                        onChange={handleChange}
-                        options={disposiciones}
-                        includePlaceholder={true}
-                    />
 
                     <Select
                         label="Operador Inspector *"
@@ -407,9 +307,9 @@ const Devoluciones = () => {
                     />
 
                     <Textarea
-                        label="Observaciones y Detalles del Lote"
+                        label="Observaciones"
                         name="observaciones"
-                        placeholder="Detallar el estado físico de los bultos, si la rotura fue en viaje, porcentaje de material seco reciclable..."
+                        placeholder="Detalles adicionales sobre el lote..."
                         value={formData.observaciones}
                         onChange={handleChange}
                     />
@@ -432,7 +332,7 @@ const Devoluciones = () => {
                         disabled={submitting}
                         style={{ background: '#3b82f6', color: '#fff' }}
                     >
-                        <Send size={18} /> {submitting ? 'Guardando...' : editId ? 'Guardar Cambios' : 'Registrar Inspección'}
+                        <Send size={18} /> {submitting ? 'Guardando...' : editId ? 'Guardar Cambios' : 'Registrar Devolución'}
                     </Button>
                 </div>
             </form>
@@ -444,7 +344,7 @@ const Devoluciones = () => {
                     setShowSuccessModal(false);
                     if (editId) navigate('/historial');
                 }}
-                title={editId ? "Registro Modificado" : "Inspección de Devolución Registrada"}
+                title={editId ? "Registro Modificado" : "Devolución Registrada"}
                 showFooter={false}
             >
                 <div style={{ textAlign: 'center', padding: '16px 0' }}>
@@ -452,12 +352,12 @@ const Devoluciones = () => {
                         <CornerUpLeft size={64} />
                     </div>
                     <h3 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '8px', color: 'var(--primary)' }}>
-                        {editId ? "¡Modificación Guardada!" : "¡Devolución Clasificada!"}
+                        {editId ? "¡Modificación Guardada!" : "¡Devolución Registrada!"}
                     </h3>
                     <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
                         {editId 
-                            ? "La inspección y el destino ecológico del lote devuelto han sido actualizados con éxito en el historial de trazabilidad con el ID:"
-                            : "La inspección y el destino ecológico del lote devuelto han sido registrados en la trazabilidad con el ID:"}
+                            ? "El registro de la devolución ha sido actualizado con éxito en el historial de trazabilidad con el ID:"
+                            : "El registro de la devolución ha sido asentado en la trazabilidad con el ID:"}
                         <br />
                         <strong style={{ color: 'var(--text)', fontSize: '1.1rem', display: 'inline-block', marginTop: '8px', padding: '6px 12px', background: 'var(--surface-hover)', borderRadius: '8px', border: '1px solid var(--border)' }}>
                             {successId}

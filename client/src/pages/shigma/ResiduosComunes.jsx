@@ -852,12 +852,7 @@ const ResiduosComunes = () => {
                         </div>
                     </div>
 
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: (isMobile || (esInorganicoGeneral && !esElgueaRoman)) ? '1fr' : '1fr 1fr',
-                        gap: '16px',
-                        marginBottom: '24px'
-                    }}>
+                    <div style={{ marginBottom: '24px' }}>
                         <Select
                             label="Planta Generadora *"
                             name="lugarId"
@@ -867,32 +862,6 @@ const ResiduosComunes = () => {
                             includePlaceholder={true}
                             required
                         />
-
-                        {!esInorganicoGeneral ? (
-                            <Select
-                                label="Sector *"
-                                name="sectorId"
-                                value={formData.sectorId}
-                                onChange={handleChange}
-                                options={sectores.map(s => ({ id: s.id, label: s.nombre }))}
-                                includePlaceholder={true}
-                                required
-                                disabled={!formData.lugarId}
-                            />
-                        ) : esElgueaRoman ? (
-                            <Select
-                                label="Humedad del Residuo *"
-                                name="subcategoriaInorganico"
-                                value={formData.subcategoriaInorganico}
-                                onChange={handleChange}
-                                options={[
-                                    { id: 'Húmedo', label: 'Húmedo' },
-                                    { id: 'Seco', label: 'Seco' }
-                                ]}
-                                includePlaceholder={true}
-                                required
-                            />
-                        ) : null}
                     </div>
 
                     <div style={{
@@ -934,7 +903,9 @@ const ResiduosComunes = () => {
                             borderRadius: '16px',
                             border: '1px solid var(--border)',
                             marginBottom: '20px',
-                            marginTop: '8px'
+                            marginTop: '8px',
+                            position: 'relative',
+                            zIndex: 10
                         }}>
                             {/* Switch sin label redundante para mejor visualización y UX limpia */}
                             <Switch
@@ -944,6 +915,8 @@ const ResiduosComunes = () => {
                                 activeLabel="Recuperable (Se puede clasificar material)"
                                 inactiveLabel="Irrecuperables (Basura General)"
                             />
+
+
 
                             {/* CONDICIONAL: Materiales Recuperables ALINEADOS (Grid ancho óptimo para 1 millón) */}
                             {formData.clasificacionInorganico === 'Recuperable' && (
@@ -1217,6 +1190,37 @@ const ResiduosComunes = () => {
                                     </div>
                                 </div>
                             )}
+                            {esElgueaRoman && (
+                                <div style={{ marginTop: '20px', position: 'relative', zIndex: 20 }}>
+                                    <Select
+                                        label="Humedad del Residuo *"
+                                        name="subcategoriaInorganico"
+                                        value={formData.subcategoriaInorganico}
+                                        onChange={handleChange}
+                                        options={[
+                                            { id: 'Húmedo', label: 'Húmedo' },
+                                            { id: 'Seco', label: 'Seco' }
+                                        ]}
+                                        includePlaceholder={true}
+                                        required
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {!esInorganicoGeneral && (
+                        <div style={{ marginBottom: '24px' }}>
+                            <Select
+                                label="Sector *"
+                                name="sectorId"
+                                value={formData.sectorId}
+                                onChange={handleChange}
+                                options={sectores.map(s => ({ id: s.id, label: s.nombre }))}
+                                includePlaceholder={true}
+                                required
+                                disabled={!formData.lugarId}
+                            />
                         </div>
                     )}
 

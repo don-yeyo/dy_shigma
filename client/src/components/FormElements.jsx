@@ -214,3 +214,131 @@ export const Switch = ({ label, name, checked, onChange, activeLabel = 'Activado
         </div>
     );
 };
+
+export const NumberInput = ({ label, value, onChange, min = 0, step = 1, name, placeholder, required, disabled }) => {
+    const numericStep = typeof step === 'number' ? step : parseFloat(step) || 1;
+
+    const handleDecrement = () => {
+        const val = parseFloat(value || 0);
+        const newVal = Math.max(min, val - numericStep);
+        onChange({ target: { name, value: String(Math.round(newVal * 10) / 10) } });
+    };
+
+    const handleIncrement = () => {
+        const val = parseFloat(value || 0);
+        const newVal = val + numericStep;
+        onChange({ target: { name, value: String(Math.round(newVal * 10) / 10) } });
+    };
+
+    const handleMouseDown = (e) => {
+        if (document.activeElement !== e.target) {
+            e.preventDefault();
+            e.target.focus();
+            e.target.select();
+        }
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === '-' || e.key === 'e' || e.key === 'E') {
+            e.preventDefault();
+        }
+    };
+
+    const handleInputChange = (e) => {
+        let val = e.target.value;
+        if (val.includes('-')) {
+            val = val.replace(/-/g, '');
+        }
+        e.target.value = val;
+        onChange(e);
+    };
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px', opacity: disabled ? 0.6 : 1 }}>
+            {label && <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '500' }}>{label}</label>}
+            <div style={{ display: 'flex', alignItems: 'stretch', gap: '4px' }}>
+                <button
+                    type="button"
+                    onClick={handleDecrement}
+                    disabled={disabled}
+                    style={{
+                        padding: '0 16px',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius)',
+                        borderTopRightRadius: '0',
+                        borderBottomRightRadius: '0',
+                        background: 'var(--surface)',
+                        color: 'var(--text)',
+                        fontSize: '1.2rem',
+                        fontWeight: 'bold',
+                        cursor: disabled ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '46px',
+                        transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => !disabled && (e.target.style.background = 'var(--surface-hover)')}
+                    onMouseLeave={(e) => !disabled && (e.target.style.background = 'var(--surface)')}
+                >
+                    -
+                </button>
+                <input
+                    type="number"
+                    name={name}
+                    value={value}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
+                    onMouseDown={handleMouseDown}
+                    placeholder={placeholder}
+                    required={required}
+                    min={min}
+                    step="any"
+                    disabled={disabled}
+                    onFocus={(e) => e.target.select()}
+                    style={{
+                        flex: 1,
+                        textAlign: 'center',
+                        height: '46px',
+                        outline: 'none',
+                        border: '1px solid var(--border)',
+                        borderLeft: 'none',
+                        borderRight: 'none',
+                        borderRadius: '0',
+                        backgroundColor: 'var(--background)',
+                        color: 'var(--text)',
+                        fontWeight: '700',
+                        fontSize: '1.1rem',
+                        cursor: disabled ? 'not-allowed' : 'text'
+                    }}
+                />
+                <button
+                    type="button"
+                    onClick={handleIncrement}
+                    disabled={disabled}
+                    style={{
+                        padding: '0 16px',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius)',
+                        borderTopLeftRadius: '0',
+                        borderBottomLeftRadius: '0',
+                        background: 'var(--surface)',
+                        color: 'var(--text)',
+                        fontSize: '1.2rem',
+                        fontWeight: 'bold',
+                        cursor: disabled ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '46px',
+                        transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => !disabled && (e.target.style.background = 'var(--surface-hover)')}
+                    onMouseLeave={(e) => !disabled && (e.target.style.background = 'var(--surface)')}
+                >
+                    +
+                </button>
+            </div>
+        </div>
+    );
+};

@@ -127,24 +127,19 @@ CREATE TABLE IF NOT EXISTS `residuos_especiales` (
   KEY `idx_residuos_especiales_created` (`created_at` DESC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- ------------------------------------------------------------
--- 4. Tabla de Clasificación de Devoluciones
+-- 4. Tabla de Devoluciones
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `devoluciones` (
   `id` varchar(30) NOT NULL,
-  `cliente_origen` varchar(150) NOT NULL,
-  `producto_devuelto` varchar(200) NOT NULL,
-  `cantidad_bultos` int NOT NULL,
-  `peso_estimado` decimal(10, 2) DEFAULT 0.00,
-  `motivo_devolucion` varchar(150) NOT NULL,
-  `inspeccion_calidad` varchar(150) NOT NULL,
-  `disposicion_final` varchar(150) NOT NULL,
+  `kilos` decimal(10, 2) NOT NULL,
+  `sector` varchar(100) NOT NULL,
   `responsable` varchar(100) DEFAULT '',
   `observaciones` text NULL,
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP(),
   `usuario` varchar(100) DEFAULT '',
+  `ediciones` int NOT NULL DEFAULT 0,
+  `usuario_edicion` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_devoluciones_cliente` (`cliente_origen`),
   KEY `idx_devoluciones_created` (`created_at` DESC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
