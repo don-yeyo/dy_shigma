@@ -376,6 +376,9 @@ const Pallets = () => {
                     setSuccessId(response.data.record.id);
                     setShowSuccessModal(true);
                 }
+
+                // Actualizar la lista de pendientes reactivamente
+                await fetchPendientes();
             }
 
             // Resetear formulario si no es edición clásica de URL
