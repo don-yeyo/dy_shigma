@@ -133,14 +133,18 @@ CREATE TABLE IF NOT EXISTS `devoluciones` (
   `id` varchar(30) NOT NULL,
   `kilos` decimal(10, 2) NOT NULL,
   `sector` varchar(100) NOT NULL,
+  `destino` varchar(150) NOT NULL DEFAULT 'Batea 1 de Orgánicos',
   `responsable` varchar(100) DEFAULT '',
   `observaciones` text NULL,
+  `batea_salida_id` varchar(30) NULL,
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP(),
   `usuario` varchar(100) DEFAULT '',
   `ediciones` int NOT NULL DEFAULT 0,
   `usuario_edicion` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_devoluciones_created` (`created_at` DESC)
+  KEY `idx_devoluciones_created` (`created_at` DESC),
+  CONSTRAINT `fk_devoluciones_batea_salida` FOREIGN KEY (`batea_salida_id`) 
+    REFERENCES `bateas_salidas` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ------------------------------------------------------------
@@ -186,18 +190,25 @@ CREATE TABLE IF NOT EXISTS `economia_circular` (
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `pallets` (
   `id` varchar(30) NOT NULL,
-  `tipo_pallet` varchar(100) NOT NULL,
-  `cantidad_ingresados` int NOT NULL,
-  `cantidad_reparados` int NOT NULL,
-  `cantidad_descartados` int NOT NULL,
-  `cantidad_circular` int NOT NULL,
-  `responsable_reparacion` varchar(150) NOT NULL,
-  `responsable` varchar(100) DEFAULT '',
-  `observaciones` text NULL,
+  `tipo_registro` enum('Descartes', 'Reparación Interna', 'Reparación Externa', 'Ingreso de Nuevos', 'Entrega Interna', 'Entrega Externa') NOT NULL,
+  `cantidad` int NOT NULL,
+  `destino` varchar(100) DEFAULT NULL,
+  `remito` varchar(30) DEFAULT NULL,
+  `proveedor` varchar(100) DEFAULT NULL,
+  `planta` varchar(100) DEFAULT NULL,
+  `sector` varchar(100) DEFAULT NULL,
+  `operario_entrega` varchar(150) DEFAULT NULL,
+  `operario_recibe` varchar(150) DEFAULT NULL,
+  `estado` varchar(30) DEFAULT NULL, -- 'Retirado', 'Devuelto' (para Reparaciones)
+  `fecha_devolucion` datetime DEFAULT NULL, -- Fecha/hora en que el proveedor devuelve los pallets
+  `usuario_devolucion` varchar(100) DEFAULT NULL, -- Registrador que asienta la devolución
+  `observaciones` text DEFAULT NULL,
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP(),
   `usuario` varchar(100) DEFAULT '',
+  `ediciones` int NOT NULL DEFAULT 0,
+  `usuario_edicion` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_pallets_tipo` (`tipo_pallet`),
+  KEY `idx_pallets_tipo_registro` (`tipo_registro`),
   KEY `idx_pallets_created` (`created_at` DESC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
@@ -461,19 +472,19 @@ END$$
 CREATE TRIGGER `trg_pallets_ins` AFTER INSERT ON `pallets` FOR EACH ROW
 BEGIN
   INSERT INTO auditoria (entidad, idEntidad, usuario, operador, operacion, evento, modulo)
-  VALUES ('pallets', NEW.id, NEW.usuario, NEW.responsable, 'create', 'Nuevo control de ingreso y reparación de pallets', 'Movimiento de Pallets');
+  VALUES ('pallets', NEW.id, NEW.usuario, COALESCE(NEW.operario_entrega, NEW.operario_recibe, ''), 'create', CONCAT('Registro de pallets: ', NEW.tipo_registro), 'Movimiento de Pallets');
 END$$
 
 CREATE TRIGGER `trg_pallets_upd` AFTER UPDATE ON `pallets` FOR EACH ROW
 BEGIN
   INSERT INTO auditoria (entidad, idEntidad, usuario, operador, operacion, evento, modulo)
-  VALUES ('pallets', NEW.id, NEW.usuario, NEW.responsable, 'update', 'Modificación de stock y reparación de pallets', 'Movimiento de Pallets');
+  VALUES ('pallets', NEW.id, NEW.usuario, COALESCE(NEW.operario_entrega, NEW.operario_recibe, ''), 'update', CONCAT('Actualización de pallets: ', NEW.tipo_registro), 'Movimiento de Pallets');
 END$$
 
 CREATE TRIGGER `trg_pallets_del` AFTER DELETE ON `pallets` FOR EACH ROW
 BEGIN
   INSERT INTO auditoria (entidad, idEntidad, usuario, operador, operacion, evento, modulo)
-  VALUES ('pallets', OLD.id, OLD.usuario, OLD.responsable, 'delete', 'Eliminación de registro de movimiento de pallets', 'Movimiento de Pallets');
+  VALUES ('pallets', OLD.id, OLD.usuario, COALESCE(OLD.operario_entrega, OLD.operario_recibe, ''), 'delete', CONCAT('Eliminación de pallets: ', OLD.tipo_registro), 'Movimiento de Pallets');
 END$$
 
 -- ------------------------------------------------------------

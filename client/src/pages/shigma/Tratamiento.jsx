@@ -236,7 +236,7 @@ const Tratamiento = () => {
                 </Button>
                 <div>
                     <h1 style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--primary)' }}>
-                        {editId ? 'Modificar' : 'Tratamiento y'} Valorización de Residuos<span style={{ color: 'var(--dy-red)' }}>.</span>
+                        {editId ? 'Modificar Registro' : 'Tratamiento'}<span style={{ color: 'var(--dy-red)' }}>.</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
                         {editId ? `Editando registro ${editId} del historial.` : 'Registro de procesos internos de compactación, trituración y compostado para maximizar el reciclaje.'}

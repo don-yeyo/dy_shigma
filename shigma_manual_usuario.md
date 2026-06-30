@@ -180,16 +180,20 @@ Este módulo no requiere carga de datos independiente. Se alimenta automáticame
 ---
 
 ### Movimiento de Pallets (Logística)
-Control de inventario de las bases de madera para transporte (pallets) que regresan de los canales de distribución.
+Módulo rediseñado para registrar movimientos y transacciones individuales de pallets de madera. Al ingresar al módulo, el operario debe seleccionar el tipo de transacción mediante una botonera interactiva:
 
-#### Reglas de Validación de Logística:
-El formulario cuenta con una **regla estricta de balance de pallets** para prevenir la pérdida física de materiales. Al cargar los datos:
-* Debe ingresar la cantidad total de pallets de madera ingresados en el camión.
-* A continuación, desglose el destino físico de dichos pallets:
-  * *Cantidad Reparados en taller*
-  * *Cantidad Descartados por rotura irreparable*
-  * *Cantidad Derivados a Economía Circular* (para trituración y compostaje)
-* **La suma de pallets reparados, descartados y derivados a economía circular debe coincidir exactamente con el total ingresado en el camión**. Si los números no coinciden, el sistema bloqueará el envío y le advertirá visualmente sobre el descuadre de inventario.
+#### Tipos de Movimiento:
+1. **Descartes**: Para pallets rotos que se envían a disposición final. Requiere registrar Destino (texto libre capitalizado), número de Remito y Operario de entrega.
+2. **Reparación Externa**: Pallets enviados a un taller externo. Registra el Proveedor, número de Remito y el Operario de entrega. El estado inicial es "Retirado".
+3. **Reparación Interna**: Pallets reparados dentro de la fábrica. Registra el Operario de entrega y el Operario que recibe para reparación. El estado inicial es "Retirado".
+4. **Ingreso de Nuevos**: Registro de adquisición de pallets nuevos. Requiere Proveedor, número de Remito y el Operario que recibe.
+5. **Entrega Interna**: Traslado de pallets a una planta y sector específicos dentro de la fábrica. Requiere seleccionar Planta, Sector (fijos), Operario de entrega y Operario que recibe.
+6. **Entrega Externa**: Envío de pallets a proveedores o clientes externos. Requiere Proveedor, número de Remito y Operario de entrega.
+
+#### Circuito de Estados y Devoluciones de Reparaciones:
+* Para las reparaciones (tanto internas como externas), el registro nace en estado **"Retirado"**.
+* Posteriormente, cuando los pallets son devueltos y recibidos en planta, un supervisor o registrador puede acceder al **Historial de Registros**, expandir el detalle del movimiento y presionar el botón **"Registrar Devolución"**.
+* Se abrirá un modal pidiendo seleccionar el **Operario que Recibe** y la fecha/hora de la devolución, lo cual cambiará el estado del lote a **"Devuelto"** para auditoría y sumará estas unidades como pallets reparados en el Dashboard.
 
 ---
 

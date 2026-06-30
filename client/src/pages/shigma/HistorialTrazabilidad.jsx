@@ -10,6 +10,7 @@ import Modal from '../../components/Modal';
 import { SHIGMAService } from '../../services/api';
 import { useAuth } from '../../config/AuthContext';
 import * as XLSX from 'xlsx';
+import { getDateConstraints } from '../../utils/dateUtils';
 
 const HistorialTrazabilidad = () => {
     const navigate = useNavigate();
@@ -53,6 +54,25 @@ const HistorialTrazabilidad = () => {
         observaciones: ''
     });
     const [savingAjuste, setSavingAjuste] = useState(false);
+    const [devolucionModal, setDevolucionModal] = useState({
+        isOpen: false,
+        record: null,
+        operarioRecibe: '',
+        fechaDevolucion: '',
+        horaDevolucion: ''
+    });
+    const [savingDevolucion, setSavingDevolucion] = useState(false);
+
+    const openDevolucionModal = (record) => {
+        const { todayStr, nowTimeStr } = getDateConstraints();
+        setDevolucionModal({
+            isOpen: true,
+            record,
+            operarioRecibe: record.operarioRecibe || '',
+            fechaDevolucion: todayStr,
+            horaDevolucion: nowTimeStr
+        });
+    };
 
     const fetchOperadores = async () => {
         try {
@@ -106,6 +126,43 @@ const HistorialTrazabilidad = () => {
             alert(error.response?.data?.error || 'Error al modificar el ajuste.');
         } finally {
             setSavingAjuste(false);
+        }
+    };
+
+    const handleDevolucionSubmit = async (e) => {
+        if (e) e.preventDefault();
+        
+        if (!devolucionModal.operarioRecibe) {
+            alert('Por favor, seleccione el operario que recibe.');
+            return;
+        }
+
+        setSavingDevolucion(true);
+        try {
+            const combinedFechaHora = `${devolucionModal.fechaDevolucion}T${devolucionModal.horaDevolucion}`;
+            
+            await SHIGMAService.updateRecord('pallets', devolucionModal.record.id, {
+                ...devolucionModal.record,
+                estado: 'Devuelto',
+                operarioRecibe: devolucionModal.operarioRecibe,
+                fechaDevolucion: combinedFechaHora,
+                usuarioDevolucion: user?.nombre || 'Inspector'
+            });
+
+            setDevolucionModal(prev => ({ ...prev, isOpen: false, record: null }));
+            
+            setDeleteStatusModal({
+                isOpen: true,
+                title: 'Devolución Registrada',
+                message: `La devolución del registro ${devolucionModal.record.id} fue procesada con éxito y el estado pasó a "Devuelto".`,
+                type: 'success'
+            });
+            fetchRecords(currentPage);
+        } catch (error) {
+            console.error('Error registering devolucion:', error);
+            alert(error.response?.data?.error || 'Error al registrar la devolución.');
+        } finally {
+            setSavingDevolucion(false);
         }
     };
 
@@ -269,7 +326,16 @@ const HistorialTrazabilidad = () => {
                 } else if (r.formType === 'economia-circular') {
                     detalleAmigable = `Material: ${r.materialRevalorizado}, Reinserción: ${r.destinoReinsercion}, Cantidad: ${r.cantidad} ${r.unidad}, CO₂ Mitigado: ${r.co2Evitado} kg`;
                 } else if (r.formType === 'pallets') {
-                    detalleAmigable = `Tipo: ${r.tipoPallet}, Ingresados: ${r.cantidadIngresados}, Reparados: ${r.cantidadReparados}, Descartados: ${r.cantidadDescartados}, Circular: ${r.cantidadCircular}`;
+                    let detailsList = [];
+                    detailsList.push(`Tipo: ${r.tipoRegistro}`);
+                    detailsList.push(`Cant: ${r.cantidad} uds`);
+                    if (r.destino) detailsList.push(`Destino: ${r.destino}`);
+                    if (r.remito) detailsList.push(`Remito: ${r.remito}`);
+                    if (r.proveedor) detailsList.push(`Prov: ${r.proveedor}`);
+                    if (r.planta) detailsList.push(`Planta: ${r.planta}`);
+                    if (r.sector) detailsList.push(`Sector: ${r.sector}`);
+                    if (r.estado) detailsList.push(`Estado: ${r.estado}`);
+                    detalleAmigable = detailsList.join(', ');
                 } else if (r.formType === 'espacios-verdes') {
                     detalleAmigable = `Tarea: ${r.tareaRealizada}, Agua: ${r.consumoAgua} L, Plantas: ${r.plantasAgregadas} (${r.especieAgregada || 'N/A'})`;
                 } else if (r.formType === 'vaciado-bateas') {
@@ -388,12 +454,31 @@ const HistorialTrazabilidad = () => {
             details.push({ label: 'Ahorro Económico', value: `$${record.ahorroEstimado.toLocaleString()}` });
             details.push({ label: 'CO₂ Mitigado', value: `${record.co2Evitado} kg CO₂ eq.` });
         } else if (record.formType === 'pallets') {
-            details.push({ label: 'Tipo Pallet', value: record.tipoPallet });
-            details.push({ label: 'Cantidad Ingresados', value: `${record.cantidadIngresados} uds` });
-            details.push({ label: 'Cantidad Reparados', value: `${record.cantidadReparados} uds` });
-            details.push({ label: 'Cantidad Descartados', value: `${record.cantidadDescartados} uds` });
-            details.push({ label: 'Cantidad Economía Circular', value: `${record.cantidadCircular} uds` });
-            details.push({ label: 'Taller Encargado', value: record.responsableReparacion });
+            details.push({ label: 'Tipo de Registro', value: record.tipoRegistro });
+            details.push({ label: 'Cantidad', value: `${record.cantidad} uds` });
+            if (record.destino) details.push({ label: 'Destino', value: record.destino });
+            if (record.remito) details.push({ label: 'Remito', value: record.remito });
+            if (record.proveedor) details.push({ label: 'Proveedor', value: record.proveedor });
+            if (record.planta) details.push({ label: 'Planta', value: record.planta });
+            if (record.sector) details.push({ label: 'Sector', value: record.sector });
+            if (record.operarioEntrega) details.push({ label: 'Operario Entrega', value: record.operarioEntrega });
+            if (record.operarioRecibe) details.push({ label: 'Operario Recibe', value: record.operarioRecibe });
+            if (record.estado) {
+                details.push({ label: 'Estado', value: record.estado });
+                if (record.estado === 'Devuelto' && record.fechaDevolucion) {
+                    const devDate = new Date(record.fechaDevolucion).toLocaleString('es-AR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    details.push({ label: 'Fecha Devolución', value: `${devDate} hs` });
+                    if (record.usuarioDevolucion) {
+                        details.push({ label: 'Devuelto por', value: record.usuarioDevolucion });
+                    }
+                }
+            }
         } else if (record.formType === 'espacios-verdes') {
             details.push({ label: 'Zona Ambiental', value: record.espacioVerde });
             details.push({ label: 'Tarea Realizada', value: record.tareaRealizada });
@@ -506,6 +591,26 @@ const HistorialTrazabilidad = () => {
                             }}
                         >
                             <Pencil size={16} /> Modificar Registro
+                        </Button>
+                    )}
+                    {record.formType === 'pallets' && 
+                     (record.tipoRegistro === 'Reparación Interna' || record.tipoRegistro === 'Reparación Externa') && 
+                     record.estado === 'Retirado' && (
+                        <Button
+                            variant="primary"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                openDevolucionModal(record);
+                            }}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                background: '#14b8a6',
+                                color: '#fff'
+                            }}
+                        >
+                            <Check size={16} /> Registrar Devolución
                         </Button>
                     )}
                 </div>
@@ -703,10 +808,11 @@ const HistorialTrazabilidad = () => {
                                             {record.peso ? `${record.peso} kg` :
                                                 record.kilos ? `${record.kilos} kg` :
                                                     record.pesoBalanza ? `${record.pesoBalanza} kg (Balanza)` :
-                                                        record.cantidad ? `${record.cantidad} ${record.unidad}` :
-                                                            record.cantidadBultos ? `${record.cantidadBultos} bultos` :
-                                                                record.cantidadIngresados ? `${record.cantidadIngresados} pallets` :
-                                                                    record.consumoAgua ? `${record.consumoAgua} L` : 'Ver Detalles'}
+                                                        record.formType === 'pallets' && record.cantidad ? `${record.cantidad} pallets` :
+                                                            record.cantidad ? `${record.cantidad} ${record.unidad || 'uds'}` :
+                                                                record.cantidadBultos ? `${record.cantidadBultos} bultos` :
+                                                                    record.cantidadIngresados ? `${record.cantidadIngresados} pallets` :
+                                                                        record.consumoAgua ? `${record.consumoAgua} L` : 'Ver Detalles'}
                                         </span>
                                         <button style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                                             {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -920,6 +1026,112 @@ const HistorialTrazabilidad = () => {
                     </div>
                 </Modal>
             )}
+            {/* Modal de Registro de Devolución de Pallets */}
+            {devolucionModal.isOpen && (
+                <Modal
+                    isOpen={devolucionModal.isOpen}
+                    onClose={() => setDevolucionModal(prev => ({ ...prev, isOpen: false, record: null }))}
+                    title="Registrar Devolución de Pallets"
+                    showFooter={false}
+                >
+                    <form onSubmit={handleDevolucionSubmit} style={{ padding: '4px 0' }}>
+                        <div style={{
+                            background: 'var(--surface-hover)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '8px',
+                            padding: '12px',
+                            marginBottom: '16px',
+                            fontSize: '0.9rem',
+                            color: 'var(--text-muted)'
+                        }}>
+                            <strong>Registro ID:</strong> {devolucionModal.record?.id} <br />
+                            <strong>Tipo de Movimiento:</strong> {devolucionModal.record?.tipoRegistro} <br />
+                            <strong>Cantidad:</strong> {devolucionModal.record?.cantidad} unidades <br />
+                            {devolucionModal.record?.proveedor && <><strong>Proveedor:</strong> {devolucionModal.record.proveedor} <br /></>}
+                            <strong>Operario Entrega:</strong> {devolucionModal.record?.operarioEntrega || 'No asignado'}
+                        </div>
+
+                        <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                            <div>
+                                <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '600', display: 'block', marginBottom: '8px' }}>
+                                    Fecha Devolución *
+                                </label>
+                                <input
+                                    type="date"
+                                    value={devolucionModal.fechaDevolucion}
+                                    onChange={(e) => setDevolucionModal(prev => ({ ...prev, fechaDevolucion: e.target.value }))}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px 14px',
+                                        borderRadius: 'var(--radius)',
+                                        border: '1px solid var(--border)',
+                                        backgroundColor: 'var(--surface)',
+                                        color: 'var(--text)',
+                                        fontSize: '0.9rem',
+                                        outline: 'none'
+                                    }}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '600', display: 'block', marginBottom: '8px' }}>
+                                    Hora Devolución *
+                                </label>
+                                <input
+                                    type="time"
+                                    value={devolucionModal.horaDevolucion}
+                                    onChange={(e) => setDevolucionModal(prev => ({ ...prev, horaDevolucion: e.target.value }))}
+                                    style={{
+                                        width: '100%',
+                                        padding: '10px 14px',
+                                        borderRadius: 'var(--radius)',
+                                        border: '1px solid var(--border)',
+                                        backgroundColor: 'var(--surface)',
+                                        color: 'var(--text)',
+                                        fontSize: '0.9rem',
+                                        outline: 'none'
+                                    }}
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <Select
+                            label="Operario que Recibe *"
+                            name="operarioRecibe"
+                            value={devolucionModal.operarioRecibe}
+                            onChange={(e) => setDevolucionModal(prev => ({ ...prev, operarioRecibe: e.target.value }))}
+                            required
+                            includePlaceholder={true}
+                            options={operadores.map(op => ({
+                                id: op.apellidoNombre,
+                                label: `${op.apellidoNombre} (${op.legajo})`
+                            }))}
+                        />
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
+                            <Button 
+                                type="button" 
+                                variant="outline" 
+                                onClick={() => setDevolucionModal(prev => ({ ...prev, isOpen: false, record: null }))}
+                                disabled={savingDevolucion}
+                            >
+                                Cancelar
+                            </Button>
+                            <Button 
+                                type="submit" 
+                                variant="primary" 
+                                className={savingDevolucion ? 'btn-loading' : ''}
+                                disabled={savingDevolucion}
+                                style={{ background: '#14b8a6', color: '#fff' }}
+                            >
+                                {savingDevolucion ? 'Registrando...' : 'Registrar Recepción'}
+                            </Button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
+
             {/* Modal de Modificación de Ajuste de Stock */}
             {editAjusteModal.isOpen && (
                 <Modal

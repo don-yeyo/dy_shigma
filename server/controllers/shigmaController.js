@@ -584,21 +584,49 @@ const shigmaController = {
             await ensureBateasTable();
 
             // Consultar agrupaciones directo en RINE
-            const [rows] = await db.query(`
+            const [rcRows] = await db.query(`
                 SELECT destino, SUM(peso) AS peso_acumulado, COUNT(*) AS records_count
                 FROM residuos_comunes
                 WHERE batea_salida_id IS NULL
                 GROUP BY destino
             `);
 
+            // Consultar agrupaciones directo en Devoluciones
+            const [devRows] = await db.query(`
+                SELECT destino, SUM(kilos) AS peso_acumulado, COUNT(*) AS records_count
+                FROM devoluciones
+                WHERE batea_salida_id IS NULL
+                GROUP BY destino
+            `);
+
+            // Combinar los resultados de ambas tablas
+            const combinedRows = {};
+            rcRows.forEach(r => {
+                combinedRows[r.destino] = {
+                    peso_acumulado: parseFloat(r.peso_acumulado || 0),
+                    records_count: parseInt(r.records_count || 0)
+                };
+            });
+            devRows.forEach(r => {
+                if (combinedRows[r.destino]) {
+                    combinedRows[r.destino].peso_acumulado += parseFloat(r.peso_acumulado || 0);
+                    combinedRows[r.destino].records_count += parseInt(r.records_count || 0);
+                } else {
+                    combinedRows[r.destino] = {
+                        peso_acumulado: parseFloat(r.peso_acumulado || 0),
+                        records_count: parseInt(r.records_count || 0)
+                    };
+                }
+            });
+
             // Consultar bateas configuradas en la base de datos
             const [dbBateas] = await db.query('SELECT * FROM bateas');
 
             // Mapear el estado basándonos en las bateas de la BD
             const status = dbBateas.map(batea => {
-                const dbBatea = rows.find(r => r.destino === batea.nombre);
-                const pesoAcumulado = dbBatea ? parseFloat(dbBatea.peso_acumulado || 0) : 0;
-                const recordsCount = dbBatea ? parseInt(dbBatea.records_count || 0) : 0;
+                const dbBatea = combinedRows[batea.nombre];
+                const pesoAcumulado = dbBatea ? dbBatea.peso_acumulado : 0;
+                const recordsCount = dbBatea ? dbBatea.records_count : 0;
                 const porcentaje = Math.min(100, Math.round((pesoAcumulado / parseFloat(batea.capacidad)) * 100 * 10) / 10);
 
                 return {
@@ -657,18 +685,29 @@ const shigmaController = {
             const batea = dbBateas[0];
 
             // Seleccionar y bloquear RINE sin vaciar
-            const [activeRecords] = await connection.query(
+            const [activeRc] = await connection.query(
                 `SELECT id, peso FROM residuos_comunes WHERE destino = ? AND batea_salida_id IS NULL FOR UPDATE`,
                 [batea.nombre]
             );
 
-            if (activeRecords.length === 0) {
+            // Seleccionar y bloquear Devoluciones sin vaciar
+            const [activeDev] = await connection.query(
+                `SELECT id, kilos AS peso FROM devoluciones WHERE destino = ? AND batea_salida_id IS NULL FOR UPDATE`,
+                [batea.nombre]
+            );
+
+            if (activeRc.length === 0 && activeDev.length === 0) {
                 await connection.rollback();
                 return res.status(400).json({ error: 'No hay residuos cargados en esta batea para vaciar.' });
             }
 
-            const pesoAcumulado = activeRecords.reduce((sum, r) => sum + parseFloat(r.peso || 0), 0);
-            const recordIds = activeRecords.map(r => r.id);
+            const pesoAcumulado = activeRc.reduce((sum, r) => sum + parseFloat(r.peso || 0), 0) + 
+                                  activeDev.reduce((sum, r) => sum + parseFloat(r.peso || 0), 0);
+            
+            const recordIds = [
+                ...activeRc.map(r => r.id),
+                ...activeDev.map(r => r.id)
+            ];
 
             // Generar ID de salida secuencial de forma segura
             const [lastSalidas] = await connection.query(
@@ -706,6 +745,12 @@ const shigmaController = {
             // Vincular RINE relacionados
             await connection.query(
                 `UPDATE residuos_comunes SET batea_salida_id = ? WHERE destino = ? AND batea_salida_id IS NULL`,
+                [customSalidaId, batea.nombre]
+            );
+
+            // Vincular Devoluciones relacionadas
+            await connection.query(
+                `UPDATE devoluciones SET batea_salida_id = ? WHERE destino = ? AND batea_salida_id IS NULL`,
                 [customSalidaId, batea.nombre]
             );
 
@@ -840,7 +885,7 @@ const shigmaController = {
             ] = await Promise.all([
                 db.query(`SELECT COALESCE(SUM(peso), 0) AS totalKgComunes FROM residuos_comunes${whereClause}`, [...queryParams]),
                 db.query(`SELECT COALESCE(SUM(cantidad), 0) AS totalKgEspeciales FROM residuos_especiales${whereClause}`, [...queryParams]),
-                db.query(`SELECT COALESCE(SUM(cantidad_reparados), 0) AS totalPalletsReparados, COALESCE(SUM(cantidad_descartados), 0) AS totalPalletsDescartados FROM pallets${whereClause}`, [...queryParams]),
+                db.query(`SELECT COALESCE(SUM(CASE WHEN tipo_registro IN ('Reparación Interna', 'Reparación Externa') AND estado = 'Devuelto' THEN cantidad ELSE 0 END), 0) AS totalPalletsReparados, COALESCE(SUM(CASE WHEN tipo_registro = 'Descartes' THEN cantidad ELSE 0 END), 0) AS totalPalletsDescartados FROM pallets${whereClause}`, [...queryParams]),
                 db.query(`SELECT COALESCE(SUM(consumo_agua), 0) AS totalLitrosAgua, COALESCE(SUM(plantas_agregadas), 0) AS totalPlantaciones FROM espacios_verdes${whereClause}`, [...queryParams]),
                 db.query(`SELECT COUNT(*) AS totalDevoluciones FROM devoluciones${whereClause}`, [...queryParams]),
                 db.query(`SELECT COALESCE(SUM(ahorro_estimado), 0) AS totalAhorroCircular, COALESCE(SUM(co2_evitado), 0) AS totalCO2Reducido FROM economia_circular${whereClause}`, [...queryParams]),
@@ -923,13 +968,22 @@ const shigmaController = {
         try {
             const { formType } = req.params;
 
-            const [rows] = await db.query(`
+            let [rows] = await db.query(`
                 SELECT o.id, o.apellido_nombre, o.legajo
                 FROM operadores o
                 JOIN operadores_formularios op_form ON o.id = op_form.operador_id
                 WHERE op_form.formulario_tipo = ? AND o.activo = 1
                 ORDER BY o.apellido_nombre ASC
             `, [formType]);
+
+            if (rows.length === 0) {
+                [rows] = await db.query(`
+                    SELECT id, apellido_nombre, legajo
+                    FROM operadores
+                    WHERE activo = 1
+                    ORDER BY apellido_nombre ASC
+                `);
+            }
 
             const mapped = rows.map(r => toCamelCaseObj(r));
 

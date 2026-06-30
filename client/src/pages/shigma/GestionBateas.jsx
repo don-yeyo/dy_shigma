@@ -348,7 +348,7 @@ const GestionBateas = () => {
                 </Button>
                 <div>
                     <h1 style={{ fontSize: '2.1rem', fontWeight: '900', color: 'var(--primary)' }}>
-                        Control de Capacidades y Bateas RINE<span style={{ color: 'var(--dy-red)' }}>.</span>
+                        Gestión de Bateas<span style={{ color: 'var(--dy-red)' }}>.</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
                         Monitoreo de almacenamiento de residuos industriales no especiales en tiempo real y despacho de batea con manifiestos.

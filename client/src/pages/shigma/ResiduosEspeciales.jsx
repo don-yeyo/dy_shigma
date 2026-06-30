@@ -237,7 +237,7 @@ const ResiduosEspeciales = () => {
                 </Button>
                 <div>
                     <h1 style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--primary)' }}>
-                        {editId ? 'Modificar' : 'Registrar'} Residuos Especiales / Peligrosos<span style={{ color: 'var(--dy-red)' }}>.</span>
+                        {editId ? 'Modificar Registro' : 'Residuos Especiales'}<span style={{ color: 'var(--dy-red)' }}>.</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
                         {editId ? `Editando registro ${editId} del historial.` : 'Registro de aceites, solventes, absorbentes y baterías bajo normas de ecotoxidad y seguridad.'}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../config/AuthContext';
+import { useMobile } from '../../config/ThemeContext';
 import { 
     Package, ArrowLeft, RefreshCw, AlertTriangle, Calendar, Clock, FileText, CheckCircle, Boxes
 } from 'lucide-react';
@@ -132,6 +133,7 @@ const NumberInput = ({ label, value, onChange, min = 0, step = 1, name, placehol
 };
 
 const GestionDeposito = () => {
+    const isMobile = useMobile();
     const navigate = useNavigate();
     const { user } = useAuth();
     const isRegistrador = user?.rol === 'registrador';
@@ -486,8 +488,8 @@ const GestionDeposito = () => {
                     <ArrowLeft size={20} />
                 </Button>
                 <div>
-                    <h1 style={{ fontSize: '2.1rem', fontWeight: '900', color: 'var(--primary)' }}>
-                        Control de Depósito de Recuperables RINE<span style={{ color: 'var(--dy-red)' }}>.</span>
+                    <h1 style={{ fontSize: isMobile ? '1.8rem' : '2.1rem', fontWeight: '900', color: 'var(--primary)' }}>
+                        Gestión de Depósito<span style={{ color: 'var(--dy-red)' }}>.</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
                         Monitoreo de acopio físico de materiales inorgánicos recuperables y gestión de despachos.
@@ -498,7 +500,7 @@ const GestionDeposito = () => {
             {/* Layout de Rejilla Principal */}
             <div style={{ 
                 display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(320px, 1fr))', 
                 gap: '24px',
                 alignItems: 'start'
             }}>
@@ -526,7 +528,7 @@ const GestionDeposito = () => {
                             </div>
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
                                     {Object.entries(stock).map(([material, cantidad]) => {
                                         const themeColors = materialColors[material] || { bg: 'var(--surface-hover)', border: 'var(--border)', text: 'var(--text)' };
                                         return (
@@ -768,7 +770,7 @@ const GestionDeposito = () => {
                             </span>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
                             <Input
                                 label="Fecha de Despacho *"
                                 type="date"

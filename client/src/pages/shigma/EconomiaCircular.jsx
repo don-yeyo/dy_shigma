@@ -209,7 +209,7 @@ const EconomiaCircular = () => {
                 </Button>
                 <div>
                     <h1 style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--primary)' }}>
-                        {editId ? 'Modificar' : 'Valorización'} Economía Circular<span style={{ color: 'var(--dy-red)' }}>.</span>
+                        {editId ? 'Modificar Registro' : 'Economía Circular'}<span style={{ color: 'var(--dy-red)' }}>.</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
                         {editId ? `Editando registro ${editId} del historial.` : 'Trazabilidad de recursos reinsertados a la cadena productiva y cálculo de huella ecológica reducida.'}

@@ -231,7 +231,7 @@ const EspaciosVerdes = () => {
                 </Button>
                 <div>
                     <h1 style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--primary)' }}>
-                        {editId ? 'Modificar' : 'Control de'} Espacios Verdes<span style={{ color: 'var(--dy-red)' }}>.</span>
+                        {editId ? 'Modificar Registro' : 'Espacios Verdes'}<span style={{ color: 'var(--dy-red)' }}>.</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
                         {editId ? `Editando registro ${editId} del historial.` : 'Registro de mantenimiento botánico, forestación industrial y optimización de agua de riego ecológico.'}

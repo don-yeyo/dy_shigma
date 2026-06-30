@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CornerUpLeft, ArrowLeft, Send } from 'lucide-react';
+import { CornerUpLeft, ArrowLeft, Send, AlertTriangle } from 'lucide-react';
 import { Card, Input, Select, Textarea, NumberInput } from '../../components/FormElements';
 import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
 import { SHIGMAService } from '../../services/api';
 import { validateRecordDate, getDateConstraints } from '../../utils/dateUtils';
-import { useMobile } from '../../config/ThemeContext';
+import { useMobile, useTheme } from '../../config/ThemeContext';
 
 const Devoluciones = () => {
     const isMobile = useMobile();
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const editId = searchParams.get('edit');
@@ -17,6 +19,15 @@ const Devoluciones = () => {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successId, setSuccessId] = useState('');
     const [operadores, setOperadores] = useState([]);
+    const [bateas, setBateas] = useState([]);
+
+    // Modal de Advertencia por capacidad superada
+    const [warningModalData, setWarningModalData] = useState({
+        isOpen: false,
+        bateaNombre: '',
+        pesoIngresado: '',
+        disponible: 0
+    });
 
     const [alertModal, setAlertModal] = useState({
         isOpen: false,
@@ -41,6 +52,7 @@ const Devoluciones = () => {
         horaCarga: nowTimeStr,
         kilos: '',
         sector: '',
+        destino: '',
         responsable: '',
         observaciones: ''
     });
@@ -76,8 +88,19 @@ const Devoluciones = () => {
         }
     };
 
+    const fetchBateasData = async () => {
+        try {
+            const response = await SHIGMAService.getBateasStatus();
+            console.log('Devoluciones - Bateas cargadas:', response.data);
+            setBateas(response.data || []);
+        } catch (error) {
+            console.error('Error fetching bateas status:', error);
+        }
+    };
+
     useEffect(() => {
         fetchOperadores();
+        fetchBateasData();
     }, []);
 
     useEffect(() => {
@@ -95,6 +118,7 @@ const Devoluciones = () => {
                             horaCarga,
                             kilos: record.kilos ? String(record.kilos) : '',
                             sector: record.sector || '',
+                            destino: record.destino || '',
                             responsable: record.responsable || '',
                             observaciones: record.observaciones || ''
                         });
@@ -109,6 +133,27 @@ const Devoluciones = () => {
             loadRecord();
         }
     }, [editId]);
+
+    const getDestinoOptions = () => {
+        console.log('Devoluciones - getDestinoOptions called. Bateas en state:', bateas);
+        // En Devoluciones, todos son orgánicos (Panificados, Tapas, Pastas)
+        const filteredBateas = bateas.filter(b => b.tipo === 'Orgánicos');
+        console.log('Devoluciones - Bateas filtradas (Orgánicos):', filteredBateas);
+        return filteredBateas.map(b => ({
+            id: b.nombre,
+            label: b.nombre
+        }));
+    };
+
+    const getCapacityColor = (percentage) => {
+        if (percentage < 60) {
+            return isDark ? '#34d399' : '#10b981';
+        } else if (percentage < 85) {
+            return isDark ? '#fbbf24' : '#b45309';
+        } else {
+            return isDark ? '#f87171' : '#dc2626';
+        }
+    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -136,9 +181,25 @@ const Devoluciones = () => {
             return;
         }
 
-        if (!formData.kilos || !formData.sector || !formData.responsable) {
+        if (!formData.kilos || !formData.sector || !formData.responsable || !formData.destino) {
             showAlert('Por favor, complete todos los campos obligatorios marcados con *');
             return;
+        }
+
+        // VALIDACIÓN DE CAPACIDAD DE BATEA
+        const selectedB = bateas.find(b => b.nombre === formData.destino);
+        if (selectedB) {
+            const disponible = Math.max(0, selectedB.capacidad - selectedB.pesoAcumulado);
+            if (parseFloat(formData.kilos) > disponible) {
+                // Emitir modal de advertencia al usuario y bloquear
+                setWarningModalData({
+                    isOpen: true,
+                    bateaNombre: selectedB.nombre,
+                    pesoIngresado: formData.kilos,
+                    disponible: disponible
+                });
+                return;
+            }
         }
 
         setSubmitting(true);
@@ -167,9 +228,12 @@ const Devoluciones = () => {
                     horaCarga: constraints.nowTimeStr,
                     kilos: '',
                     sector: '',
+                    destino: '',
                     responsable: localStorage.getItem('shigma_last_operator_devoluciones') || '',
                     observaciones: ''
                 });
+                // Recargar estado de bateas
+                fetchBateasData();
             }
         } catch (error) {
             console.error('Error submitting return form:', error);
@@ -178,6 +242,9 @@ const Devoluciones = () => {
             setSubmitting(false);
         }
     };
+
+    // Batea seleccionada para el bloque informativo sutil
+    const selectedBateaObj = bateas.find(b => b.nombre === formData.destino);
 
     return (
         <div className="card-anim" style={{ maxWidth: '800px', margin: '0 auto' }}>
@@ -296,6 +363,54 @@ const Devoluciones = () => {
                         />
                     </div>
 
+                    <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '24px' }}>
+                        <Select
+                            label="Destino (Batea) *"
+                            name="destino"
+                            value={formData.destino}
+                            onChange={handleChange}
+                            options={getDestinoOptions()}
+                            includePlaceholder={true}
+                            required
+                        />
+
+                        {selectedBateaObj && (() => {
+                            const disponible = Math.max(0, selectedBateaObj.capacidad - selectedBateaObj.pesoAcumulado);
+                            const porcentaje = selectedBateaObj.porcentaje;
+                            const color = getCapacityColor(porcentaje);
+
+                            return (
+                                <div className="card-anim" style={{
+                                    marginTop: '-4px',
+                                    marginBottom: '8px',
+                                    padding: '12px 16px',
+                                    borderRadius: '12px',
+                                    background: 'var(--surface-hover)',
+                                    border: '1px solid var(--border)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '6px'
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                                        <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Ocupación de Batea:</span>
+                                        <span style={{ color: color, fontWeight: '800' }}>{porcentaje}%</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                                        <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Espacio Disponible:</span>
+                                        <span style={{ color: color, fontWeight: '800' }}>{disponible.toLocaleString()} kg</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                        <span>Capacidad Física Máxima:</span>
+                                        <span style={{ fontWeight: '600' }}>{selectedBateaObj.capacidad.toLocaleString()} kg</span>
+                                    </div>
+                                    <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--border)', borderRadius: '3px', overflow: 'hidden', marginTop: '4px' }}>
+                                        <div style={{ width: `${porcentaje}%`, height: '100%', backgroundColor: color, borderRadius: '3px', transition: 'width 0.5s ease' }} />
+                                    </div>
+                                </div>
+                            );
+                        })()}
+                    </div>
+
                     <Select
                         label="Operador Inspector *"
                         name="responsable"
@@ -393,6 +508,61 @@ const Devoluciones = () => {
                     </div>
                 </div>
             </Modal>
+
+            {/* Modal de Advertencia de Capacidad Superada */}
+            {warningModalData.isOpen && (
+                <Modal
+                    isOpen={warningModalData.isOpen}
+                    onClose={() => setWarningModalData(prev => ({ ...prev, isOpen: false }))}
+                    title="Advertencia: Capacidad Superada"
+                    showFooter={false}
+                >
+                    <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                        <div style={{ color: 'var(--error)', marginBottom: '12px', display: 'flex', justifyContent: 'center' }}>
+                            <AlertTriangle size={48} />
+                        </div>
+                        <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '6px', color: 'var(--primary)' }}>
+                            ¡Límite de Capacidad Superado!
+                        </h3>
+                        <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.875rem', lineHeight: '1.4' }}>
+                            La batea <strong>{warningModalData.bateaNombre}</strong> solo tiene <strong>{warningModalData.disponible.toLocaleString()} kg</strong> libres.
+                            Está intentando ingresar <strong>{warningModalData.pesoIngresado} kg</strong>.
+                        </p>
+                        <div style={{
+                            padding: '10px 12px',
+                            background: 'var(--surface-hover)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '8px',
+                            fontSize: '0.8rem',
+                            color: 'var(--text)',
+                            marginBottom: '16px',
+                            lineHeight: '1.4'
+                        }}>
+                            Realice el despacho de vaciado en <strong>Gestión de Bateas</strong> o distribuya los residuos en otro destino.
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                            <Button
+                                variant="outline"
+                                onClick={() => setWarningModalData(prev => ({ ...prev, isOpen: false }))}
+                                style={{ flex: '1 1 140px', minWidth: '120px' }}
+                            >
+                                Reasignar batea
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="primary"
+                                style={{ background: 'var(--dy-red)', flex: '1 1 140px', minWidth: '120px' }}
+                                onClick={() => {
+                                    setWarningModalData(prev => ({ ...prev, isOpen: false }));
+                                    navigate('/gestion-bateas');
+                                }}
+                            >
+                                Ir a Gestión de Bateas
+                            </Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
 
             <Modal
                 isOpen={alertModal.isOpen}

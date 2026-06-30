@@ -41,7 +41,7 @@ SHIGMA cuenta con 7 formularios independientes de alta fidelidad visual y valida
   - *Compost orgánico maduro*: Ahorra `0.5 kg` CO₂ por kg.
   - *Film stretch de Nylon*: Ahorra `1.5 kg` CO₂ por kg.
   - *Cajas de cartón reutilizadas*: Ahorra `0.9 kg` CO₂ por kg.
-- **Gestión de Pallets**: Inventario detallado de pallets de madera que ingresan de logística. Cuenta con **regla de validación reactiva** que impide ingresar más cantidad de pallets reparados, descartados o reciclados que el total ingresado.
+- **Gestión de Pallets**: Registro de transacciones de pallets de madera dividida en 6 tipos de movimientos: Descartes, Reparación Interna, Reparación Externa, Ingreso de Nuevos, Entrega Interna y Entrega Externa. Soporta flujos de estados para reparaciones ("Retirado" y "Devuelto") y el registro del operario que recibe las devoluciones desde el historial de trazabilidad.
 - **Registro de Espacios Verdes**: Monitoreo de la huella forestal de la fábrica. Registra riego ecológico, plantaciones nuevas de especies botánicas nativas y el estado general de salud del suelo y plantas.
 
 > Los módulos son accesibles por usuarios que los tengan explícitamente habilitados. Los sysadmin tienen acceso a todos.

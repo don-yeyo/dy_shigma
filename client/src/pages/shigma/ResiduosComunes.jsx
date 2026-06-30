@@ -580,8 +580,8 @@ const ResiduosComunes = () => {
             return;
         }
 
-        // 1c. Humedad (Subcategoría) si es Elguea Roman e Inorgánicos Generales
-        if (esInorganicoGeneral && esElgueaRoman && !formData.subcategoriaInorganico) {
+        // 1c. Humedad (Subcategoría) si es Elguea Roman e Inorgánicos Generales (no aplica a Recuperables)
+        if (esInorganicoGeneral && esElgueaRoman && !isRecuperable && !formData.subcategoriaInorganico) {
             showAlert('Por favor, seleccione si el residuo es Húmedo o Seco.');
             return;
         }
@@ -685,7 +685,7 @@ const ResiduosComunes = () => {
                 destino: isRecuperable ? 'Acopio de Recuperables' : formData.destino,
                 responsable: formData.responsable,
                 observaciones: formData.observaciones,
-                subcategoriaInorganico: (esInorganicoGeneral && esElgueaRoman) ? formData.subcategoriaInorganico : null
+                subcategoriaInorganico: (esInorganicoGeneral && esElgueaRoman && !isRecuperable) ? formData.subcategoriaInorganico : null
             };
 
             if (formData.tipoResiduo === 'Inorgánicos Generales') {
@@ -773,7 +773,7 @@ const ResiduosComunes = () => {
                 </Button>
                 <div>
                     <h1 style={{ fontSize: '2.1rem', fontWeight: '900', color: 'var(--primary)' }}>
-                        {editId ? 'Modificar' : 'Registrar'} Residuos Industriales No Especiales (RINE)<span style={{ color: 'var(--dy-red)' }}>.</span>
+                        {editId ? 'Modificar Registro' : 'Residuos No Especiales (RINE)'}<span style={{ color: 'var(--dy-red)' }}>.</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
                         {editId ? `Editando registro ${editId} del historial.` : 'Registro y clasificación de desperdicios orgánicos, inorgánicos de marca y generales.'}
@@ -1190,7 +1190,7 @@ const ResiduosComunes = () => {
                                     </div>
                                 </div>
                             )}
-                            {esElgueaRoman && (
+                            {esElgueaRoman && !isRecuperable && (
                                 <div style={{ marginTop: '20px', position: 'relative', zIndex: 20 }}>
                                     <Select
                                         label="Humedad del Residuo *"
