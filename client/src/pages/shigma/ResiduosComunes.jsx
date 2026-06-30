@@ -773,7 +773,7 @@ const ResiduosComunes = () => {
                 </Button>
                 <div>
                     <h1 style={{ fontSize: '2.1rem', fontWeight: '900', color: 'var(--primary)' }}>
-                        {editId ? 'Modificar Registro' : 'Residuos No Especiales (RINE)'}<span style={{ color: 'var(--dy-red)' }}>.</span>
+                        {editId ? 'Modificar Registro' : 'Residuos Industriales No Especiales (RINE)'}<span style={{ color: 'var(--dy-red)' }}>.</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
                         {editId ? `Editando registro ${editId} del historial.` : 'Registro y clasificación de desperdicios orgánicos, inorgánicos de marca y generales.'}
@@ -1470,12 +1470,14 @@ const ResiduosComunes = () => {
                             </div>
 
                             {/* Fila Sector */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
-                                <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Sector:</span>
-                                <strong style={{ color: 'var(--text)' }}>
-                                    {selectedSectorObj?.nombre || ''}
-                                </strong>
-                            </div>
+                            {formData.sectorId && selectedSectorObj && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+                                    <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Sector:</span>
+                                    <strong style={{ color: 'var(--text)' }}>
+                                        {selectedSectorObj.nombre}
+                                    </strong>
+                                </div>
+                            )}
 
 
                             {/* Fila Tipo Residuo */}

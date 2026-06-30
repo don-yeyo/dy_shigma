@@ -108,7 +108,7 @@ Pantalla de auditoría de trazabilidad completa dotada de:
 
 | Slug | Nombre en UI |
 |---|---|
-| `residuos-comunes` | Residuos No Especiales (RINE) |
+| `residuos-comunes` | Residuos Industriales No Especiales (RINE) |
 | `gestion-bateas` | Gestión de Bateas |
 | `residuos-especiales` | Residuos Especiales |
 | `devoluciones` | Devoluciones |

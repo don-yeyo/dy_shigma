@@ -175,7 +175,37 @@ const HistorialTrazabilidad = () => {
                 formType: filterFormType
             });
             const data = response.data;
-            setRecords(data.records || []);
+            const rawRecords = data.records || [];
+
+            // Agrupar registros de Recepción Interna por idGrupo
+            const groupedRecords = [];
+            const grupoMap = {};
+
+            rawRecords.forEach(record => {
+                if (record.formType === 'pallets' && record.idGrupo && record.tipoRegistro === 'Recepción Interna') {
+                    if (!grupoMap[record.idGrupo]) {
+                        grupoMap[record.idGrupo] = {
+                            ...record,
+                            grupo: [record]
+                        };
+                        groupedRecords.push(grupoMap[record.idGrupo]);
+                    } else {
+                        // Sumar la cantidad
+                        grupoMap[record.idGrupo].cantidad += record.cantidad;
+                        grupoMap[record.idGrupo].grupo.push(record);
+                        // Combinar observaciones
+                        if (record.observaciones && !grupoMap[record.idGrupo].observaciones?.includes(record.observaciones)) {
+                            grupoMap[record.idGrupo].observaciones = grupoMap[record.idGrupo].observaciones 
+                                ? `${grupoMap[record.idGrupo].observaciones} | ${record.observaciones}` 
+                                : record.observaciones;
+                        }
+                    }
+                } else {
+                    groupedRecords.push(record);
+                }
+            });
+
+            setRecords(groupedRecords);
             setTotalCount(data.totalCount || 0);
             setTotalPages(data.totalPages || 1);
             setCurrentPage(data.currentPage || pageToFetch);
@@ -190,7 +220,14 @@ const HistorialTrazabilidad = () => {
     const executeDelete = async (record) => {
         setDeleteConfirmModal({ isOpen: false, record: null });
         try {
-            await SHIGMAService.deleteRecord(record.formType, record.id);
+            if (record.formType === 'pallets' && record.grupo) {
+                // Eliminar secuencialmente todos los registros del grupo en la base de datos
+                for (const r of record.grupo) {
+                    await SHIGMAService.deleteRecord('pallets', r.id);
+                }
+            } else {
+                await SHIGMAService.deleteRecord(record.formType, record.id);
+            }
             setDeleteStatusModal({
                 isOpen: true,
                 title: 'Registro Eliminado',
@@ -259,7 +296,7 @@ const HistorialTrazabilidad = () => {
 
     const formTypes = [
         { id: 'all', label: 'Todos los Formularios' },
-        { id: 'residuos-comunes', label: 'Residuos No Especiales (RINE)' },
+        { id: 'residuos-comunes', label: 'Residuos Industriales No Especiales (RINE)' },
         { id: 'residuos-especiales', label: 'Residuos Especiales' },
         { id: 'devoluciones', label: 'Devoluciones' },
         { id: 'tratamiento', label: 'Tratamiento' },
@@ -457,13 +494,31 @@ const HistorialTrazabilidad = () => {
             details.push({ label: 'Tipo de Registro', value: record.tipoRegistro });
             details.push({ label: 'Cantidad', value: `${record.cantidad} uds` });
             if (record.destino) details.push({ label: 'Destino', value: record.destino });
-            if (record.remito) details.push({ label: 'Remito', value: record.remito });
+            if (record.remito) {
+                const isRepExterna = record.tipoRegistro === 'Reparación Externa';
+                details.push({
+                    label: isRepExterna ? 'Remito de Salida' : 'Remito',
+                    value: record.remito
+                });
+            }
+            if (record.remitoRetorno) {
+                details.push({ label: 'Remito de Retorno', value: record.remitoRetorno });
+            }
+            if (record.grupo) {
+                const desglose = record.grupo.map(r => `${r.categoria}: ${r.cantidad} uds`).join(', ');
+                details.push({ label: 'Desglose por Categoría', value: desglose });
+            } else if (record.categoria) {
+                details.push({ label: 'Categoría', value: record.categoria });
+            }
             if (record.proveedor) details.push({ label: 'Proveedor', value: record.proveedor });
-            if (record.planta) details.push({ label: 'Planta', value: record.planta });
-            if (record.sector) details.push({ label: 'Sector', value: record.sector });
+            if (record.planta) details.push({ label: record.tipoRegistro === 'Recepción Interna' ? 'Planta Origen' : 'Planta', value: record.planta });
+            if (record.sector) details.push({ label: record.tipoRegistro === 'Recepción Interna' ? 'Sector Origen' : 'Sector', value: record.sector });
 
             if (record.operarioEntrega) {
-                details.push({ label: 'Operario que Entrega (Salida)', value: record.operarioEntrega });
+                details.push({ 
+                    label: record.tipoRegistro === 'Recepción Interna' ? 'Operario que Entrega (Sector Origen)' : 'Operario que Entrega (Salida)', 
+                    value: record.operarioEntrega 
+                });
                 const fechaSalidaStr = new Date(record.createdAt || record.fecha).toLocaleString('es-AR', {
                     day: '2-digit',
                     month: '2-digit',
@@ -471,7 +526,7 @@ const HistorialTrazabilidad = () => {
                     hour: '2-digit',
                     minute: '2-digit'
                 });
-                details.push({ label: 'Fecha de Salida', value: `${fechaSalidaStr} hs` });
+                details.push({ label: record.tipoRegistro === 'Recepción Interna' ? 'Fecha de Recepción' : 'Fecha de Salida', value: `${fechaSalidaStr} hs` });
             }
 
             if (record.estado) {
@@ -497,7 +552,12 @@ const HistorialTrazabilidad = () => {
                     }
                 }
             } else {
-                if (record.operarioRecibe) details.push({ label: 'Operario que Recibe', value: record.operarioRecibe });
+                if (record.operarioRecibe) {
+                    details.push({ 
+                        label: record.tipoRegistro === 'Recepción Interna' ? 'Operario que Recibe (Taller/Depósito)' : 'Operario que Recibe', 
+                        value: record.operarioRecibe 
+                    });
+                }
             }
         } else if (record.formType === 'espacios-verdes') {
             details.push({ label: 'Zona Ambiental', value: record.espacioVerde });

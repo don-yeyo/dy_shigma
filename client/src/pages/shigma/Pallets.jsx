@@ -25,6 +25,7 @@ const Pallets = () => {
     const [pendientes, setPendientes] = useState([]);
     const [selectedPendienteId, setSelectedPendienteId] = useState(null);
     const [modoRetorno, setModoRetorno] = useState(false);
+    const [grupoOriginalRecords, setGrupoOriginalRecords] = useState([]); // Registros originales del grupo para Recepción Interna
 
     const showAlert = (title, message) => setAlertModal({ isOpen: true, title, message });
 
@@ -33,10 +34,16 @@ const Pallets = () => {
     const [formData, setFormData] = useState({
         fechaCarga: todayStr,
         horaCarga: nowTimeStr,
-        tipoRegistro: '', // Descartes, Reparación Interna, Reparación Externa, Ingreso de Nuevos, Entrega Interna, Entrega Externa
+        tipoRegistro: '', // Descartes, Reparación Interna, Reparación Externa, Ingreso de Nuevos, Entrega Interna, Entrega Externa, Recepción Interna
         cantidad: '',
+        cantidadReparables: '',
+        cantidadIrreparables: '',
+        cantidadDescartables: '',
+        idGrupo: '',
+        categoria: '',
         destino: '',
         remito: '',
+        remitoRetorno: '', // Remito de retorno para reparaciones externas
         proveedor: '',
         planta: '',
         sector: '',
@@ -59,7 +66,8 @@ const Pallets = () => {
         { id: 'Reparación Externa', label: 'Reparación Externa', icon: Hammer, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.04)', selectedBg: 'rgba(59, 130, 246, 0.12)' },
         { id: 'Ingreso de Nuevos', label: 'Ingreso de Nuevos', icon: PlusCircle, color: '#10b981', bg: 'rgba(16, 185, 129, 0.04)', selectedBg: 'rgba(16, 185, 129, 0.12)' },
         { id: 'Entrega Interna', label: 'Entrega Interna', icon: ArrowRightLeft, color: '#84cc16', bg: 'rgba(132, 204, 22, 0.04)', selectedBg: 'rgba(132, 204, 22, 0.12)' },
-        { id: 'Entrega Externa', label: 'Entrega Externa', icon: Truck, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.04)', selectedBg: 'rgba(245, 158, 11, 0.12)' }
+        { id: 'Entrega Externa', label: 'Entrega Externa', icon: Truck, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.04)', selectedBg: 'rgba(245, 158, 11, 0.12)' },
+        { id: 'Recepción Interna', label: 'Recepción Interna', icon: RotateCcw, color: '#ec4899', bg: 'rgba(236, 72, 153, 0.04)', selectedBg: 'rgba(236, 72, 153, 0.12)' }
     ];
 
     const plantas = [
@@ -129,13 +137,37 @@ const Pallets = () => {
                         const dateObj = new Date(record.createdAt || record.fecha);
                         const fechaCarga = dateObj.toISOString().split('T')[0];
                         const horaCarga = dateObj.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
+                        
+                        let cantidadReparables = '';
+                        let cantidadIrreparables = '';
+                        let cantidadDescartables = '';
+
+                        if (record.idGrupo) {
+                            const grupoRecords = response.data.filter(r => r.idGrupo === record.idGrupo);
+                            setGrupoOriginalRecords(grupoRecords);
+                            const rep = grupoRecords.find(r => r.categoria === 'Reparables');
+                            const irr = grupoRecords.find(r => r.categoria === 'Irreparables');
+                            const des = grupoRecords.find(r => r.categoria === 'Descartables');
+                            if (rep) cantidadReparables = String(rep.cantidad);
+                            if (irr) cantidadIrreparables = String(irr.cantidad);
+                            if (des) cantidadDescartables = String(des.cantidad);
+                        } else {
+                            setGrupoOriginalRecords([]);
+                        }
+
                         setFormData({
                             fechaCarga,
                             horaCarga,
                             tipoRegistro: record.tipoRegistro || '',
                             cantidad: String(record.cantidad) || '',
+                            cantidadReparables,
+                            cantidadIrreparables,
+                            cantidadDescartables,
+                            idGrupo: record.idGrupo || '',
+                            categoria: record.categoria || '',
                             destino: record.destino || '',
                             remito: record.remito || '',
+                            remitoRetorno: record.remitoRetorno || '',
                             proveedor: record.proveedor || '',
                             planta: record.planta || '',
                             sector: record.sector || '',
@@ -169,7 +201,7 @@ const Pallets = () => {
             processedValue = capitalizeText(value);
         }
 
-        if (name === 'remito') {
+        if (name === 'remito' || name === 'remitoRetorno') {
             processedValue = value.toUpperCase();
         }
 
@@ -194,6 +226,7 @@ const Pallets = () => {
                 cantidad: '',
                 proveedor: '',
                 remito: '',
+                remitoRetorno: '',
                 operarioEntrega: localStorage.getItem('shigma_last_operator_pallets') || '',
                 operarioRecibe: localStorage.getItem('shigma_last_operator_pallets') || '',
                 estado: 'Retirado',
@@ -210,8 +243,9 @@ const Pallets = () => {
                 cantidad: String(record.cantidad),
                 proveedor: record.proveedor || '',
                 remito: record.remito || '',
+                remitoRetorno: '',
                 operarioEntrega: record.operarioEntrega || '',
-                operarioRecibe: localStorage.getItem('shigma_last_operator_pallets') || '',
+                operarioRecibe: record.tipoRegistro === 'Reparación Interna' ? '' : (localStorage.getItem('shigma_last_operator_pallets') || ''),
                 estado: 'Devuelto',
                 fechaCarga: constraints.todayStr,
                 horaCarga: constraints.nowTimeStr,
@@ -222,16 +256,18 @@ const Pallets = () => {
 
     const handleTypeChange = (type) => {
         const defaultState = (type === 'Reparación Interna' || type === 'Reparación Externa') ? 'Retirado' : '';
-        const lastOperator = localStorage.getItem('shigma_last_operator_pallets') || '';
+        const lastOperator = type === 'Reparación Interna' ? '' : (localStorage.getItem('shigma_last_operator_pallets') || '');
 
         setSelectedPendienteId(null);
         setModoRetorno(false);
+        setGrupoOriginalRecords([]); // Limpiar registros del grupo en cambios de tipo
 
         setFormData(prev => ({
             ...prev,
             tipoRegistro: type,
             destino: '',
             remito: '',
+            remitoRetorno: '',
             proveedor: '',
             planta: '',
             sector: '',
@@ -241,6 +277,11 @@ const Pallets = () => {
             fechaCarga: todayStr,
             horaCarga: nowTimeStr,
             cantidad: '',
+            cantidadReparables: '',
+            cantidadIrreparables: '',
+            cantidadDescartables: '',
+            idGrupo: '',
+            categoria: '',
             observaciones: ''
         }));
     };
@@ -259,9 +300,20 @@ const Pallets = () => {
             showAlert('Campo requerido', 'Seleccione el Tipo de Registro.');
             return;
         }
-        if (!formData.cantidad || parseInt(formData.cantidad) <= 0) {
-            showAlert('Campo requerido', 'Ingrese una cantidad válida mayor a cero.');
-            return;
+
+        if (formData.tipoRegistro !== 'Recepción Interna') {
+            if (!formData.cantidad || parseInt(formData.cantidad) <= 0) {
+                showAlert('Campo requerido', 'Ingrese una cantidad válida mayor a cero.');
+                return;
+            }
+        } else {
+            const cantRep = parseInt(formData.cantidadReparables) || 0;
+            const cantIrr = parseInt(formData.cantidadIrreparables) || 0;
+            const cantDes = parseInt(formData.cantidadDescartables) || 0;
+            if (cantRep <= 0 && cantIrr <= 0 && cantDes <= 0) {
+                showAlert('Campo requerido', 'Debe ingresar al menos una cantidad mayor a cero.');
+                return;
+            }
         }
 
         // Validaciones condicionales según tipo de registro
@@ -278,12 +330,7 @@ const Pallets = () => {
                 if (!formData.remito.trim()) return showAlert('Campo requerido', 'Ingrese el número de Remito.');
             }
         } else if (formData.tipoRegistro === 'Reparación Interna') {
-            if (modoRetorno) {
-                if (!formData.operarioRecibe) return showAlert('Campo requerido', 'Seleccione el Operario que recibe el retorno.');
-            } else {
-                if (!formData.operarioEntrega) return showAlert('Campo requerido', 'Seleccione el Operario de entrega.');
-                if (!formData.operarioRecibe) return showAlert('Campo requerido', 'Seleccione el Operario que recibe en el taller.');
-            }
+            // Las reparaciones internas no requieren registro de operarios
         } else if (formData.tipoRegistro === 'Ingreso de Nuevos') {
             if (!formData.proveedor.trim()) return showAlert('Campo requerido', 'Ingrese el Proveedor.');
             if (!formData.remito.trim()) return showAlert('Campo requerido', 'Ingrese el número de Remito.');
@@ -297,6 +344,11 @@ const Pallets = () => {
             if (!formData.proveedor.trim()) return showAlert('Campo requerido', 'Ingrese el Proveedor.');
             if (!formData.remito.trim()) return showAlert('Campo requerido', 'Ingrese el número de Remito.');
             if (!formData.operarioEntrega) return showAlert('Campo requerido', 'Seleccione el Operario de entrega.');
+        } else if (formData.tipoRegistro === 'Recepción Interna') {
+            if (!formData.planta) return showAlert('Campo requerido', 'Seleccione la Planta de Origen.');
+            if (!formData.sector) return showAlert('Campo requerido', 'Seleccione el Sector de Origen.');
+            if (!formData.operarioEntrega) return showAlert('Campo requerido', 'Seleccione el Operario que entrega (Sector Origen).');
+            if (!formData.operarioRecibe) return showAlert('Campo requerido', 'Seleccione el Operario que recibe (Taller/Depósito).');
         }
 
         setSubmitting(true);
@@ -308,7 +360,8 @@ const Pallets = () => {
                 const payload = {
                     ...recordOriginal,
                     estado: 'Devuelto',
-                    operarioRecibe: formData.operarioRecibe,
+                    operarioRecibe: recordOriginal.tipoRegistro === 'Reparación Interna' ? null : formData.operarioRecibe,
+                    remitoRetorno: recordOriginal.tipoRegistro === 'Reparación Externa' && formData.remitoRetorno ? formData.remitoRetorno.trim() : null,
                     fechaDevolucion: combinedFechaHora,
                     usuarioDevolucion: user?.nombre || 'Gabriel Tonelli',
                     observaciones: formData.observaciones ? formData.observaciones.trim() : recordOriginal.observaciones
@@ -322,6 +375,96 @@ const Pallets = () => {
                 await fetchPendientes();
                 setSelectedPendienteId(null);
                 setModoRetorno(false);
+            } else if (formData.tipoRegistro === 'Recepción Interna') {
+                // Lógica especial para Recepción Interna (Múltiples registros con idGrupo)
+                const grupoId = formData.idGrupo || `GRP-${Date.now()}`;
+                const categorias = [
+                    { name: 'Reparables', val: parseInt(formData.cantidadReparables) || 0 },
+                    { name: 'Irreparables', val: parseInt(formData.cantidadIrreparables) || 0 },
+                    { name: 'Descartables', val: parseInt(formData.cantidadDescartables) || 0 }
+                ];
+
+                if (editId) {
+                    // Modo Edición: Actualizar, crear o eliminar registros del grupo según corresponda
+                    let firstSuccessId = editId;
+
+                    for (const cat of categorias) {
+                        const originalRecord = grupoOriginalRecords.find(r => r.categoria === cat.name);
+                        
+                        if (cat.val > 0) {
+                            const payload = {
+                                tipoRegistro: 'Recepción Interna',
+                                cantidad: cat.val,
+                                categoria: cat.name,
+                                idGrupo: grupoId,
+                                planta: formData.planta,
+                                sector: formData.sector,
+                                operarioEntrega: formData.operarioEntrega,
+                                operarioRecibe: formData.operarioRecibe,
+                                observaciones: formData.observaciones ? formData.observaciones.trim() : null,
+                                createdAt: combinedCreatedAt,
+                                destino: null,
+                                remito: null,
+                                remitoRetorno: null,
+                                proveedor: null,
+                                estado: null
+                            };
+
+                            if (originalRecord) {
+                                // Actualizar
+                                await SHIGMAService.updateRecord('pallets', originalRecord.id, payload);
+                            } else {
+                                // Crear uno nuevo en el mismo grupo
+                                const res = await SHIGMAService.createRecord('pallets', payload);
+                                if (!firstSuccessId) firstSuccessId = res.data.record.id;
+                            }
+                        } else {
+                            // Si antes existía y ahora se puso en 0/vacío, eliminarlo
+                            if (originalRecord) {
+                                await SHIGMAService.deleteRecord('pallets', originalRecord.id);
+                            }
+                        }
+                    }
+
+                    setSuccessId(firstSuccessId);
+                    setShowSuccessModal(true);
+                } else {
+                    // Modo Creación: Crear registros individuales por cada categoría mayor a cero
+                    let firstSuccessId = '';
+
+                    for (const cat of categorias) {
+                        if (cat.val > 0) {
+                            const payload = {
+                                tipoRegistro: 'Recepción Interna',
+                                cantidad: cat.val,
+                                categoria: cat.name,
+                                idGrupo: grupoId,
+                                planta: formData.planta,
+                                sector: formData.sector,
+                                operarioEntrega: formData.operarioEntrega,
+                                operarioRecibe: formData.operarioRecibe,
+                                observaciones: formData.observaciones ? formData.observaciones.trim() : null,
+                                createdAt: combinedCreatedAt,
+                                destino: null,
+                                remito: null,
+                                remitoRetorno: null,
+                                proveedor: null,
+                                estado: null
+                            };
+
+                            const res = await SHIGMAService.createRecord('pallets', payload);
+                            if (!firstSuccessId) {
+                                firstSuccessId = res.data.record.id;
+                            }
+                        }
+                    }
+
+                    setSuccessId(firstSuccessId);
+                    setShowSuccessModal(true);
+                }
+
+                // Recargar lista de pendientes
+                await fetchPendientes();
             } else {
                 // Estructurar el payload final limpiando campos no aplicables (creación o edición clásica)
                 const payload = {
@@ -349,8 +492,8 @@ const Pallets = () => {
                     payload.remito = formData.remito.trim();
                     payload.estado = editId ? (formData.estado || 'Retirado') : 'Retirado';
                 } else if (formData.tipoRegistro === 'Reparación Interna') {
-                    payload.operarioEntrega = formData.operarioEntrega;
-                    payload.operarioRecibe = formData.operarioRecibe;
+                    payload.operarioEntrega = null;
+                    payload.operarioRecibe = null;
                     payload.estado = editId ? (formData.estado || 'Retirado') : 'Retirado';
                 } else if (formData.tipoRegistro === 'Ingreso de Nuevos') {
                     payload.proveedor = formData.proveedor.trim();
@@ -384,6 +527,7 @@ const Pallets = () => {
             // Resetear formulario si no es edición clásica de URL
             if (!editId) {
                 const constraints = getDateConstraints();
+                const isInterna = formData.tipoRegistro === 'Reparación Interna';
                 setFormData({
                     fechaCarga: constraints.todayStr,
                     horaCarga: constraints.nowTimeStr,
@@ -391,11 +535,12 @@ const Pallets = () => {
                     cantidad: '',
                     destino: '',
                     remito: '',
+                    remitoRetorno: '',
                     proveedor: '',
                     planta: '',
                     sector: '',
-                    operarioEntrega: localStorage.getItem('shigma_last_operator_pallets') || '',
-                    operarioRecibe: localStorage.getItem('shigma_last_operator_pallets') || '',
+                    operarioEntrega: isInterna ? '' : (localStorage.getItem('shigma_last_operator_pallets') || ''),
+                    operarioRecibe: isInterna ? '' : (localStorage.getItem('shigma_last_operator_pallets') || ''),
                     estado: '',
                     observaciones: ''
                 });
@@ -609,17 +754,46 @@ const Pallets = () => {
                         </div>
 
                         {/* Cantidad (Estilo similar a kilos en devoluciones, NumberInput) */}
-                        <div style={{ marginBottom: '24px', maxWidth: '300px' }}>
-                            <NumberInput
-                                label="Cantidad (en unidades) *"
-                                name="cantidad"
-                                value={formData.cantidad}
-                                onChange={handleChange}
-                                min={1}
-                                required
-                                disabled={modoRetorno}
-                            />
-                        </div>
+                        {formData.tipoRegistro !== 'Recepción Interna' ? (
+                            <div style={{ marginBottom: '24px', maxWidth: '300px' }}>
+                                <NumberInput
+                                    label="Cantidad (en unidades) *"
+                                    name="cantidad"
+                                    value={formData.cantidad}
+                                    onChange={handleChange}
+                                    min={1}
+                                    required
+                                    disabled={modoRetorno}
+                                />
+                            </div>
+                        ) : (
+                             <div className="form-grid" style={{ marginBottom: '24px' }}>
+                                <NumberInput
+                                    label="Reparables"
+                                    name="cantidadReparables"
+                                    value={formData.cantidadReparables}
+                                    onChange={handleChange}
+                                    min={0}
+                                    placeholder="0"
+                                />
+                                <NumberInput
+                                    label="Irreparables"
+                                    name="cantidadIrreparables"
+                                    value={formData.cantidadIrreparables}
+                                    onChange={handleChange}
+                                    min={0}
+                                    placeholder="0"
+                                />
+                                <NumberInput
+                                    label="Descartables"
+                                    name="cantidadDescartables"
+                                    value={formData.cantidadDescartables}
+                                    onChange={handleChange}
+                                    min={0}
+                                    placeholder="0"
+                                />
+                            </div>
+                        )}
 
                         {/* Campos específicos según el tipo de registro */}
 
@@ -637,16 +811,36 @@ const Pallets = () => {
                                         onChange={handleChange}
                                         required
                                     />
-                                    <Input
-                                        label="Remito *"
-                                        type="text"
-                                        name="remito"
-                                        placeholder="Ej: R-0006-0032322"
-                                        maxLength={30}
-                                        value={formData.remito}
-                                        onChange={handleChange}
-                                        required
-                                    />
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <Input
+                                            label="Remito *"
+                                            type="text"
+                                            name="remito"
+                                            placeholder="Ej: R-0006-0032322"
+                                            maxLength={30}
+                                            value={formData.remito}
+                                            onChange={handleChange}
+                                            required
+                                        />
+                                        <div style={{
+                                            display: 'inline-block',
+                                            padding: '4px 8px',
+                                            background: 'rgba(20, 184, 166, 0.08)',
+                                            color: 'var(--primary)',
+                                            borderRadius: '6px',
+                                            fontSize: '0.75rem',
+                                            fontWeight: '700',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.5px',
+                                            border: '1px solid rgba(20, 184, 166, 0.2)',
+                                            marginTop: '-12px',
+                                            marginBottom: '16px',
+                                            alignSelf: 'flex-start',
+                                            width: 'fit-content'
+                                        }}>
+                                            Emitir Remito
+                                        </div>
+                                    </div>
                                 </div>
                                 <Select
                                     label="Operario que Entrega *"
@@ -675,18 +869,72 @@ const Pallets = () => {
                                         required
                                         disabled={modoRetorno}
                                     />
-                                    <Input
-                                        label="Remito *"
-                                        type="text"
-                                        name="remito"
-                                        placeholder="Ej: R-0006-0032322"
-                                        maxLength={30}
-                                        value={formData.remito}
-                                        onChange={handleChange}
-                                        required
-                                        disabled={modoRetorno}
-                                    />
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <Input
+                                            label={modoRetorno ? "Remito de Salida *" : "Remito *"}
+                                            type="text"
+                                            name="remito"
+                                            placeholder="Ej: R-0006-0032322"
+                                            maxLength={30}
+                                            value={formData.remito}
+                                            onChange={handleChange}
+                                            required
+                                            disabled={modoRetorno}
+                                        />
+                                        <div style={{
+                                            display: 'inline-block',
+                                            padding: '4px 8px',
+                                            background: 'rgba(20, 184, 166, 0.08)',
+                                            color: 'var(--primary)',
+                                            borderRadius: '6px',
+                                            fontSize: '0.75rem',
+                                            fontWeight: '700',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.5px',
+                                            border: '1px solid rgba(20, 184, 166, 0.2)',
+                                            marginTop: '-12px',
+                                            marginBottom: '16px',
+                                            alignSelf: 'flex-start',
+                                            width: 'fit-content'
+                                        }}>
+                                            Emitir Remito
+                                        </div>
+                                    </div>
                                 </div>
+
+                                {modoRetorno && (
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <Input
+                                            label="Remito de Retorno *"
+                                            type="text"
+                                            name="remitoRetorno"
+                                            placeholder="Ej: R-0006-0032455"
+                                            maxLength={30}
+                                            value={formData.remitoRetorno}
+                                            onChange={handleChange}
+                                            required
+                                        />
+                                        <div style={{
+                                            display: 'inline-block',
+                                            padding: '4px 8px',
+                                            background: 'rgba(20, 184, 166, 0.08)',
+                                            color: 'var(--primary)',
+                                            borderRadius: '6px',
+                                            fontSize: '0.75rem',
+                                            fontWeight: '700',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.5px',
+                                            border: '1px solid rgba(20, 184, 166, 0.2)',
+                                            marginTop: '-12px',
+                                            marginBottom: '16px',
+                                            alignSelf: 'flex-start',
+                                            width: 'fit-content'
+                                        }}>
+                                            Solicitar Remito
+                                        </div>
+                                    </div>
+                                )}
+
                                 {modoRetorno ? (
                                     <Select
                                         label="Operario que Recibe (Retorno) *"
@@ -711,43 +959,6 @@ const Pallets = () => {
                             </>
                         )}
 
-                        {/* Reparación Interna */}
-                        {formData.tipoRegistro === 'Reparación Interna' && (
-                            <>
-                                {modoRetorno ? (
-                                    <Select
-                                        label="Operario que Recibe (Retorno) *"
-                                        name="operarioRecibe"
-                                        value={formData.operarioRecibe}
-                                        onChange={handleChange}
-                                        options={operadores.map(op => ({ id: op.apellidoNombre, label: op.apellidoNombre }))}
-                                        includePlaceholder={true}
-                                        required
-                                    />
-                                ) : (
-                                    <div className="form-grid" style={isMobile ? { display: 'flex', flexDirection: 'column', gap: '16px' } : {}}>
-                                        <Select
-                                            label="Operario que Entrega *"
-                                            name="operarioEntrega"
-                                            value={formData.operarioEntrega}
-                                            onChange={handleChange}
-                                            options={operadores.map(op => ({ id: op.apellidoNombre, label: op.apellidoNombre }))}
-                                            includePlaceholder={true}
-                                            required
-                                        />
-                                        <Select
-                                            label="Operario que Recibe (Taller) *"
-                                            name="operarioRecibe"
-                                            value={formData.operarioRecibe}
-                                            onChange={handleChange}
-                                            options={operadores.map(op => ({ id: op.apellidoNombre, label: op.apellidoNombre }))}
-                                            includePlaceholder={true}
-                                            required
-                                        />
-                                    </div>
-                                )}
-                            </>
-                        )}
 
                         {/* Ingreso de Nuevos */}
                         {formData.tipoRegistro === 'Ingreso de Nuevos' && (
@@ -763,16 +974,36 @@ const Pallets = () => {
                                         onChange={handleChange}
                                         required
                                     />
-                                    <Input
-                                        label="Remito *"
-                                        type="text"
-                                        name="remito"
-                                        placeholder="Ej: R-0006-0032322"
-                                        maxLength={30}
-                                        value={formData.remito}
-                                        onChange={handleChange}
-                                        required
-                                    />
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <Input
+                                            label="Remito *"
+                                            type="text"
+                                            name="remito"
+                                            placeholder="Ej: R-0006-0032322"
+                                            maxLength={30}
+                                            value={formData.remito}
+                                            onChange={handleChange}
+                                            required
+                                        />
+                                        <div style={{
+                                            display: 'inline-block',
+                                            padding: '4px 8px',
+                                            background: 'rgba(20, 184, 166, 0.08)',
+                                            color: 'var(--primary)',
+                                            borderRadius: '6px',
+                                            fontSize: '0.75rem',
+                                            fontWeight: '700',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.5px',
+                                            border: '1px solid rgba(20, 184, 166, 0.2)',
+                                            marginTop: '-12px',
+                                            marginBottom: '16px',
+                                            alignSelf: 'flex-start',
+                                            width: 'fit-content'
+                                        }}>
+                                            Solicitar Remito
+                                        </div>
+                                    </div>
                                 </div>
                                 <Select
                                     label="Operario que Recibe *"
@@ -846,16 +1077,36 @@ const Pallets = () => {
                                         onChange={handleChange}
                                         required
                                     />
-                                    <Input
-                                        label="Remito *"
-                                        type="text"
-                                        name="remito"
-                                        placeholder="Ej: R-0006-0032322"
-                                        maxLength={30}
-                                        value={formData.remito}
-                                        onChange={handleChange}
-                                        required
-                                    />
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <Input
+                                            label="Remito *"
+                                            type="text"
+                                            name="remito"
+                                            placeholder="Ej: R-0006-0032322"
+                                            maxLength={30}
+                                            value={formData.remito}
+                                            onChange={handleChange}
+                                            required
+                                        />
+                                        <div style={{
+                                            display: 'inline-block',
+                                            padding: '4px 8px',
+                                            background: 'rgba(20, 184, 166, 0.08)',
+                                            color: 'var(--primary)',
+                                            borderRadius: '6px',
+                                            fontSize: '0.75rem',
+                                            fontWeight: '700',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.5px',
+                                            border: '1px solid rgba(20, 184, 166, 0.2)',
+                                            marginTop: '-12px',
+                                            marginBottom: '16px',
+                                            alignSelf: 'flex-start',
+                                            width: 'fit-content'
+                                        }}>
+                                            Emitir Remito
+                                        </div>
+                                    </div>
                                 </div>
                                 <Select
                                     label="Operario que Entrega *"
@@ -866,6 +1117,52 @@ const Pallets = () => {
                                     includePlaceholder={true}
                                     required
                                 />
+                            </>
+                        )}
+
+                        {/* Recepción Interna */}
+                        {formData.tipoRegistro === 'Recepción Interna' && (
+                            <>
+                                <div className="form-grid" style={isMobile ? { display: 'flex', flexDirection: 'column', gap: '16px' } : {}}>
+                                    <Select
+                                        label="Planta Origen *"
+                                        name="planta"
+                                        value={formData.planta}
+                                        onChange={handleChange}
+                                        options={plantas}
+                                        includePlaceholder={true}
+                                        required
+                                    />
+                                    <Select
+                                        label="Sector Origen *"
+                                        name="sector"
+                                        value={formData.sector}
+                                        onChange={handleChange}
+                                        options={sectores}
+                                        includePlaceholder={true}
+                                        required
+                                    />
+                                </div>
+                                <div className="form-grid" style={isMobile ? { display: 'flex', flexDirection: 'column', gap: '16px' } : {}}>
+                                    <Select
+                                        label="Operario que Entrega (Sector Origen) *"
+                                        name="operarioEntrega"
+                                        value={formData.operarioEntrega}
+                                        onChange={handleChange}
+                                        options={operadores.map(op => ({ id: op.apellidoNombre, label: op.apellidoNombre }))}
+                                        includePlaceholder={true}
+                                        required
+                                    />
+                                    <Select
+                                        label="Operario que Recibe (Taller/Depósito) *"
+                                        name="operarioRecibe"
+                                        value={formData.operarioRecibe}
+                                        onChange={handleChange}
+                                        options={operadores.map(op => ({ id: op.apellidoNombre, label: op.apellidoNombre }))}
+                                        includePlaceholder={true}
+                                        required
+                                    />
+                                </div>
                             </>
                         )}
 

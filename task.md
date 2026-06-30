@@ -10,13 +10,12 @@
 - `[x]` Actualizar backend (`shigmaController.js`) para soportar `subcategoriaInorganico` y `nroCertificado`
 - `[x]` Actualizar frontend (`GestionBateas.jsx`):
     - `[x]` Pedir Número de Certificado de 30 caracteres en modal obligatorio al Confirmar Recepción
-- `[x]` Validar y verificar cambiostros de las tablas MySQL de forma concurrente
-  - `[x]` Refactorizar `getRecordsByForm` para leer de la tabla correspondiente
-  - `[x]` Refactorizar `createRecord` para insertar registros y generar IDs incrementales premium en MySQL
-  - `[x]` Refactorizar `getBateasStatus` para consultar ocupación directo de la base de datos
-  - `[x]` Refactorizar `restartBatea` con transacción segura SQL (salida + actualización de comunes)
-  - `[x]` Refactorizar `getBateaSalidas` para listar manifiestos guardados en DB
-  - `[x]` Refactorizar `getDashboardStats` para ejecutar agregaciones rápidas directo en SQL
+- `[x]` 1. Base de Datos y Backend
+  - `[x]` Crear el script de migración para añadir la columna `remito_retorno` en la tabla `pallets` (`server/scratch/migrate_remito_retorno.js`)
+  - `[x]` Ejecutar el script de migración para aplicar el cambio en la base de datos (se automatizó en shigmaController.js)
+  - `[x]` Actualizar el esquema general `server/shigma_setup.sql` para futuros despliegues
+- `[/]` 2. Ajuste del Resumen de RINE
+  - `[/]` Condicionar el renderizado de la fila "Sector" en el modal de confirmación en `ResiduosComunes.jsx`
 - `[x]` Pruebas y Verificación
   - `[x]` Verificar inicialización del servidor y conexión exitosa del pool a RDS
   - `[x]` Validar que el @@session.time_zone sea exactamente -03:00 en AWS RDS

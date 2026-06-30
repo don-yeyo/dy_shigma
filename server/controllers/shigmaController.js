@@ -20,7 +20,7 @@ const ensureBateasTable = async () => {
                 PRIMARY KEY (\`id\`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
         `);
-        
+
         // Contar registros
         const [rows] = await db.query('SELECT COUNT(*) as count FROM `bateas`');
         if (rows[0].count === 0) {
@@ -36,6 +36,51 @@ const ensureBateasTable = async () => {
         console.error('Error al asegurar tabla bateas:', err);
     }
 };
+
+// Asegurar que la columna remito_retorno existe en la tabla pallets y el esquema está actualizado para Recepción Interna
+const ensurePalletsSchemaUpdated = async () => {
+    try {
+        // 1. Agregar remito_retorno si no existe
+        const [remitoRetCol] = await db.query("SHOW COLUMNS FROM pallets LIKE 'remito_retorno'");
+        if (remitoRetCol.length === 0) {
+            console.log("[DB] Agregando columna 'remito_retorno' a la tabla 'pallets'...");
+            await db.query('ALTER TABLE pallets ADD COLUMN remito_retorno varchar(30) DEFAULT NULL AFTER remito;');
+        }
+
+        // 2. Agregar categoria si no existe
+        const [categoriaCol] = await db.query("SHOW COLUMNS FROM pallets LIKE 'categoria'");
+        if (categoriaCol.length === 0) {
+            console.log("[DB] Agregando columna 'categoria' a la tabla 'pallets'...");
+            await db.query('ALTER TABLE pallets ADD COLUMN categoria varchar(50) DEFAULT NULL AFTER cantidad;');
+        }
+
+        // 3. Agregar id_grupo si no existe
+        const [idGrupoCol] = await db.query("SHOW COLUMNS FROM pallets LIKE 'id_grupo'");
+        if (idGrupoCol.length === 0) {
+            console.log("[DB] Agregando columna 'id_grupo' a la tabla 'pallets'...");
+            await db.query('ALTER TABLE pallets ADD COLUMN id_grupo varchar(50) DEFAULT NULL AFTER categoria;');
+        }
+
+        // 4. Modificar tipo_registro enum para incluir 'Recepción Interna'
+        const [tipoRegCol] = await db.query("SHOW COLUMNS FROM pallets LIKE 'tipo_registro'");
+        if (tipoRegCol.length > 0 && !tipoRegCol[0].Type.includes('Recepción Interna')) {
+            console.log("[DB] Modificando enum tipo_registro en la tabla 'pallets' para incluir 'Recepción Interna'...");
+            await db.query(`
+                ALTER TABLE pallets MODIFY COLUMN tipo_registro 
+                enum('Descartes', 'Reparación Interna', 'Reparación Externa', 'Ingreso de Nuevos', 'Entrega Interna', 'Entrega Externa', 'Recepción Interna') NOT NULL
+            `);
+        }
+        console.log("[DB] Esquema de tabla 'pallets' validado y actualizado con éxito.");
+    } catch (err) {
+        console.error('[DB] Error al asegurar esquema actualizado en pallets:', err.message);
+    }
+};
+
+// Ejecutar inicializaciones asíncronas
+(async () => {
+    await ensureBateasTable();
+    await ensurePalletsSchemaUpdated();
+})();
 
 // Mapeo de tipos de formulario a tablas en base de datos (Plurales, Minúsculas y Snake Case)
 const formTables = {
@@ -65,7 +110,7 @@ const formPrefixes = {
 
 // Nombres legibles por formulario
 const formNames = {
-    'residuos-comunes': 'Residuos No Especiales (RINE)',
+    'residuos-comunes': 'Residuos Industriales No Especiales (RINE)',
     'residuos-especiales': 'Residuos Especiales',
     'devoluciones': 'Devoluciones',
     'tratamiento': 'Tratamiento de Residuos',
@@ -655,7 +700,7 @@ const shigmaController = {
             await connection.beginTransaction();
 
             const { bateaId } = req.params;
-            
+
             // Soportar tanto camelCase como snake_case que Netlify a veces deforma o altera
             const body = req.body || {};
             const fecha = body.fecha || body.fecha_despacho;
@@ -669,7 +714,7 @@ const shigmaController = {
             console.log('[DEBUG restartBatea] Extraídos:', { fecha, hora, nroManifiesto, pesoBalanza, usuario });
 
             if (!fecha || !hora || !nroManifiesto || pesoBalanza === undefined || pesoBalanza === null || pesoBalanza === '') {
-                return res.status(400).json({ 
+                return res.status(400).json({
                     error: 'Faltan campos obligatorios: fecha, hora, nroManifiesto y pesoBalanza son obligatorios.',
                     debugReceived: { fecha, hora, nroManifiesto, pesoBalanza, usuario },
                     rawBody: body
@@ -701,9 +746,9 @@ const shigmaController = {
                 return res.status(400).json({ error: 'No hay residuos cargados en esta batea para vaciar.' });
             }
 
-            const pesoAcumulado = activeRc.reduce((sum, r) => sum + parseFloat(r.peso || 0), 0) + 
-                                  activeDev.reduce((sum, r) => sum + parseFloat(r.peso || 0), 0);
-            
+            const pesoAcumulado = activeRc.reduce((sum, r) => sum + parseFloat(r.peso || 0), 0) +
+                activeDev.reduce((sum, r) => sum + parseFloat(r.peso || 0), 0);
+
             const recordIds = [
                 ...activeRc.map(r => r.id),
                 ...activeDev.map(r => r.id)
@@ -1552,7 +1597,7 @@ const shigmaController = {
     getDepositoOperadores: async (req, res) => {
         try {
             const user = req.currentUser;
-            
+
             // Si es sysadmin, listamos todos los operadores activos
             if (user.rol === 'sysadmin') {
                 const [allOps] = await db.query(

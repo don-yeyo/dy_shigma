@@ -190,10 +190,13 @@ CREATE TABLE IF NOT EXISTS `economia_circular` (
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `pallets` (
   `id` varchar(30) NOT NULL,
-  `tipo_registro` enum('Descartes', 'Reparación Interna', 'Reparación Externa', 'Ingreso de Nuevos', 'Entrega Interna', 'Entrega Externa') NOT NULL,
+  `tipo_registro` enum('Descartes', 'Reparación Interna', 'Reparación Externa', 'Ingreso de Nuevos', 'Entrega Interna', 'Entrega Externa', 'Recepción Interna') NOT NULL,
   `cantidad` int NOT NULL,
+  `categoria` varchar(50) DEFAULT NULL, -- Categoría de los pallets en Recepción Interna (Reparables, Irreparables, Descartables)
+  `id_grupo` varchar(50) DEFAULT NULL, -- Identificador de grupo para enlazar múltiples registros de Recepción Interna
   `destino` varchar(100) DEFAULT NULL,
   `remito` varchar(30) DEFAULT NULL,
+  `remito_retorno` varchar(30) DEFAULT NULL, -- Remito de retorno para reparaciones externas
   `proveedor` varchar(100) DEFAULT NULL,
   `planta` varchar(100) DEFAULT NULL,
   `sector` varchar(100) DEFAULT NULL,
@@ -367,19 +370,19 @@ DELIMITER $$
 CREATE TRIGGER `trg_residuos_comunes_ins` AFTER INSERT ON `residuos_comunes` FOR EACH ROW
 BEGIN
   INSERT INTO auditoria (entidad, idEntidad, usuario, operador, operacion, evento, modulo)
-  VALUES ('residuos_comunes', NEW.id, NEW.usuario, NEW.responsable, 'create', 'Nuevo residuo no especial (RINE) registrado', 'Residuos No Especiales (RINE)');
+  VALUES ('residuos_comunes', NEW.id, NEW.usuario, NEW.responsable, 'create', 'Nuevo residuo no especial (RINE) registrado', 'Residuos Industriales No Especiales (RINE)');
 END$$
 
 CREATE TRIGGER `trg_residuos_comunes_upd` AFTER UPDATE ON `residuos_comunes` FOR EACH ROW
 BEGIN
   INSERT INTO auditoria (entidad, idEntidad, usuario, operador, operacion, evento, modulo)
-  VALUES ('residuos_comunes', NEW.id, NEW.usuario, NEW.responsable, 'update', 'Actualización de datos del lote de RINE', 'Residuos No Especiales (RINE)');
+  VALUES ('residuos_comunes', NEW.id, NEW.usuario, NEW.responsable, 'update', 'Actualización de datos del lote de RINE', 'Residuos Industriales No Especiales (RINE)');
 END$$
 
 CREATE TRIGGER `trg_residuos_comunes_del` AFTER DELETE ON `residuos_comunes` FOR EACH ROW
 BEGIN
   INSERT INTO auditoria (entidad, idEntidad, usuario, operador, operacion, evento, modulo)
-  VALUES ('residuos_comunes', OLD.id, OLD.usuario, OLD.responsable, 'delete', 'Eliminación del registro de RINE', 'Residuos No Especiales (RINE)');
+  VALUES ('residuos_comunes', OLD.id, OLD.usuario, OLD.responsable, 'delete', 'Eliminación del registro de RINE', 'Residuos Industriales No Especiales (RINE)');
 END$$
 
 -- ------------------------------------------------------------

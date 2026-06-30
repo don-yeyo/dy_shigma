@@ -108,7 +108,7 @@ const Dashboard = () => {
     const modules = [
         {
             icon: <Trash2 size={24} />,
-            title: 'Residuos No Especiales (RINE)',
+            title: 'Residuos Industriales No Especiales (RINE)',
             description: 'Registrar pesajes de residuos industriales no especiales generados.',
             path: '/residuos-comunes',
             color: 'var(--success)'

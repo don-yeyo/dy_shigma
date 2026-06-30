@@ -23,7 +23,7 @@ const Drawer = ({ isOpen, onClose }) => {
     ];
 
     const formItems = [
-        { icon: <Trash2 size={18} />, label: 'Residuos No Especiales (RINE)', path: '/residuos-comunes', modulo: 'residuos-comunes' },
+        { icon: <Trash2 size={18} />, label: 'Residuos Ind. No Especiales (RINE)', path: '/residuos-comunes', modulo: 'residuos-comunes' },
         { icon: <Scale size={18} />, label: 'Gestión de Bateas', path: '/gestion-bateas', modulo: 'gestion-bateas' },
         { icon: <Package size={18} />, label: 'Gestión de Depósito', path: '/gestion-deposito', modulo: 'gestion-bateas' },
         { icon: <ShieldAlert size={18} />, label: 'Residuos Especiales', path: '/residuos-especiales', modulo: 'residuos-especiales' },

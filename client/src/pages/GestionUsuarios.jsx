@@ -9,7 +9,7 @@ import {
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
 const MODULO_LABELS = {
-    'residuos-comunes': 'Residuos No Especiales (RINE)',
+    'residuos-comunes': 'Residuos Industriales No Especiales (RINE)',
     'gestion-bateas': 'Gestión de Bateas',
     'residuos-especiales': 'Residuos Especiales',
     'devoluciones': 'Devoluciones',
@@ -393,7 +393,7 @@ const GestionUsuarios = () => {
             const res = await UsersService.getUsuarios();
             setUsuarios(res.data.usuarios);
             setModulosDisponibles(res.data.modulos_disponibles);
-            
+
             // Cargar operadores disponibles
             const resOps = await SHIGMAService.getOperadores();
             setOperadoresDisponibles(resOps.data || []);
