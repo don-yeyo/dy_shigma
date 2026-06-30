@@ -284,7 +284,7 @@ const Devoluciones = () => {
                     }}>
                         <div>
                             <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '500', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
-                                Fecha de la Carga *
+                                Fecha *
                             </label>
                             <input
                                 ref={dateInputRef}
@@ -313,7 +313,7 @@ const Devoluciones = () => {
                         </div>
                         <div>
                             <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '500', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
-                                Hora de la Carga *
+                                Hora *
                             </label>
                             <input
                                 type="time"

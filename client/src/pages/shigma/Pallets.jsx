@@ -1,23 +1,30 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Package, ArrowLeft, Send, Trash2, Wrench, Hammer, PlusCircle, ArrowRightLeft, Truck } from 'lucide-react';
+import { Package, ArrowLeft, Send, Trash2, Wrench, Hammer, PlusCircle, ArrowRightLeft, Truck, RotateCcw } from 'lucide-react';
 import { Card, Input, Select, Textarea, NumberInput } from '../../components/FormElements';
 import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
 import { SHIGMAService } from '../../services/api';
 import { validateRecordDate, getDateConstraints } from '../../utils/dateUtils';
 import { useMobile } from '../../config/ThemeContext';
+import { useAuth } from '../../config/AuthContext';
 
 const Pallets = () => {
     const isMobile = useMobile();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const editId = searchParams.get('edit');
+    const { user } = useAuth();
     const [submitting, setSubmitting] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successId, setSuccessId] = useState('');
     const [operadores, setOperadores] = useState([]);
     const [alertModal, setAlertModal] = useState({ isOpen: false, title: '', message: '' });
+
+    // Estados para control de retornos de reparación (trazabilidad)
+    const [pendientes, setPendientes] = useState([]);
+    const [selectedPendienteId, setSelectedPendienteId] = useState(null);
+    const [modoRetorno, setModoRetorno] = useState(false);
 
     const showAlert = (title, message) => setAlertModal({ isOpen: true, title, message });
 
@@ -66,9 +73,9 @@ const Pallets = () => {
         { id: 'Lavado de Cajones', label: 'Lavado de Cajones' },
         { id: 'Mantenimiento', label: 'Mantenimiento' },
         { id: 'Materias Primas', label: 'Materias Primas' },
-        { id: 'Otros', label: 'Otros' },
         { id: 'Producción', label: 'Producción' },
-        { id: 'Reciclado', label: 'Reciclado' }
+        { id: 'Reciclado', label: 'Reciclado' },
+        { id: 'Otros', label: 'Otros' }
     ];
 
     const fetchOperadores = async () => {
@@ -93,8 +100,23 @@ const Pallets = () => {
         }
     };
 
+    const fetchPendientes = async () => {
+        try {
+            const response = await SHIGMAService.getRecordsByForm('pallets');
+            const recs = response.data || [];
+            const pends = recs.filter(r =>
+                (r.tipoRegistro === 'Reparación Interna' || r.tipoRegistro === 'Reparación Externa') &&
+                r.estado === 'Retirado'
+            );
+            setPendientes(pends);
+        } catch (error) {
+            console.error('Error fetching pendientes:', error);
+        }
+    };
+
     useEffect(() => {
         fetchOperadores();
+        fetchPendientes();
     }, []);
 
     useEffect(() => {
@@ -163,9 +185,47 @@ const Pallets = () => {
         }
     };
 
+    const handleSelectPendiente = (record) => {
+        if (selectedPendienteId === record.id) {
+            setSelectedPendienteId(null);
+            setModoRetorno(false);
+            setFormData(prev => ({
+                ...prev,
+                cantidad: '',
+                proveedor: '',
+                remito: '',
+                operarioEntrega: localStorage.getItem('shigma_last_operator_pallets') || '',
+                operarioRecibe: localStorage.getItem('shigma_last_operator_pallets') || '',
+                estado: 'Retirado',
+                fechaCarga: todayStr,
+                horaCarga: nowTimeStr,
+                observaciones: ''
+            }));
+        } else {
+            setSelectedPendienteId(record.id);
+            setModoRetorno(true);
+            const constraints = getDateConstraints();
+            setFormData(prev => ({
+                ...prev,
+                cantidad: String(record.cantidad),
+                proveedor: record.proveedor || '',
+                remito: record.remito || '',
+                operarioEntrega: record.operarioEntrega || '',
+                operarioRecibe: localStorage.getItem('shigma_last_operator_pallets') || '',
+                estado: 'Devuelto',
+                fechaCarga: constraints.todayStr,
+                horaCarga: constraints.nowTimeStr,
+                observaciones: record.observaciones || ''
+            }));
+        }
+    };
+
     const handleTypeChange = (type) => {
         const defaultState = (type === 'Reparación Interna' || type === 'Reparación Externa') ? 'Retirado' : '';
         const lastOperator = localStorage.getItem('shigma_last_operator_pallets') || '';
+
+        setSelectedPendienteId(null);
+        setModoRetorno(false);
 
         setFormData(prev => ({
             ...prev,
@@ -177,7 +237,11 @@ const Pallets = () => {
             sector: '',
             operarioEntrega: lastOperator,
             operarioRecibe: lastOperator,
-            estado: defaultState
+            estado: defaultState,
+            fechaCarga: todayStr,
+            horaCarga: nowTimeStr,
+            cantidad: '',
+            observaciones: ''
         }));
     };
 
@@ -206,12 +270,20 @@ const Pallets = () => {
             if (!formData.remito.trim()) return showAlert('Campo requerido', 'Ingrese el número de Remito.');
             if (!formData.operarioEntrega) return showAlert('Campo requerido', 'Seleccione el Operario de entrega.');
         } else if (formData.tipoRegistro === 'Reparación Externa') {
-            if (!formData.operarioEntrega) return showAlert('Campo requerido', 'Seleccione el Operario de entrega.');
-            if (!formData.proveedor.trim()) return showAlert('Campo requerido', 'Ingrese el Proveedor.');
-            if (!formData.remito.trim()) return showAlert('Campo requerido', 'Ingrese el número de Remito.');
+            if (modoRetorno) {
+                if (!formData.operarioRecibe) return showAlert('Campo requerido', 'Seleccione el Operario que recibe el retorno.');
+            } else {
+                if (!formData.operarioEntrega) return showAlert('Campo requerido', 'Seleccione el Operario de entrega.');
+                if (!formData.proveedor.trim()) return showAlert('Campo requerido', 'Ingrese el Proveedor.');
+                if (!formData.remito.trim()) return showAlert('Campo requerido', 'Ingrese el número de Remito.');
+            }
         } else if (formData.tipoRegistro === 'Reparación Interna') {
-            if (!formData.operarioEntrega) return showAlert('Campo requerido', 'Seleccione el Operario de entrega.');
-            if (!formData.operarioRecibe) return showAlert('Campo requerido', 'Seleccione el Operario que recibe.');
+            if (modoRetorno) {
+                if (!formData.operarioRecibe) return showAlert('Campo requerido', 'Seleccione el Operario que recibe el retorno.');
+            } else {
+                if (!formData.operarioEntrega) return showAlert('Campo requerido', 'Seleccione el Operario de entrega.');
+                if (!formData.operarioRecibe) return showAlert('Campo requerido', 'Seleccione el Operario que recibe en el taller.');
+            }
         } else if (formData.tipoRegistro === 'Ingreso de Nuevos') {
             if (!formData.proveedor.trim()) return showAlert('Campo requerido', 'Ingrese el Proveedor.');
             if (!formData.remito.trim()) return showAlert('Campo requerido', 'Ingrese el número de Remito.');
@@ -229,65 +301,90 @@ const Pallets = () => {
 
         setSubmitting(true);
         try {
-            // Estructurar el payload final limpiando campos no aplicables
-            const payload = {
-                tipoRegistro: formData.tipoRegistro,
-                cantidad: parseInt(formData.cantidad) || 0,
-                observaciones: formData.observaciones ? formData.observaciones.trim() : null,
-                createdAt: combinedCreatedAt,
-                destino: null,
-                remito: null,
-                proveedor: null,
-                planta: null,
-                sector: null,
-                operarioEntrega: null,
-                operarioRecibe: null,
-                estado: null
-            };
+            if (modoRetorno) {
+                const combinedFechaHora = `${formData.fechaCarga}T${formData.horaCarga}`;
+                const recordOriginal = pendientes.find(r => r.id === selectedPendienteId);
 
-            if (formData.tipoRegistro === 'Descartes') {
-                payload.destino = formData.destino.trim();
-                payload.remito = formData.remito.trim();
-                payload.operarioEntrega = formData.operarioEntrega;
-            } else if (formData.tipoRegistro === 'Reparación Externa') {
-                payload.operarioEntrega = formData.operarioEntrega;
-                payload.proveedor = formData.proveedor.trim();
-                payload.remito = formData.remito.trim();
-                payload.estado = editId ? (formData.estado || 'Retirado') : 'Retirado';
-            } else if (formData.tipoRegistro === 'Reparación Interna') {
-                payload.operarioEntrega = formData.operarioEntrega;
-                payload.operarioRecibe = formData.operarioRecibe;
-                payload.estado = editId ? (formData.estado || 'Retirado') : 'Retirado';
-            } else if (formData.tipoRegistro === 'Ingreso de Nuevos') {
-                payload.proveedor = formData.proveedor.trim();
-                payload.remito = formData.remito.trim();
-                payload.operarioRecibe = formData.operarioRecibe;
-            } else if (formData.tipoRegistro === 'Entrega Interna') {
-                payload.planta = formData.planta;
-                payload.sector = formData.sector;
-                payload.operarioEntrega = formData.operarioEntrega;
-                payload.operarioRecibe = formData.operarioRecibe;
-            } else if (formData.tipoRegistro === 'Entrega Externa') {
-                payload.proveedor = formData.proveedor.trim();
-                payload.remito = formData.remito.trim();
-                payload.operarioEntrega = formData.operarioEntrega;
+                const payload = {
+                    ...recordOriginal,
+                    estado: 'Devuelto',
+                    operarioRecibe: formData.operarioRecibe,
+                    fechaDevolucion: combinedFechaHora,
+                    usuarioDevolucion: user?.nombre || 'Gabriel Tonelli',
+                    observaciones: formData.observaciones ? formData.observaciones.trim() : recordOriginal.observaciones
+                };
+
+                await SHIGMAService.updateRecord('pallets', selectedPendienteId, payload);
+                setSuccessId(selectedPendienteId);
+                setShowSuccessModal(true);
+
+                // Recargar lista de pendientes y resetear selección
+                await fetchPendientes();
+                setSelectedPendienteId(null);
+                setModoRetorno(false);
+            } else {
+                // Estructurar el payload final limpiando campos no aplicables (creación o edición clásica)
+                const payload = {
+                    tipoRegistro: formData.tipoRegistro,
+                    cantidad: parseInt(formData.cantidad) || 0,
+                    observaciones: formData.observaciones ? formData.observaciones.trim() : null,
+                    createdAt: combinedCreatedAt,
+                    destino: null,
+                    remito: null,
+                    proveedor: null,
+                    planta: null,
+                    sector: null,
+                    operarioEntrega: null,
+                    operarioRecibe: null,
+                    estado: null
+                };
+
+                if (formData.tipoRegistro === 'Descartes') {
+                    payload.destino = formData.destino.trim();
+                    payload.remito = formData.remito.trim();
+                    payload.operarioEntrega = formData.operarioEntrega;
+                } else if (formData.tipoRegistro === 'Reparación Externa') {
+                    payload.operarioEntrega = formData.operarioEntrega;
+                    payload.proveedor = formData.proveedor.trim();
+                    payload.remito = formData.remito.trim();
+                    payload.estado = editId ? (formData.estado || 'Retirado') : 'Retirado';
+                } else if (formData.tipoRegistro === 'Reparación Interna') {
+                    payload.operarioEntrega = formData.operarioEntrega;
+                    payload.operarioRecibe = formData.operarioRecibe;
+                    payload.estado = editId ? (formData.estado || 'Retirado') : 'Retirado';
+                } else if (formData.tipoRegistro === 'Ingreso de Nuevos') {
+                    payload.proveedor = formData.proveedor.trim();
+                    payload.remito = formData.remito.trim();
+                    payload.operarioRecibe = formData.operarioRecibe;
+                } else if (formData.tipoRegistro === 'Entrega Interna') {
+                    payload.planta = formData.planta;
+                    payload.sector = formData.sector;
+                    payload.operarioEntrega = formData.operarioEntrega;
+                    payload.operarioRecibe = formData.operarioRecibe;
+                } else if (formData.tipoRegistro === 'Entrega Externa') {
+                    payload.proveedor = formData.proveedor.trim();
+                    payload.remito = formData.remito.trim();
+                    payload.operarioEntrega = formData.operarioEntrega;
+                }
+
+                if (editId) {
+                    await SHIGMAService.updateRecord('pallets', editId, payload);
+                    setSuccessId(editId);
+                    setShowSuccessModal(true);
+                } else {
+                    const response = await SHIGMAService.createRecord('pallets', payload);
+                    setSuccessId(response.data.record.id);
+                    setShowSuccessModal(true);
+                }
             }
 
-            if (editId) {
-                await SHIGMAService.updateRecord('pallets', editId, payload);
-                setSuccessId(editId);
-                setShowSuccessModal(true);
-            } else {
-                const response = await SHIGMAService.createRecord('pallets', payload);
-                setSuccessId(response.data.record.id);
-                setShowSuccessModal(true);
-
-                // Reset form
+            // Resetear formulario si no es edición clásica de URL
+            if (!editId) {
                 const constraints = getDateConstraints();
                 setFormData({
                     fechaCarga: constraints.todayStr,
                     horaCarga: constraints.nowTimeStr,
-                    tipoRegistro: '',
+                    tipoRegistro: formData.tipoRegistro,
                     cantidad: '',
                     destino: '',
                     remito: '',
@@ -380,12 +477,69 @@ const Pallets = () => {
 
             {formData.tipoRegistro && (
                 <form onSubmit={handleSubmit}>
+
+                    {/* Lista de Reparaciones Pendientes (Solo si aplica) */}
+                    {(formData.tipoRegistro === 'Reparación Interna' || formData.tipoRegistro === 'Reparación Externa') && pendientes.filter(p => p.tipoRegistro === formData.tipoRegistro).length > 0 && (
+                        <div style={{ marginBottom: '24px', padding: '16px', background: 'var(--surface-hover)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                            <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
+                                Reparaciones Pendientes de Retorno (Trazabilidad)
+                            </label>
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                                Seleccione un envío para registrar su retorno o deje sin seleccionar ninguno para crear una nueva entrega a reparar.
+                            </p>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto' }}>
+                                {pendientes
+                                    .filter(p => p.tipoRegistro === formData.tipoRegistro)
+                                    .map(p => {
+                                        const isSelected = selectedPendienteId === p.id;
+                                        return (
+                                            <div
+                                                key={p.id}
+                                                onClick={() => handleSelectPendiente(p)}
+                                                style={{
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'center',
+                                                    padding: '12px 16px',
+                                                    borderRadius: '8px',
+                                                    border: `1px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
+                                                    background: isSelected ? 'rgba(20, 184, 166, 0.08)' : 'var(--surface)',
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.2s',
+                                                    userSelect: 'none'
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                    <span style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--text)' }}>
+                                                        ID: {p.id} | Cantidad: {p.cantidad} pallets
+                                                    </span>
+                                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                                        Fecha Envío: {new Date(p.createdAt || p.fecha).toLocaleDateString('es-AR')} | {p.proveedor ? `Proveedor: ${p.proveedor}` : 'Taller Propio'}
+                                                    </span>
+                                                </div>
+                                                <span style={{
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: '700',
+                                                    padding: '4px 8px',
+                                                    borderRadius: '6px',
+                                                    background: isSelected ? 'var(--primary)' : 'rgba(245, 158, 11, 0.1)',
+                                                    color: isSelected ? 'var(--btn-primary-text)' : '#f59e0b'
+                                                }}>
+                                                    {isSelected ? 'Seleccionado (Registrar Retorno)' : 'Pendiente Retorno'}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                            </div>
+                        </div>
+                    )}
+
                     <Card style={{ borderLeft: `4px solid ${selectOptions.find(o => o.id === formData.tipoRegistro)?.color || '#14b8a6'}` }}>
                         <div className="form-section-title" style={{
                             color: selectOptions.find(o => o.id === formData.tipoRegistro)?.color || '#14b8a6',
                             borderColor: `${selectOptions.find(o => o.id === formData.tipoRegistro)?.color || '#14b8a6'}20`
                         }}>
-                            Datos del Movimiento: {formData.tipoRegistro}
+                            {modoRetorno ? 'Registrar Retorno de Reparación' : 'Datos del Movimiento'}: {formData.tipoRegistro}
                         </div>
 
                         {/* Fecha y Hora de la Carga */}
@@ -398,8 +552,8 @@ const Pallets = () => {
                             marginBottom: '24px'
                         }}>
                             <div>
-                                <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
-                                    Fecha de la Carga *
+                                <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
+                                    {modoRetorno ? 'Fecha de Retorno *' : 'Fecha *'}
                                 </label>
                                 <input
                                     ref={dateInputRef}
@@ -427,8 +581,8 @@ const Pallets = () => {
                                 />
                             </div>
                             <div>
-                                <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
-                                    Hora de la Carga *
+                                <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
+                                    {modoRetorno ? 'Hora de Retorno *' : 'Hora *'}
                                 </label>
                                 <input
                                     type="time"
@@ -460,6 +614,7 @@ const Pallets = () => {
                                 onChange={handleChange}
                                 min={1}
                                 required
+                                disabled={modoRetorno}
                             />
                         </div>
 
@@ -491,7 +646,7 @@ const Pallets = () => {
                                     />
                                 </div>
                                 <Select
-                                    label="Operario Entrega *"
+                                    label="Operario que Entrega *"
                                     name="operarioEntrega"
                                     value={formData.operarioEntrega}
                                     onChange={handleChange}
@@ -515,6 +670,7 @@ const Pallets = () => {
                                         value={formData.proveedor}
                                         onChange={handleChange}
                                         required
+                                        disabled={modoRetorno}
                                     />
                                     <Input
                                         label="Remito *"
@@ -525,35 +681,12 @@ const Pallets = () => {
                                         value={formData.remito}
                                         onChange={handleChange}
                                         required
+                                        disabled={modoRetorno}
                                     />
                                 </div>
-                                <Select
-                                    label="Operario Entrega *"
-                                    name="operarioEntrega"
-                                    value={formData.operarioEntrega}
-                                    onChange={handleChange}
-                                    options={operadores.map(op => ({ id: op.apellidoNombre, label: op.apellidoNombre }))}
-                                    includePlaceholder={true}
-                                    required
-                                />
-                            </>
-                        )}
-
-                        {/* Reparación Interna */}
-                        {formData.tipoRegistro === 'Reparación Interna' && (
-                            <>
-                                <div className="form-grid" style={isMobile ? { display: 'flex', flexDirection: 'column', gap: '16px' } : {}}>
+                                {modoRetorno ? (
                                     <Select
-                                        label="Operario Entrega *"
-                                        name="operarioEntrega"
-                                        value={formData.operarioEntrega}
-                                        onChange={handleChange}
-                                        options={operadores.map(op => ({ id: op.apellidoNombre, label: op.apellidoNombre }))}
-                                        includePlaceholder={true}
-                                        required
-                                    />
-                                    <Select
-                                        label="Operario Recibe *"
+                                        label="Operario que Recibe (Retorno) *"
                                         name="operarioRecibe"
                                         value={formData.operarioRecibe}
                                         onChange={handleChange}
@@ -561,7 +694,55 @@ const Pallets = () => {
                                         includePlaceholder={true}
                                         required
                                     />
-                                </div>
+                                ) : (
+                                    <Select
+                                        label="Operario que Entrega *"
+                                        name="operarioEntrega"
+                                        value={formData.operarioEntrega}
+                                        onChange={handleChange}
+                                        options={operadores.map(op => ({ id: op.apellidoNombre, label: op.apellidoNombre }))}
+                                        includePlaceholder={true}
+                                        required
+                                    />
+                                )}
+                            </>
+                        )}
+
+                        {/* Reparación Interna */}
+                        {formData.tipoRegistro === 'Reparación Interna' && (
+                            <>
+                                {modoRetorno ? (
+                                    <Select
+                                        label="Operario que Recibe (Retorno) *"
+                                        name="operarioRecibe"
+                                        value={formData.operarioRecibe}
+                                        onChange={handleChange}
+                                        options={operadores.map(op => ({ id: op.apellidoNombre, label: op.apellidoNombre }))}
+                                        includePlaceholder={true}
+                                        required
+                                    />
+                                ) : (
+                                    <div className="form-grid" style={isMobile ? { display: 'flex', flexDirection: 'column', gap: '16px' } : {}}>
+                                        <Select
+                                            label="Operario que Entrega *"
+                                            name="operarioEntrega"
+                                            value={formData.operarioEntrega}
+                                            onChange={handleChange}
+                                            options={operadores.map(op => ({ id: op.apellidoNombre, label: op.apellidoNombre }))}
+                                            includePlaceholder={true}
+                                            required
+                                        />
+                                        <Select
+                                            label="Operario que Recibe (Taller) *"
+                                            name="operarioRecibe"
+                                            value={formData.operarioRecibe}
+                                            onChange={handleChange}
+                                            options={operadores.map(op => ({ id: op.apellidoNombre, label: op.apellidoNombre }))}
+                                            includePlaceholder={true}
+                                            required
+                                        />
+                                    </div>
+                                )}
                             </>
                         )}
 
@@ -591,7 +772,7 @@ const Pallets = () => {
                                     />
                                 </div>
                                 <Select
-                                    label="Operario Recibe *"
+                                    label="Operario que Recibe *"
                                     name="operarioRecibe"
                                     value={formData.operarioRecibe}
                                     onChange={handleChange}
@@ -627,7 +808,7 @@ const Pallets = () => {
                                 </div>
                                 <div className="form-grid" style={isMobile ? { display: 'flex', flexDirection: 'column', gap: '16px' } : {}}>
                                     <Select
-                                        label="Operario Entrega *"
+                                        label="Operario que Entrega *"
                                         name="operarioEntrega"
                                         value={formData.operarioEntrega}
                                         onChange={handleChange}
@@ -636,7 +817,7 @@ const Pallets = () => {
                                         required
                                     />
                                     <Select
-                                        label="Operario Recibe *"
+                                        label="Operario que Recibe *"
                                         name="operarioRecibe"
                                         value={formData.operarioRecibe}
                                         onChange={handleChange}
@@ -674,7 +855,7 @@ const Pallets = () => {
                                     />
                                 </div>
                                 <Select
-                                    label="Operario Entrega *"
+                                    label="Operario que Entrega *"
                                     name="operarioEntrega"
                                     value={formData.operarioEntrega}
                                     onChange={handleChange}
@@ -711,7 +892,7 @@ const Pallets = () => {
                             disabled={submitting}
                             style={{ background: selectOptions.find(o => o.id === formData.tipoRegistro)?.color || '#14b8a6', color: '#fff' }}
                         >
-                            <Send size={18} /> {submitting ? 'Guardando...' : editId ? 'Guardar Cambios' : 'Registrar Movimiento'}
+                            <Send size={18} /> {submitting ? 'Guardando...' : editId ? 'Guardar Cambios' : modoRetorno ? 'Registrar Retorno de Reparación' : 'Registrar Movimiento'}
                         </Button>
                     </div>
                 </form>

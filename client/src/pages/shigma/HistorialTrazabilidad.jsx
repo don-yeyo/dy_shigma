@@ -104,7 +104,7 @@ const HistorialTrazabilidad = () => {
                     unidad: 'kg'
                 }
             };
-            
+
             await SHIGMAService.updateRecord('residuos-comunes', editAjusteModal.record.id, {
                 peso: diff,
                 observaciones: editAjusteModal.observaciones,
@@ -113,7 +113,7 @@ const HistorialTrazabilidad = () => {
             });
 
             setEditAjusteModal(prev => ({ ...prev, isOpen: false, record: null }));
-            
+
             setDeleteStatusModal({
                 isOpen: true,
                 title: 'Ajuste Modificado',
@@ -131,7 +131,7 @@ const HistorialTrazabilidad = () => {
 
     const handleDevolucionSubmit = async (e) => {
         if (e) e.preventDefault();
-        
+
         if (!devolucionModal.operarioRecibe) {
             alert('Por favor, seleccione el operario que recibe.');
             return;
@@ -140,7 +140,7 @@ const HistorialTrazabilidad = () => {
         setSavingDevolucion(true);
         try {
             const combinedFechaHora = `${devolucionModal.fechaDevolucion}T${devolucionModal.horaDevolucion}`;
-            
+
             await SHIGMAService.updateRecord('pallets', devolucionModal.record.id, {
                 ...devolucionModal.record,
                 estado: 'Devuelto',
@@ -150,7 +150,7 @@ const HistorialTrazabilidad = () => {
             });
 
             setDevolucionModal(prev => ({ ...prev, isOpen: false, record: null }));
-            
+
             setDeleteStatusModal({
                 isOpen: true,
                 title: 'Devolución Registrada',
@@ -280,7 +280,7 @@ const HistorialTrazabilidad = () => {
     const handleExportExcel = async () => {
         const exportType = exportModal.exportType;
         const sinceDateVal = exportModal.sinceDate;
-        
+
         setExportModal(prev => ({ ...prev, isOpen: false }));
         setLoading(true);
         try {
@@ -306,7 +306,7 @@ const HistorialTrazabilidad = () => {
             const excelRows = exportRecords.map(r => {
                 const date = new Date(r.createdAt || r.fecha).toLocaleDateString('es-AR');
                 const sector = r.sector || r.sectorOrigen || r.clienteOrigen || r.espacioVerde || r.bateaNombre || 'N/A';
-                
+
                 // Generar un desglose amigable del detalle de registro
                 let detalleAmigable = '';
                 if (r.formType === 'residuos-comunes') {
@@ -461,23 +461,43 @@ const HistorialTrazabilidad = () => {
             if (record.proveedor) details.push({ label: 'Proveedor', value: record.proveedor });
             if (record.planta) details.push({ label: 'Planta', value: record.planta });
             if (record.sector) details.push({ label: 'Sector', value: record.sector });
-            if (record.operarioEntrega) details.push({ label: 'Operario Entrega', value: record.operarioEntrega });
-            if (record.operarioRecibe) details.push({ label: 'Operario Recibe', value: record.operarioRecibe });
+
+            if (record.operarioEntrega) {
+                details.push({ label: 'Operario que Entrega (Salida)', value: record.operarioEntrega });
+                const fechaSalidaStr = new Date(record.createdAt || record.fecha).toLocaleString('es-AR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                details.push({ label: 'Fecha de Salida', value: `${fechaSalidaStr} hs` });
+            }
+
             if (record.estado) {
-                details.push({ label: 'Estado', value: record.estado });
-                if (record.estado === 'Devuelto' && record.fechaDevolucion) {
-                    const devDate = new Date(record.fechaDevolucion).toLocaleString('es-AR', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-                    details.push({ label: 'Fecha Devolución', value: `${devDate} hs` });
+                const estadoLegible = record.estado === 'Devuelto' ? 'Devuelto (Completado)' : 'Retirado (Pendiente)';
+                details.push({ label: 'Estado', value: estadoLegible });
+
+                if (record.estado === 'Devuelto') {
+                    if (record.operarioRecibe) {
+                        details.push({ label: 'Operario que Recibe (Retorno)', value: record.operarioRecibe });
+                    }
+                    if (record.fechaDevolucion) {
+                        const devDate = new Date(record.fechaDevolucion).toLocaleString('es-AR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                        details.push({ label: 'Fecha de Retorno', value: `${devDate} hs` });
+                    }
                     if (record.usuarioDevolucion) {
-                        details.push({ label: 'Devuelto por', value: record.usuarioDevolucion });
+                        details.push({ label: 'Recepción grabada por', value: record.usuarioDevolucion });
                     }
                 }
+            } else {
+                if (record.operarioRecibe) details.push({ label: 'Operario que Recibe', value: record.operarioRecibe });
             }
         } else if (record.formType === 'espacios-verdes') {
             details.push({ label: 'Zona Ambiental', value: record.espacioVerde });
@@ -593,26 +613,26 @@ const HistorialTrazabilidad = () => {
                             <Pencil size={16} /> Modificar Registro
                         </Button>
                     )}
-                    {record.formType === 'pallets' && 
-                     (record.tipoRegistro === 'Reparación Interna' || record.tipoRegistro === 'Reparación Externa') && 
-                     record.estado === 'Retirado' && (
-                        <Button
-                            variant="primary"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                openDevolucionModal(record);
-                            }}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                background: '#14b8a6',
-                                color: '#fff'
-                            }}
-                        >
-                            <Check size={16} /> Registrar Devolución
-                        </Button>
-                    )}
+                    {record.formType === 'pallets' &&
+                        (record.tipoRegistro === 'Reparación Interna' || record.tipoRegistro === 'Reparación Externa') &&
+                        record.estado === 'Retirado' && (
+                            <Button
+                                variant="primary"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    openDevolucionModal(record);
+                                }}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    background: '#14b8a6',
+                                    color: '#fff'
+                                }}
+                            >
+                                <Check size={16} /> Registrar Devolución
+                            </Button>
+                        )}
                 </div>
             </div>
         );
@@ -775,6 +795,19 @@ const HistorialTrazabilidad = () => {
                                             }}>
                                                 {record.responsable === 'Ajuste de Stock' ? 'Ajuste de Depósito' : record.formLabel}
                                             </span>
+                                            {record.formType === 'pallets' && record.estado && (
+                                                <span style={{
+                                                    fontSize: '0.7rem',
+                                                    fontWeight: '800',
+                                                    padding: '2px 8px',
+                                                    borderRadius: '6px',
+                                                    color: record.estado === 'Devuelto' ? 'var(--success)' : '#f59e0b',
+                                                    background: record.estado === 'Devuelto' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 158, 11, 0.08)',
+                                                    textTransform: 'uppercase'
+                                                }}>
+                                                    {record.estado === 'Devuelto' ? 'Devuelto (Completado)' : 'Retirado (Pendiente)'}
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="dy-accordion-subtitle" style={{ marginTop: '8px' }}>
                                             <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -959,7 +992,7 @@ const HistorialTrazabilidad = () => {
                         <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '0.95rem', lineHeight: '1.5' }}>
                             Configure el rango de fechas para la exportación del historial completo a formato Excel (.xlsx) de auditoría. Se aplicarán los filtros activos de tipo de formulario y búsqueda.
                         </p>
-                        
+
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: '600' }}>
                                 <input
@@ -968,10 +1001,10 @@ const HistorialTrazabilidad = () => {
                                     checked={exportModal.exportType === 'all'}
                                     onChange={() => setExportModal(prev => ({ ...prev, exportType: 'all' }))}
                                     style={{ width: '18px', height: '18px', accentColor: 'var(--success)' }}
-                                  />
+                                />
                                 Exportar todo el historial sin límite de fecha
                             </label>
-                            
+
                             <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: '600' }}>
                                 <input
                                     type="radio"
@@ -1048,7 +1081,7 @@ const HistorialTrazabilidad = () => {
                             <strong>Tipo de Movimiento:</strong> {devolucionModal.record?.tipoRegistro} <br />
                             <strong>Cantidad:</strong> {devolucionModal.record?.cantidad} unidades <br />
                             {devolucionModal.record?.proveedor && <><strong>Proveedor:</strong> {devolucionModal.record.proveedor} <br /></>}
-                            <strong>Operario Entrega:</strong> {devolucionModal.record?.operarioEntrega || 'No asignado'}
+                            <strong>Operario que Entrega:</strong> {devolucionModal.record?.operarioEntrega || 'No asignado'}
                         </div>
 
                         <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
@@ -1110,17 +1143,17 @@ const HistorialTrazabilidad = () => {
                         />
 
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
-                            <Button 
-                                type="button" 
-                                variant="outline" 
+                            <Button
+                                type="button"
+                                variant="outline"
                                 onClick={() => setDevolucionModal(prev => ({ ...prev, isOpen: false, record: null }))}
                                 disabled={savingDevolucion}
                             >
                                 Cancelar
                             </Button>
-                            <Button 
-                                type="submit" 
-                                variant="primary" 
+                            <Button
+                                type="submit"
+                                variant="primary"
                                 className={savingDevolucion ? 'btn-loading' : ''}
                                 disabled={savingDevolucion}
                                 style={{ background: '#14b8a6', color: '#fff' }}
@@ -1197,17 +1230,17 @@ const HistorialTrazabilidad = () => {
                         />
 
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-                            <Button 
-                                type="button" 
-                                variant="outline" 
+                            <Button
+                                type="button"
+                                variant="outline"
                                 onClick={() => setEditAjusteModal(prev => ({ ...prev, isOpen: false, record: null }))}
                                 disabled={savingAjuste}
                             >
                                 Cancelar
                             </Button>
-                            <Button 
-                                type="submit" 
-                                variant="primary" 
+                            <Button
+                                type="submit"
+                                variant="primary"
                                 className={savingAjuste ? 'btn-loading' : ''}
                                 disabled={savingAjuste}
                                 style={{ background: 'var(--dy-red)' }}

@@ -18,14 +18,18 @@ CREATE TABLE `devoluciones` (
   `id` varchar(30) NOT NULL,
   `kilos` decimal(10, 2) NOT NULL,
   `sector` varchar(100) NOT NULL,
+  `destino` varchar(150) NOT NULL DEFAULT 'Batea 1 de Orgánicos',
   `responsable` varchar(100) DEFAULT '',
   `observaciones` text NULL,
+  `batea_salida_id` varchar(30) NULL,
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP(),
   `usuario` varchar(100) DEFAULT '',
   `ediciones` int NOT NULL DEFAULT 0,
   `usuario_edicion` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_devoluciones_created` (`created_at` DESC)
+  KEY `idx_devoluciones_created` (`created_at` DESC),
+  CONSTRAINT `fk_devoluciones_batea_salida` FOREIGN KEY (`batea_salida_id`) 
+    REFERENCES `bateas_salidas` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- 4. Crear los nuevos triggers de auditoría

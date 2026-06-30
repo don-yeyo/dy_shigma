@@ -260,8 +260,8 @@ const Tratamiento = () => {
                         marginBottom: '24px'
                     }}>
                         <div>
-                            <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
-                                Fecha de la Carga *
+                            <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
+                                Fecha *
                             </label>
                             <input
                                 ref={dateInputRef}
@@ -289,8 +289,8 @@ const Tratamiento = () => {
                             />
                         </div>
                         <div>
-                            <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
-                                Hora de la Carga *
+                            <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
+                                Hora *
                             </label>
                             <input
                                 type="time"
