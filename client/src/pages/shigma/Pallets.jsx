@@ -34,7 +34,7 @@ const Pallets = () => {
     const [formData, setFormData] = useState({
         fechaCarga: todayStr,
         horaCarga: nowTimeStr,
-        tipoRegistro: '', // Descartes, Reparación Interna, Reparación Externa, Ingreso de Nuevos, Entrega Interna, Entrega Externa, Recepción Interna
+        tipoRegistro: '', // Descartes, Reparación Interna, Recepción Externa, Ingreso de Nuevos, Entrega Interna, Entrega Externa, Recepción Interna
         cantidad: '',
         cantidadReparables: '',
         cantidadIrreparables: '',
@@ -43,13 +43,13 @@ const Pallets = () => {
         categoria: '',
         destino: '',
         remito: '',
-        remitoRetorno: '', // Remito de retorno para reparaciones externas
+        remitoRetorno: '', // Remito de retorno para recepciones/reparaciones externas
         proveedor: '',
         planta: '',
         sector: '',
         operarioEntrega: '',
         operarioRecibe: '',
-        estado: '', // 'Retirado', 'Devuelto' for Reparations
+        estado: '', // 'Retirado', 'Devuelto' for Reparations/Receptions
         observaciones: ''
     });
 
@@ -63,7 +63,7 @@ const Pallets = () => {
     const selectOptions = [
         { id: 'Descartes', label: 'Descartes', icon: Trash2, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.04)', selectedBg: 'rgba(239, 68, 68, 0.12)' },
         { id: 'Reparación Interna', label: 'Reparación Interna', icon: Wrench, color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.04)', selectedBg: 'rgba(6, 182, 212, 0.12)' },
-        { id: 'Reparación Externa', label: 'Reparación Externa', icon: Hammer, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.04)', selectedBg: 'rgba(59, 130, 246, 0.12)' },
+        { id: 'Recepción Externa', label: 'Recepción Externa', icon: Hammer, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.04)', selectedBg: 'rgba(59, 130, 246, 0.12)' },
         { id: 'Ingreso de Nuevos', label: 'Ingreso de Nuevos', icon: PlusCircle, color: '#10b981', bg: 'rgba(16, 185, 129, 0.04)', selectedBg: 'rgba(16, 185, 129, 0.12)' },
         { id: 'Entrega Interna', label: 'Entrega Interna', icon: ArrowRightLeft, color: '#84cc16', bg: 'rgba(132, 204, 22, 0.04)', selectedBg: 'rgba(132, 204, 22, 0.12)' },
         { id: 'Entrega Externa', label: 'Entrega Externa', icon: Truck, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.04)', selectedBg: 'rgba(245, 158, 11, 0.12)' },
@@ -113,7 +113,7 @@ const Pallets = () => {
             const response = await SHIGMAService.getRecordsByForm('pallets');
             const recs = response.data || [];
             const pends = recs.filter(r =>
-                (r.tipoRegistro === 'Reparación Interna' || r.tipoRegistro === 'Reparación Externa') &&
+                (r.tipoRegistro === 'Reparación Interna' || r.tipoRegistro === 'Recepción Externa' || r.tipoRegistro === 'Reparación Externa') &&
                 r.estado === 'Retirado'
             );
             setPendientes(pends);
@@ -255,7 +255,7 @@ const Pallets = () => {
     };
 
     const handleTypeChange = (type) => {
-        const defaultState = (type === 'Reparación Interna' || type === 'Reparación Externa') ? 'Retirado' : '';
+        const defaultState = (type === 'Reparación Interna' || type === 'Recepción Externa' || type === 'Reparación Externa') ? 'Retirado' : '';
         const lastOperator = type === 'Reparación Interna' ? '' : (localStorage.getItem('shigma_last_operator_pallets') || '');
 
         setSelectedPendienteId(null);
@@ -321,7 +321,7 @@ const Pallets = () => {
             if (!formData.destino.trim()) return showAlert('Campo requerido', 'Ingrese el Destino del descarte.');
             if (!formData.remito.trim()) return showAlert('Campo requerido', 'Ingrese el número de Remito.');
             if (!formData.operarioEntrega) return showAlert('Campo requerido', 'Seleccione el Operario de entrega.');
-        } else if (formData.tipoRegistro === 'Reparación Externa') {
+        } else if (formData.tipoRegistro === 'Recepción Externa' || formData.tipoRegistro === 'Reparación Externa') {
             if (modoRetorno) {
                 if (!formData.operarioRecibe) return showAlert('Campo requerido', 'Seleccione el Operario que recibe el retorno.');
             } else {
@@ -361,7 +361,7 @@ const Pallets = () => {
                     ...recordOriginal,
                     estado: 'Devuelto',
                     operarioRecibe: recordOriginal.tipoRegistro === 'Reparación Interna' ? null : formData.operarioRecibe,
-                    remitoRetorno: recordOriginal.tipoRegistro === 'Reparación Externa' && formData.remitoRetorno ? formData.remitoRetorno.trim() : null,
+                    remitoRetorno: (recordOriginal.tipoRegistro === 'Recepción Externa' || recordOriginal.tipoRegistro === 'Reparación Externa') && formData.remitoRetorno ? formData.remitoRetorno.trim() : null,
                     fechaDevolucion: combinedFechaHora,
                     usuarioDevolucion: user?.nombre || 'Gabriel Tonelli',
                     observaciones: formData.observaciones ? formData.observaciones.trim() : recordOriginal.observaciones
@@ -486,7 +486,7 @@ const Pallets = () => {
                     payload.destino = formData.destino.trim();
                     payload.remito = formData.remito.trim();
                     payload.operarioEntrega = formData.operarioEntrega;
-                } else if (formData.tipoRegistro === 'Reparación Externa') {
+                } else if (formData.tipoRegistro === 'Recepción Externa' || formData.tipoRegistro === 'Reparación Externa') {
                     payload.operarioEntrega = formData.operarioEntrega;
                     payload.proveedor = formData.proveedor.trim();
                     payload.remito = formData.remito.trim();
@@ -626,8 +626,8 @@ const Pallets = () => {
             {formData.tipoRegistro && (
                 <form onSubmit={handleSubmit}>
 
-                    {/* Lista de Reparaciones Pendientes (Solo si aplica) */}
-                    {(formData.tipoRegistro === 'Reparación Interna' || formData.tipoRegistro === 'Reparación Externa') && pendientes.filter(p => p.tipoRegistro === formData.tipoRegistro).length > 0 && (
+                    {/* Lista de Reparaciones/Recepciones Pendientes (Solo si aplica) */}
+                    {(formData.tipoRegistro === 'Reparación Interna' || formData.tipoRegistro === 'Recepción Externa' || formData.tipoRegistro === 'Reparación Externa') && pendientes.filter(p => p.tipoRegistro === formData.tipoRegistro).length > 0 && (
                         <div style={{ marginBottom: '24px', padding: '16px', background: 'var(--surface-hover)', borderRadius: '12px', border: '1px solid var(--border)' }}>
                             <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
                                 Reparaciones Pendientes de Retorno (Trazabilidad)
@@ -854,8 +854,8 @@ const Pallets = () => {
                             </>
                         )}
 
-                        {/* Reparación Externa */}
-                        {formData.tipoRegistro === 'Reparación Externa' && (
+                        {/* Recepción Externa */}
+                        {(formData.tipoRegistro === 'Recepción Externa' || formData.tipoRegistro === 'Reparación Externa') && (
                             <>
                                 <div className="form-grid" style={isMobile ? { display: 'flex', flexDirection: 'column', gap: '16px' } : {}}>
                                     <Input

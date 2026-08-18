@@ -67,7 +67,7 @@ const ensurePalletsSchemaUpdated = async () => {
             console.log("[DB] Modificando enum tipo_registro en la tabla 'pallets' para incluir 'Recepción Interna'...");
             await db.query(`
                 ALTER TABLE pallets MODIFY COLUMN tipo_registro 
-                enum('Descartes', 'Reparación Interna', 'Reparación Externa', 'Ingreso de Nuevos', 'Entrega Interna', 'Entrega Externa', 'Recepción Interna') NOT NULL
+                enum('Descartes', 'Reparación Interna', 'Reparación Externa', 'Recepción Externa', 'Ingreso de Nuevos', 'Entrega Interna', 'Entrega Externa', 'Recepción Interna') NOT NULL
             `);
         }
         console.log("[DB] Esquema de tabla 'pallets' validado y actualizado con éxito.");
@@ -176,7 +176,8 @@ const shigmaController = {
             const limit = parseInt(req.query.limit || process.env.HISTORIAL_PAGE_SIZE || '20', 10);
             const search = (req.query.search || '').trim().toLowerCase();
             const formType = req.query.formType || 'all';
-            const since = req.query.since || '';
+            const since = req.query.since || req.query.fechaDesde || req.query.startDate || '';
+            const until = req.query.until || req.query.fechaHasta || req.query.endDate || '';
             const isExport = req.query.export === 'true';
 
             // Filtrar las tablas a consultar
@@ -223,10 +224,14 @@ const shigmaController = {
             const results = await Promise.all(queries);
             let combined = results.flat();
 
-            // Filtrar por fecha de inicio (since) si está presente
+            // Filtrar por rango de fechas (since / until) si están presentes
             if (since) {
                 const sinceDate = new Date(`${since}T00:00:00`);
                 combined = combined.filter(r => new Date(r.createdAt || r.fecha) >= sinceDate);
+            }
+            if (until) {
+                const untilDate = new Date(`${until}T23:59:59.999`);
+                combined = combined.filter(r => new Date(r.createdAt || r.fecha) <= untilDate);
             }
 
             // Filtrar por búsqueda
@@ -930,7 +935,7 @@ const shigmaController = {
             ] = await Promise.all([
                 db.query(`SELECT COALESCE(SUM(peso), 0) AS totalKgComunes FROM residuos_comunes${whereClause}`, [...queryParams]),
                 db.query(`SELECT COALESCE(SUM(cantidad), 0) AS totalKgEspeciales FROM residuos_especiales${whereClause}`, [...queryParams]),
-                db.query(`SELECT COALESCE(SUM(CASE WHEN tipo_registro IN ('Reparación Interna', 'Reparación Externa') AND estado = 'Devuelto' THEN cantidad ELSE 0 END), 0) AS totalPalletsReparados, COALESCE(SUM(CASE WHEN tipo_registro = 'Descartes' THEN cantidad ELSE 0 END), 0) AS totalPalletsDescartados FROM pallets${whereClause}`, [...queryParams]),
+                db.query(`SELECT COALESCE(SUM(CASE WHEN tipo_registro IN ('Reparación Interna', 'Reparación Externa', 'Recepción Externa') AND estado = 'Devuelto' THEN cantidad ELSE 0 END), 0) AS totalPalletsReparados, COALESCE(SUM(CASE WHEN tipo_registro = 'Descartes' THEN cantidad ELSE 0 END), 0) AS totalPalletsDescartados FROM pallets${whereClause}`, [...queryParams]),
                 db.query(`SELECT COALESCE(SUM(consumo_agua), 0) AS totalLitrosAgua, COALESCE(SUM(plantas_agregadas), 0) AS totalPlantaciones FROM espacios_verdes${whereClause}`, [...queryParams]),
                 db.query(`SELECT COUNT(*) AS totalDevoluciones FROM devoluciones${whereClause}`, [...queryParams]),
                 db.query(`SELECT COALESCE(SUM(ahorro_estimado), 0) AS totalAhorroCircular, COALESCE(SUM(co2_evitado), 0) AS totalCO2Reducido FROM economia_circular${whereClause}`, [...queryParams]),

@@ -20,6 +20,8 @@ const HistorialTrazabilidad = () => {
     const [searchInput, setSearchInput] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [filterFormType, setFilterFormType] = useState('all');
+    const [fechaDesde, setFechaDesde] = useState('');
+    const [fechaHasta, setFechaHasta] = useState('');
     const [expandedRecordId, setExpandedRecordId] = useState(null);
 
     // Server-side pagination states
@@ -172,7 +174,9 @@ const HistorialTrazabilidad = () => {
             const response = await SHIGMAService.getAllRecords({
                 page: pageToFetch,
                 search: searchQuery,
-                formType: filterFormType
+                formType: filterFormType,
+                fechaDesde: fechaDesde || undefined,
+                fechaHasta: fechaHasta || undefined
             });
             const data = response.data;
             const rawRecords = data.records || [];
@@ -284,7 +288,7 @@ const HistorialTrazabilidad = () => {
     // Load records on filter/page changes
     useEffect(() => {
         fetchRecords(currentPage);
-    }, [searchQuery, filterFormType, currentPage]);
+    }, [searchQuery, filterFormType, fechaDesde, fechaHasta, currentPage]);
 
     useEffect(() => {
         fetchOperadores();
@@ -325,7 +329,8 @@ const HistorialTrazabilidad = () => {
                 export: true,
                 search: searchQuery,
                 formType: filterFormType,
-                since: exportType === 'date' ? sinceDateVal : ''
+                fechaDesde: exportType === 'date' ? sinceDateVal : (fechaDesde || undefined),
+                fechaHasta: fechaHasta || undefined
             });
 
             const exportRecords = response.data.records || [];
@@ -495,7 +500,7 @@ const HistorialTrazabilidad = () => {
             details.push({ label: 'Cantidad', value: `${record.cantidad} uds` });
             if (record.destino) details.push({ label: 'Destino', value: record.destino });
             if (record.remito) {
-                const isRepExterna = record.tipoRegistro === 'Reparación Externa';
+                const isRepExterna = record.tipoRegistro === 'Recepción Externa' || record.tipoRegistro === 'Reparación Externa';
                 details.push({
                     label: isRepExterna ? 'Remito de Salida' : 'Remito',
                     value: record.remito
@@ -674,7 +679,7 @@ const HistorialTrazabilidad = () => {
                         </Button>
                     )}
                     {record.formType === 'pallets' &&
-                        (record.tipoRegistro === 'Reparación Interna' || record.tipoRegistro === 'Reparación Externa') &&
+                        (record.tipoRegistro === 'Reparación Interna' || record.tipoRegistro === 'Recepción Externa' || record.tipoRegistro === 'Reparación Externa') &&
                         record.estado === 'Retirado' && (
                             <Button
                                 variant="primary"
@@ -732,52 +737,182 @@ const HistorialTrazabilidad = () => {
             </div>
 
             {/* Filters Bar */}
-            <Card style={{ padding: '16px', display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '24px' }}>
-                {/* Search query input */}
-                <div style={{ position: 'relative', flex: 2, minWidth: '250px' }}>
-                    <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                    <input
-                        type="text"
-                        placeholder="Buscar por ID, inspector, material, cliente o sector..."
-                        value={searchInput}
-                        onChange={(e) => setSearchInput(e.target.value)}
-                        style={{
-                            width: '100%',
-                            padding: '12px 16px 12px 48px',
-                            borderRadius: 'var(--radius)',
-                            border: '1px solid var(--border)',
-                            backgroundColor: 'var(--background)',
-                            outline: 'none',
-                            fontSize: '0.95rem'
-                        }}
-                    />
+            <Card style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+                    {/* Search query input */}
+                    <div style={{ position: 'relative', flex: '2 1 280px' }}>
+                        <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                        <input
+                            type="text"
+                            placeholder="Buscar por ID, inspector, material, cliente o sector..."
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            style={{
+                                width: '100%',
+                                padding: '12px 16px 12px 48px',
+                                borderRadius: 'var(--radius)',
+                                border: '1px solid var(--border)',
+                                backgroundColor: 'var(--background)',
+                                outline: 'none',
+                                fontSize: '0.95rem'
+                            }}
+                        />
+                    </div>
+
+                    {/* Form type selector filter */}
+                    <div style={{ flex: '1 1 220px' }}>
+                        <select
+                            value={filterFormType}
+                            onChange={(e) => {
+                                setFilterFormType(e.target.value);
+                                setCurrentPage(1);
+                            }}
+                            style={{
+                                width: '100%',
+                                padding: '12px 16px',
+                                borderRadius: 'var(--radius)',
+                                border: '1px solid var(--border)',
+                                backgroundColor: 'var(--background)',
+                                color: 'var(--text)',
+                                fontWeight: '600',
+                                fontSize: '0.95rem',
+                                outline: 'none',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            {filteredFormTypes.map(ft => (
+                                <option key={ft.id} value={ft.id}>{ft.label}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
 
-                {/* Form type selector filter */}
-                <div style={{ flex: 1, minWidth: '200px' }}>
-                    <select
-                        value={filterFormType}
-                        onChange={(e) => {
-                            setFilterFormType(e.target.value);
-                            setCurrentPage(1);
-                        }}
-                        style={{
-                            width: '100%',
-                            padding: '12px 16px',
-                            borderRadius: 'var(--radius)',
-                            border: '1px solid var(--border)',
-                            backgroundColor: 'var(--background)',
-                            color: 'var(--text)',
-                            fontWeight: '600',
-                            fontSize: '0.95rem',
-                            outline: 'none',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        {filteredFormTypes.map(ft => (
-                            <option key={ft.id} value={ft.id}>{ft.label}</option>
-                        ))}
-                    </select>
+                {/* Date range filter bar */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    flexWrap: 'wrap',
+                    paddingTop: '12px',
+                    borderTop: '1px solid var(--border)'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)' }}>
+                        <Calendar size={16} />
+                        <span style={{ fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            Filtrar por Fecha:
+                        </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Desde:</span>
+                            <input
+                                type="date"
+                                value={fechaDesde}
+                                onChange={(e) => {
+                                    setFechaDesde(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                style={{
+                                    padding: '8px 12px',
+                                    borderRadius: '8px',
+                                    border: '1px solid var(--border)',
+                                    backgroundColor: 'var(--background)',
+                                    color: 'var(--text)',
+                                    fontSize: '0.9rem',
+                                    outline: 'none',
+                                    cursor: 'pointer'
+                                }}
+                            />
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600' }}>Hasta:</span>
+                            <input
+                                type="date"
+                                value={fechaHasta}
+                                min={fechaDesde || undefined}
+                                onChange={(e) => {
+                                    setFechaHasta(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                style={{
+                                    padding: '8px 12px',
+                                    borderRadius: '8px',
+                                    border: '1px solid var(--border)',
+                                    backgroundColor: 'var(--background)',
+                                    color: 'var(--text)',
+                                    fontSize: '0.9rem',
+                                    outline: 'none',
+                                    cursor: 'pointer'
+                                }}
+                            />
+                        </div>
+
+                        {/* Presets rápidos */}
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginLeft: 'auto', flexWrap: 'wrap' }}>
+                            <Button
+                                variant="ghost"
+                                onClick={() => {
+                                    const today = new Date().toISOString().split('T')[0];
+                                    setFechaDesde(today);
+                                    setFechaHasta(today);
+                                    setCurrentPage(1);
+                                }}
+                                style={{ padding: '6px 12px', fontSize: '0.8rem', height: '32px' }}
+                            >
+                                Hoy
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                onClick={() => {
+                                    const d = new Date();
+                                    d.setDate(d.getDate() - 7);
+                                    setFechaDesde(d.toISOString().split('T')[0]);
+                                    setFechaHasta(new Date().toISOString().split('T')[0]);
+                                    setCurrentPage(1);
+                                }}
+                                style={{ padding: '6px 12px', fontSize: '0.8rem', height: '32px' }}
+                            >
+                                Últimos 7 días
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                onClick={() => {
+                                    const d = new Date();
+                                    d.setDate(d.getDate() - 30);
+                                    setFechaDesde(d.toISOString().split('T')[0]);
+                                    setFechaHasta(new Date().toISOString().split('T')[0]);
+                                    setCurrentPage(1);
+                                }}
+                                style={{ padding: '6px 12px', fontSize: '0.8rem', height: '32px' }}
+                            >
+                                Últimos 30 días
+                            </Button>
+                            {(fechaDesde || fechaHasta) && (
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => {
+                                        setFechaDesde('');
+                                        setFechaHasta('');
+                                        setCurrentPage(1);
+                                    }}
+                                    style={{
+                                        padding: '6px 12px',
+                                        fontSize: '0.8rem',
+                                        height: '32px',
+                                        color: 'var(--dy-red)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                    }}
+                                    title="Quitar filtro de fechas"
+                                >
+                                    <X size={14} /> Limpiar fechas
+                                </Button>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </Card>
 

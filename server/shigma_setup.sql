@@ -190,7 +190,7 @@ CREATE TABLE IF NOT EXISTS `economia_circular` (
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `pallets` (
   `id` varchar(30) NOT NULL,
-  `tipo_registro` enum('Descartes', 'Reparación Interna', 'Reparación Externa', 'Ingreso de Nuevos', 'Entrega Interna', 'Entrega Externa', 'Recepción Interna') NOT NULL,
+  `tipo_registro` enum('Descartes', 'Reparación Interna', 'Reparación Externa', 'Recepción Externa', 'Ingreso de Nuevos', 'Entrega Interna', 'Entrega Externa', 'Recepción Interna') NOT NULL,
   `cantidad` int NOT NULL,
   `categoria` varchar(50) DEFAULT NULL, -- Categoría de los pallets en Recepción Interna (Reparables, Irreparables, Descartables)
   `id_grupo` varchar(50) DEFAULT NULL, -- Identificador de grupo para enlazar múltiples registros de Recepción Interna
