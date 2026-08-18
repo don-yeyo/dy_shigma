@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Package, ArrowLeft, Send, Trash2, Wrench, Hammer, PlusCircle, ArrowRightLeft, Truck, RotateCcw } from 'lucide-react';
+import { Package, ArrowLeft, Send, Trash2, Wrench, Hammer, PlusCircle, ArrowRightLeft, Truck, RotateCcw, Building2, Globe } from 'lucide-react';
 import { Card, Input, Select, Textarea, NumberInput } from '../../components/FormElements';
 import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
@@ -60,15 +60,33 @@ const Pallets = () => {
         }
     }, [formData.tipoRegistro]); // Autofocus on date when selection changes
 
-    const selectOptions = [
-        { id: 'Descartes', label: 'Descartes', icon: Trash2, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.04)', selectedBg: 'rgba(239, 68, 68, 0.12)' },
-        { id: 'Reparación Interna', label: 'Reparación Interna', icon: Wrench, color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.04)', selectedBg: 'rgba(6, 182, 212, 0.12)' },
-        { id: 'Recepción Externa', label: 'Recepción Externa', icon: Hammer, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.04)', selectedBg: 'rgba(59, 130, 246, 0.12)' },
-        { id: 'Ingreso de Nuevos', label: 'Ingreso de Nuevos', icon: PlusCircle, color: '#10b981', bg: 'rgba(16, 185, 129, 0.04)', selectedBg: 'rgba(16, 185, 129, 0.12)' },
-        { id: 'Entrega Interna', label: 'Entrega Interna', icon: ArrowRightLeft, color: '#84cc16', bg: 'rgba(132, 204, 22, 0.04)', selectedBg: 'rgba(132, 204, 22, 0.12)' },
-        { id: 'Entrega Externa', label: 'Entrega Externa', icon: Truck, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.04)', selectedBg: 'rgba(245, 158, 11, 0.12)' },
-        { id: 'Recepción Interna', label: 'Recepción Interna', icon: RotateCcw, color: '#ec4899', bg: 'rgba(236, 72, 153, 0.04)', selectedBg: 'rgba(236, 72, 153, 0.12)' }
+    const optionGroups = [
+        {
+            title: 'Movimientos Internos (Planta / Fábrica)',
+            icon: Building2,
+            badge: 'Circuito Interno',
+            badgeColor: '#06b6d4',
+            options: [
+                { id: 'Recepción Interna', label: 'Recepción Interna', icon: RotateCcw, color: '#ec4899', bg: 'rgba(236, 72, 153, 0.04)', selectedBg: 'rgba(236, 72, 153, 0.12)' },
+                { id: 'Entrega Interna', label: 'Entrega Interna', icon: ArrowRightLeft, color: '#84cc16', bg: 'rgba(132, 204, 22, 0.04)', selectedBg: 'rgba(132, 204, 22, 0.12)' },
+                { id: 'Reparación Interna', label: 'Reparación Interna', icon: Wrench, color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.04)', selectedBg: 'rgba(6, 182, 212, 0.12)' }
+            ]
+        },
+        {
+            title: 'Movimientos Externos y Bajas (Proveedores / Terceros)',
+            icon: Globe,
+            badge: 'Circuito Externo',
+            badgeColor: '#f59e0b',
+            options: [
+                { id: 'Ingreso de Nuevos', label: 'Ingreso de Nuevos', icon: PlusCircle, color: '#10b981', bg: 'rgba(16, 185, 129, 0.04)', selectedBg: 'rgba(16, 185, 129, 0.12)' },
+                { id: 'Recepción Externa', label: 'Recepción Externa', icon: Hammer, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.04)', selectedBg: 'rgba(59, 130, 246, 0.12)' },
+                { id: 'Entrega Externa', label: 'Entrega Externa', icon: Truck, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.04)', selectedBg: 'rgba(245, 158, 11, 0.12)' },
+                { id: 'Descartes', label: 'Descartes', icon: Trash2, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.04)', selectedBg: 'rgba(239, 68, 68, 0.12)' }
+            ]
+        }
     ];
+
+    const selectOptions = optionGroups.flatMap(g => g.options);
 
     const plantas = [
         { id: 'Elguea Roman', label: 'Elguea Roman' },
@@ -574,53 +592,98 @@ const Pallets = () => {
                 </div>
             </div>
 
-            {/* Selector de Tipo de Registro (Botonera de 2 columnas) */}
-            <div style={{ marginBottom: '24px' }}>
-                <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '12px' }}>
+            {/* Selector de Tipo de Registro (Agrupado por Interno / Externo) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '28px' }}>
+                <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block' }}>
                     Seleccione el Tipo de Registro *
                 </label>
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
-                    gap: '16px'
-                }}>
-                    {selectOptions.map(opt => {
-                        const IconComponent = opt.icon;
-                        const isSelected = formData.tipoRegistro === opt.id;
-                        return (
-                            <button
-                                key={opt.id}
-                                type="button"
-                                onClick={() => handleTypeChange(opt.id)}
-                                style={{
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '10px',
-                                    padding: '20px 16px',
+
+                {optionGroups.map((group, groupIdx) => {
+                    const GroupIcon = group.icon;
+                    return (
+                        <div
+                            key={groupIdx}
+                            style={{
+                                padding: '16px 20px',
+                                borderRadius: '14px',
+                                background: 'var(--surface)',
+                                border: '1px solid var(--border)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '14px'
+                            }}
+                        >
+                            {/* Encabezado del Grupo */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <GroupIcon size={18} style={{ color: group.badgeColor }} />
+                                    <span style={{ fontWeight: '800', fontSize: '0.95rem', color: 'var(--text)' }}>
+                                        {group.title}
+                                    </span>
+                                </div>
+                                <span style={{
+                                    fontSize: '0.75rem',
+                                    fontWeight: '800',
+                                    padding: '3px 10px',
                                     borderRadius: '12px',
-                                    border: `2px solid ${isSelected ? opt.color : 'var(--border)'}`,
-                                    backgroundColor: isSelected ? opt.selectedBg : opt.bg,
-                                    color: isSelected ? 'var(--text)' : 'var(--text-muted)',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s ease',
-                                    boxShadow: isSelected ? `0 0 10px ${opt.color}20` : 'none',
-                                    outline: 'none'
-                                }}
-                                onMouseEnter={(e) => {
-                                    if (!isSelected) e.currentTarget.style.borderColor = opt.color;
-                                }}
-                                onMouseLeave={(e) => {
-                                    if (!isSelected) e.currentTarget.style.borderColor = 'var(--border)';
-                                }}
-                            >
-                                <IconComponent size={28} style={{ color: opt.color }} />
-                                <span style={{ fontWeight: '700', fontSize: '0.95rem' }}>{opt.label}</span>
-                            </button>
-                        );
-                    })}
-                </div>
+                                    background: `${group.badgeColor}15`,
+                                    color: group.badgeColor,
+                                    border: `1px solid ${group.badgeColor}30`,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.5px'
+                                }}>
+                                    {group.badge}
+                                </span>
+                            </div>
+
+                            {/* Grilla de Botones del Grupo */}
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: isMobile
+                                    ? '1fr'
+                                    : `repeat(${group.options.length}, minmax(0, 1fr))`,
+                                gap: '12px'
+                            }}>
+                                {group.options.map(opt => {
+                                    const IconComponent = opt.icon;
+                                    const isSelected = formData.tipoRegistro === opt.id;
+                                    return (
+                                        <button
+                                            key={opt.id}
+                                            type="button"
+                                            onClick={() => handleTypeChange(opt.id)}
+                                            style={{
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '8px',
+                                                padding: '16px 12px',
+                                                borderRadius: '12px',
+                                                border: `2px solid ${isSelected ? opt.color : 'var(--border)'}`,
+                                                backgroundColor: isSelected ? opt.selectedBg : opt.bg,
+                                                color: isSelected ? 'var(--text)' : 'var(--text-muted)',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s ease',
+                                                boxShadow: isSelected ? `0 0 10px ${opt.color}25` : 'none',
+                                                outline: 'none'
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                if (!isSelected) e.currentTarget.style.borderColor = opt.color;
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                if (!isSelected) e.currentTarget.style.borderColor = 'var(--border)';
+                                            }}
+                                        >
+                                            <IconComponent size={24} style={{ color: opt.color }} />
+                                            <span style={{ fontWeight: '700', fontSize: '0.9rem', textAlign: 'center' }}>{opt.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
 
             {formData.tipoRegistro && (
