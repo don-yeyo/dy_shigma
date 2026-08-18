@@ -36,6 +36,7 @@ const Pallets = () => {
         horaCarga: nowTimeStr,
         tipoRegistro: '', // Descartes, Reparación Interna, Recepción Externa, Ingreso de Nuevos, Entrega Interna, Entrega Externa, Recepción Interna
         cantidad: '',
+        cantidadBuenEstado: '',
         cantidadReparables: '',
         cantidadIrreparables: '',
         cantidadDescartables: '',
@@ -156,6 +157,7 @@ const Pallets = () => {
                         const fechaCarga = dateObj.toISOString().split('T')[0];
                         const horaCarga = dateObj.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
                         
+                        let cantidadBuenEstado = '';
                         let cantidadReparables = '';
                         let cantidadIrreparables = '';
                         let cantidadDescartables = '';
@@ -163,9 +165,11 @@ const Pallets = () => {
                         if (record.idGrupo) {
                             const grupoRecords = response.data.filter(r => r.idGrupo === record.idGrupo);
                             setGrupoOriginalRecords(grupoRecords);
+                            const buen = grupoRecords.find(r => r.categoria === 'Buen Estado' || r.categoria === 'En Buen Estado');
                             const rep = grupoRecords.find(r => r.categoria === 'Reparables');
                             const irr = grupoRecords.find(r => r.categoria === 'Irreparables');
                             const des = grupoRecords.find(r => r.categoria === 'Descartables');
+                            if (buen) cantidadBuenEstado = String(buen.cantidad);
                             if (rep) cantidadReparables = String(rep.cantidad);
                             if (irr) cantidadIrreparables = String(irr.cantidad);
                             if (des) cantidadDescartables = String(des.cantidad);
@@ -178,6 +182,7 @@ const Pallets = () => {
                             horaCarga,
                             tipoRegistro: record.tipoRegistro || '',
                             cantidad: String(record.cantidad) || '',
+                            cantidadBuenEstado,
                             cantidadReparables,
                             cantidadIrreparables,
                             cantidadDescartables,
@@ -295,6 +300,7 @@ const Pallets = () => {
             fechaCarga: todayStr,
             horaCarga: nowTimeStr,
             cantidad: '',
+            cantidadBuenEstado: '',
             cantidadReparables: '',
             cantidadIrreparables: '',
             cantidadDescartables: '',
@@ -325,10 +331,11 @@ const Pallets = () => {
                 return;
             }
         } else {
+            const cantBuen = parseInt(formData.cantidadBuenEstado) || 0;
             const cantRep = parseInt(formData.cantidadReparables) || 0;
             const cantIrr = parseInt(formData.cantidadIrreparables) || 0;
             const cantDes = parseInt(formData.cantidadDescartables) || 0;
-            if (cantRep <= 0 && cantIrr <= 0 && cantDes <= 0) {
+            if (cantBuen <= 0 && cantRep <= 0 && cantIrr <= 0 && cantDes <= 0) {
                 showAlert('Campo requerido', 'Debe ingresar al menos una cantidad mayor a cero.');
                 return;
             }
@@ -397,6 +404,7 @@ const Pallets = () => {
                 // Lógica especial para Recepción Interna (Múltiples registros con idGrupo)
                 const grupoId = formData.idGrupo || `GRP-${Date.now()}`;
                 const categorias = [
+                    { name: 'Buen Estado', val: parseInt(formData.cantidadBuenEstado) || 0 },
                     { name: 'Reparables', val: parseInt(formData.cantidadReparables) || 0 },
                     { name: 'Irreparables', val: parseInt(formData.cantidadIrreparables) || 0 },
                     { name: 'Descartables', val: parseInt(formData.cantidadDescartables) || 0 }
@@ -639,9 +647,7 @@ const Pallets = () => {
                             {/* Grilla de Botones del Grupo */}
                             <div style={{
                                 display: 'grid',
-                                gridTemplateColumns: isMobile
-                                    ? '1fr'
-                                    : `repeat(${group.options.length}, minmax(0, 1fr))`,
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
                                 gap: '12px'
                             }}>
                                 {group.options.map(opt => {
@@ -818,7 +824,7 @@ const Pallets = () => {
 
                         {/* Cantidad (Estilo similar a kilos en devoluciones, NumberInput) */}
                         {formData.tipoRegistro !== 'Recepción Interna' ? (
-                            <div style={{ marginBottom: '24px', maxWidth: '300px' }}>
+                            <div style={{ marginBottom: '24px', maxWidth: '225px' }}>
                                 <NumberInput
                                     label="Cantidad (en unidades) *"
                                     name="cantidad"
@@ -830,7 +836,21 @@ const Pallets = () => {
                                 />
                             </div>
                         ) : (
-                             <div className="form-grid" style={{ marginBottom: '24px' }}>
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+                                gap: '16px',
+                                maxWidth: isMobile ? '100%' : '75%',
+                                marginBottom: '24px'
+                            }}>
+                                <NumberInput
+                                    label="En Buen Estado"
+                                    name="cantidadBuenEstado"
+                                    value={formData.cantidadBuenEstado}
+                                    onChange={handleChange}
+                                    min={0}
+                                    placeholder="0"
+                                />
                                 <NumberInput
                                     label="Reparables"
                                     name="cantidadReparables"

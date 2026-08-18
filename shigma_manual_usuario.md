@@ -189,7 +189,7 @@ Módulo rediseñado para registrar movimientos y transacciones individuales de p
 4. **Ingreso de Nuevos**: Registro de adquisición de pallets nuevos. Requiere Proveedor, número de Remito y el Operario que recibe.
 5. **Entrega Interna**: Traslado de pallets a una planta y sector específicos dentro de la fábrica. Requiere seleccionar Planta, Sector (fijos), Operario de entrega y Operario que recibe.
 6. **Entrega Externa**: Envío de pallets a proveedores o clientes externos. Requiere Proveedor, número de Remito y Operario de entrega.
-7. **Recepción Interna**: Registro de recepción agrupada de pallets desde sectores internos (con clasificación en Reparables, Irreparables y Descartables).
+7. **Recepción Interna**: Registro de recepción agrupada de pallets desde sectores internos con clasificación por categorías: **En Buen Estado**, **Reparables**, **Irreparables** y **Descartables**, vinculadas automáticamente mediante un ID de grupo de lote.
 
 #### Circuito de Estados y Devoluciones de Reparaciones / Recepciones:
 * Para los circuitos de reparación/recepción (internas y externas), el registro nace en estado **"Retirado"**.

@@ -371,6 +371,7 @@ const HistorialTrazabilidad = () => {
                     let detailsList = [];
                     detailsList.push(`Tipo: ${r.tipoRegistro}`);
                     detailsList.push(`Cant: ${r.cantidad} uds`);
+                    if (r.categoria) detailsList.push(`Categoría: ${r.categoria}`);
                     if (r.destino) detailsList.push(`Destino: ${r.destino}`);
                     if (r.remito) detailsList.push(`Remito: ${r.remito}`);
                     if (r.proveedor) detailsList.push(`Prov: ${r.proveedor}`);
