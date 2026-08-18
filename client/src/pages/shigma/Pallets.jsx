@@ -837,44 +837,68 @@ const Pallets = () => {
                             </div>
                         ) : (
                             <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+                                display: 'flex',
+                                flexDirection: 'column',
                                 gap: '16px',
-                                maxWidth: isMobile ? '100%' : '75%',
+                                width: '100%',
                                 marginBottom: '24px'
                             }}>
-                                <NumberInput
-                                    label="En Buen Estado"
-                                    name="cantidadBuenEstado"
-                                    value={formData.cantidadBuenEstado}
-                                    onChange={handleChange}
-                                    min={0}
-                                    placeholder="0"
-                                />
-                                <NumberInput
-                                    label="Reparables"
-                                    name="cantidadReparables"
-                                    value={formData.cantidadReparables}
-                                    onChange={handleChange}
-                                    min={0}
-                                    placeholder="0"
-                                />
-                                <NumberInput
-                                    label="Irreparables"
-                                    name="cantidadIrreparables"
-                                    value={formData.cantidadIrreparables}
-                                    onChange={handleChange}
-                                    min={0}
-                                    placeholder="0"
-                                />
-                                <NumberInput
-                                    label="Descartables"
-                                    name="cantidadDescartables"
-                                    value={formData.cantidadDescartables}
-                                    onChange={handleChange}
-                                    min={0}
-                                    placeholder="0"
-                                />
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+                                    gap: '16px',
+                                    maxWidth: isMobile ? '100%' : '75%'
+                                }}>
+                                    <NumberInput
+                                        label="En Buen Estado"
+                                        name="cantidadBuenEstado"
+                                        value={formData.cantidadBuenEstado}
+                                        onChange={handleChange}
+                                        min={0}
+                                        placeholder="0"
+                                    />
+                                    <NumberInput
+                                        label="Reparables"
+                                        name="cantidadReparables"
+                                        value={formData.cantidadReparables}
+                                        onChange={handleChange}
+                                        min={0}
+                                        placeholder="0"
+                                    />
+                                    <NumberInput
+                                        label="Irreparables"
+                                        name="cantidadIrreparables"
+                                        value={formData.cantidadIrreparables}
+                                        onChange={handleChange}
+                                        min={0}
+                                        placeholder="0"
+                                    />
+                                    <NumberInput
+                                        label="Descartables"
+                                        name="cantidadDescartables"
+                                        value={formData.cantidadDescartables}
+                                        onChange={handleChange}
+                                        min={0}
+                                        placeholder="0"
+                                    />
+                                </div>
+
+                                <div style={{ width: '100%' }}>
+                                    <Input
+                                        label="Total de Pallets (Autocalculado)"
+                                        type="text"
+                                        name="totalAutocalculado"
+                                        value={`${(parseInt(formData.cantidadBuenEstado) || 0) + (parseInt(formData.cantidadReparables) || 0) + (parseInt(formData.cantidadIrreparables) || 0) + (parseInt(formData.cantidadDescartables) || 0)} unidades`}
+                                        disabled
+                                        style={{
+                                            fontWeight: '800',
+                                            color: 'var(--primary)',
+                                            backgroundColor: 'var(--surface-hover)',
+                                            cursor: 'default',
+                                            textAlign: 'center'
+                                        }}
+                                    />
+                                </div>
                             </div>
                         )}
 
