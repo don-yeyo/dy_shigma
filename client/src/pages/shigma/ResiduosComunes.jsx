@@ -1522,6 +1522,16 @@ const ResiduosComunes = () => {
                             padding: '16px',
                             marginBottom: '20px'
                         }}>
+                            {/* Fila Fecha y Hora */}
+                            {formData.fechaCarga && formData.horaCarga && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+                                    <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Fecha y Hora:</span>
+                                    <strong style={{ color: 'var(--text)' }}>
+                                        {new Date(`${formData.fechaCarga}T00:00:00`).toLocaleDateString('es-AR')} a las {formData.horaCarga} hs
+                                    </strong>
+                                </div>
+                            )}
+
                             {/* Fila Planta */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
                                 <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Planta Generadora:</span>
@@ -1563,6 +1573,14 @@ const ResiduosComunes = () => {
                                     <strong style={{ color: 'var(--text)' }}>{formData.clasificacionInorganico}</strong>
                                 </div>
                             )}
+                            
+                            {/* Fila Subcategoría si aplica */}
+                            {formData.tipoResiduo === 'Inorgánicos Generales' && formData.subcategoriaInorganico && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+                                    <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Estado:</span>
+                                    <strong style={{ color: 'var(--text)' }}>{formData.subcategoriaInorganico}</strong>
+                                </div>
+                            )}
 
                             {/* Fila Destino */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
@@ -1591,7 +1609,7 @@ const ResiduosComunes = () => {
                             ) : null}
 
                             {/* Fila Peso Total */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', paddingTop: '4px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', borderBottom: '1px solid var(--border)', paddingBottom: '8px', paddingTop: '4px' }}>
                                 <span style={{ color: 'var(--text-muted)', fontWeight: '700' }}>
                                     {isRecuperable ? 'Peso Total Estimado:' : 'Cantidad Registrada:'}
                                 </span>
@@ -1607,10 +1625,18 @@ const ResiduosComunes = () => {
                                     })() : formData.peso} Kilos
                                 </strong>
                             </div>
+                            
+                            {/* Fila Responsable */}
+                            {formData.responsable && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', borderBottom: formData.observaciones ? '1px solid var(--border)' : 'none', paddingBottom: formData.observaciones ? '8px' : '0' }}>
+                                    <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Responsable / Movimiento:</span>
+                                    <strong style={{ color: 'var(--text)' }}>{formData.responsable}</strong>
+                                </div>
+                            )}
 
                             {/* Observaciones si existen */}
                             {formData.observaciones && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid var(--border)', paddingTop: '8px', fontSize: '0.85rem' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingTop: '4px', fontSize: '0.85rem' }}>
                                     <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Observaciones:</span>
                                     <p style={{ color: 'var(--text)', fontStyle: 'italic', margin: 0 }}>"{formData.observaciones}"</p>
                                 </div>
