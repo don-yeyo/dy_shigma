@@ -67,7 +67,7 @@ const ensurePalletsSchemaUpdated = async () => {
             console.log("[DB] Modificando enum tipo_registro en la tabla 'pallets' para incluir 'Recepción Interna'...");
             await db.query(`
                 ALTER TABLE pallets MODIFY COLUMN tipo_registro 
-                enum('Descartes', 'Reparación Interna', 'Reparación Externa', 'Ingreso de Nuevos', 'Entrega Interna', 'Entrega Externa', 'Recepción Interna') NOT NULL
+                enum('Descartes', 'Reparación Interna', 'Reparación Externa', 'Recepción Externa', 'Ingreso de Nuevos', 'Entrega Interna', 'Entrega Externa', 'Recepción Interna') NOT NULL
             `);
         }
         console.log("[DB] Esquema de tabla 'pallets' validado y actualizado con éxito.");
@@ -76,10 +76,29 @@ const ensurePalletsSchemaUpdated = async () => {
     }
 };
 
+// Asegurar que la tabla residuos_comunes tiene la columna area_id y su clave foránea
+const ensureResiduosComunesSchemaUpdated = async () => {
+    try {
+        const [areaIdCol] = await db.query("SHOW COLUMNS FROM residuos_comunes LIKE 'area_id'");
+        if (areaIdCol.length === 0) {
+            console.log("[DB] Agregando columna 'area_id' a la tabla 'residuos_comunes'...");
+            await db.query('ALTER TABLE residuos_comunes ADD COLUMN area_id int DEFAULT NULL');
+            try {
+                await db.query('ALTER TABLE residuos_comunes ADD CONSTRAINT fk_residuos_comunes_area FOREIGN KEY (area_id) REFERENCES areas (id) ON DELETE SET NULL ON UPDATE CASCADE');
+            } catch (fkErr) {
+                console.log("[DB] Clave foránea fk_residuos_comunes_area tal vez ya exista o la tabla areas no está disponible.");
+            }
+        }
+    } catch (err) {
+        console.error('[DB] Error al asegurar esquema actualizado en residuos_comunes:', err.message);
+    }
+};
+
 // Ejecutar inicializaciones asíncronas
 (async () => {
     await ensureBateasTable();
     await ensurePalletsSchemaUpdated();
+    await ensureResiduosComunesSchemaUpdated();
 })();
 
 // Mapeo de tipos de formulario a tablas en base de datos (Plurales, Minúsculas y Snake Case)
@@ -176,7 +195,8 @@ const shigmaController = {
             const limit = parseInt(req.query.limit || process.env.HISTORIAL_PAGE_SIZE || '20', 10);
             const search = (req.query.search || '').trim().toLowerCase();
             const formType = req.query.formType || 'all';
-            const since = req.query.since || '';
+            const since = req.query.since || req.query.fechaDesde || req.query.startDate || '';
+            const until = req.query.until || req.query.fechaHasta || req.query.endDate || '';
             const isExport = req.query.export === 'true';
 
             // Filtrar las tablas a consultar
@@ -189,10 +209,11 @@ const shigmaController = {
                 const params = [];
                 if (tableName === 'residuos_comunes') {
                     sql = `
-                        SELECT rc.*, l.nombre AS lugar, s.nombre AS sector 
+                        SELECT rc.*, l.nombre AS lugar, s.nombre AS sector, a.nombre AS area 
                         FROM residuos_comunes rc
                         LEFT JOIN lugares l ON rc.lugar_id = l.id
                         LEFT JOIN sectores s ON rc.sector_id = s.id
+                        LEFT JOIN areas a ON rc.area_id = a.id
                     `;
                     if (isRegistrador) {
                         sql += ` WHERE rc.usuario = ?`;
@@ -208,7 +229,18 @@ const shigmaController = {
                     sql += ` ORDER BY created_at DESC`;
                 }
 
-                const [rows] = await db.query(sql, params);
+                let rows = [];
+                try {
+                    const [result] = await db.query(sql, params);
+                    rows = result;
+                } catch (err) {
+                    if (err.code === 'ER_NO_SUCH_TABLE') {
+                        console.warn(`[WARN] Table ${tableName} does not exist yet. Skipping in getAllRecords.`);
+                        rows = [];
+                    } else {
+                        throw err;
+                    }
+                }
                 return rows.map(r => {
                     const camelRecord = toCamelCaseObj(r);
                     return {
@@ -223,10 +255,14 @@ const shigmaController = {
             const results = await Promise.all(queries);
             let combined = results.flat();
 
-            // Filtrar por fecha de inicio (since) si está presente
+            // Filtrar por rango de fechas (since / until) si están presentes
             if (since) {
                 const sinceDate = new Date(`${since}T00:00:00`);
                 combined = combined.filter(r => new Date(r.createdAt || r.fecha) >= sinceDate);
+            }
+            if (until) {
+                const untilDate = new Date(`${until}T23:59:59.999`);
+                combined = combined.filter(r => new Date(r.createdAt || r.fecha) <= untilDate);
             }
 
             // Filtrar por búsqueda
@@ -292,10 +328,11 @@ const shigmaController = {
             const params = [];
             if (tableName === 'residuos_comunes') {
                 sql = `
-                    SELECT rc.*, l.nombre AS lugar, s.nombre AS sector 
+                    SELECT rc.*, l.nombre AS lugar, s.nombre AS sector, a.nombre AS area 
                     FROM residuos_comunes rc
                     LEFT JOIN lugares l ON rc.lugar_id = l.id
                     LEFT JOIN sectores s ON rc.sector_id = s.id
+                    LEFT JOIN areas a ON rc.area_id = a.id
                 `;
                 if (isRegistrador) {
                     sql += ` WHERE rc.usuario = ?`;
@@ -371,6 +408,7 @@ const shigmaController = {
             if (tableName === 'residuos_comunes') {
                 delete dbPayload.lugar;
                 delete dbPayload.sector;
+                delete dbPayload.area;
             }
 
             // Construcción e Inserción Dinámica
@@ -397,10 +435,11 @@ const shigmaController = {
             let insertedRows;
             if (tableName === 'residuos_comunes') {
                 [insertedRows] = await db.query(`
-                    SELECT rc.*, l.nombre AS lugar, s.nombre AS sector 
+                    SELECT rc.*, l.nombre AS lugar, s.nombre AS sector, a.nombre AS area 
                     FROM residuos_comunes rc
                     LEFT JOIN lugares l ON rc.lugar_id = l.id
                     LEFT JOIN sectores s ON rc.sector_id = s.id
+                    LEFT JOIN areas a ON rc.area_id = a.id
                     WHERE rc.id = ?
                 `, [customId]);
             } else {
@@ -506,6 +545,7 @@ const shigmaController = {
             if (tableName === 'residuos_comunes') {
                 delete dbPayload.lugar;
                 delete dbPayload.sector;
+                delete dbPayload.area;
             }
 
             // Preparar actualización dinámica
@@ -545,10 +585,11 @@ const shigmaController = {
             let updatedRows;
             if (tableName === 'residuos_comunes') {
                 [updatedRows] = await db.query(`
-                    SELECT rc.*, l.nombre AS lugar, s.nombre AS sector 
+                    SELECT rc.*, l.nombre AS lugar, s.nombre AS sector, a.nombre AS area 
                     FROM residuos_comunes rc
                     LEFT JOIN lugares l ON rc.lugar_id = l.id
                     LEFT JOIN sectores s ON rc.sector_id = s.id
+                    LEFT JOIN areas a ON rc.area_id = a.id
                     WHERE rc.id = ?
                 `, [id]);
             } else {
@@ -684,6 +725,36 @@ const shigmaController = {
                     recordsCount
                 };
             });
+
+            // Configuración de Bateas Virtuales
+            const enableVirtual = process.env.ENABLE_VIRTUAL_BATEAS === 'true';
+            const virtualThreshold = parseFloat(process.env.VIRTUAL_BATEA_THRESHOLD || '80');
+
+            if (enableVirtual) {
+                const tipos = ['Orgánicos', 'Inorgánicos'];
+                tipos.forEach(tipo => {
+                    const bateasDelTipo = status.filter(b => b.tipo === tipo && !b.isVirtual);
+                    const todasSuperan = bateasDelTipo.length > 0 && bateasDelTipo.every(b => b.porcentaje >= virtualThreshold);
+                    
+                    const nombreVirtual = `Depósito Temporal de ${tipo}`;
+                    const dbVirtual = combinedRows[nombreVirtual];
+                    const pesoAcumuladoVirtual = dbVirtual ? dbVirtual.peso_acumulado : 0;
+                    const recordsCountVirtual = dbVirtual ? dbVirtual.records_count : 0;
+
+                    if (todasSuperan || pesoAcumuladoVirtual > 0) {
+                        status.push({
+                            id: `virtual_${tipo.toLowerCase().replace(/á/g, 'a').replace(/ó/g, 'o')}`,
+                            nombre: nombreVirtual,
+                            tipo: tipo,
+                            capacidad: 9999999, // Infinity cause problems with json serialization
+                            pesoAcumulado: Math.round(pesoAcumuladoVirtual * 100) / 100,
+                            porcentaje: 0,
+                            recordsCount: recordsCountVirtual,
+                            isVirtual: true
+                        });
+                    }
+                });
+            }
 
             res.json(status);
         } catch (error) {
@@ -930,7 +1001,7 @@ const shigmaController = {
             ] = await Promise.all([
                 db.query(`SELECT COALESCE(SUM(peso), 0) AS totalKgComunes FROM residuos_comunes${whereClause}`, [...queryParams]),
                 db.query(`SELECT COALESCE(SUM(cantidad), 0) AS totalKgEspeciales FROM residuos_especiales${whereClause}`, [...queryParams]),
-                db.query(`SELECT COALESCE(SUM(CASE WHEN tipo_registro IN ('Reparación Interna', 'Reparación Externa') AND estado = 'Devuelto' THEN cantidad ELSE 0 END), 0) AS totalPalletsReparados, COALESCE(SUM(CASE WHEN tipo_registro = 'Descartes' THEN cantidad ELSE 0 END), 0) AS totalPalletsDescartados FROM pallets${whereClause}`, [...queryParams]),
+                db.query(`SELECT COALESCE(SUM(CASE WHEN tipo_registro IN ('Reparación Interna', 'Reparación Externa', 'Recepción Externa') AND estado = 'Devuelto' THEN cantidad ELSE 0 END), 0) AS totalPalletsReparados, COALESCE(SUM(CASE WHEN tipo_registro = 'Descartes' THEN cantidad ELSE 0 END), 0) AS totalPalletsDescartados FROM pallets${whereClause}`, [...queryParams]),
                 db.query(`SELECT COALESCE(SUM(consumo_agua), 0) AS totalLitrosAgua, COALESCE(SUM(plantas_agregadas), 0) AS totalPlantaciones FROM espacios_verdes${whereClause}`, [...queryParams]),
                 db.query(`SELECT COUNT(*) AS totalDevoluciones FROM devoluciones${whereClause}`, [...queryParams]),
                 db.query(`SELECT COALESCE(SUM(ahorro_estimado), 0) AS totalAhorroCircular, COALESCE(SUM(co2_evitado), 0) AS totalCO2Reducido FROM economia_circular${whereClause}`, [...queryParams]),
@@ -1225,6 +1296,25 @@ const shigmaController = {
         } catch (error) {
             console.error('Error en getSectores:', error);
             res.status(500).json({ error: 'Error al obtener sectores desde la base de datos.' });
+        }
+    },
+
+    // Obtener áreas, opcionalmente filtradas por idSector
+    getAreas: async (req, res) => {
+        try {
+            const { idSector } = req.query;
+            let sql = 'SELECT * FROM areas';
+            const params = [];
+            if (idSector) {
+                sql += ' WHERE id_sector = ?';
+                params.push(idSector);
+            }
+            sql += ' ORDER BY nombre ASC';
+            const [rows] = await db.query(sql, params);
+            res.json(rows.map(r => toCamelCaseObj(r)));
+        } catch (error) {
+            console.error('Error en getAreas:', error);
+            res.status(500).json({ error: 'Error al obtener áreas desde la base de datos.' });
         }
     },
 
@@ -1640,6 +1730,135 @@ const shigmaController = {
         } catch (error) {
             console.error('Error en getDepositoOperadores:', error);
             res.status(500).json({ error: 'Error al obtener los operadores de depósito para este usuario.' });
+        }
+    },
+
+    // Endpoint para traspaso de registros desde batea virtual a batea real
+    transferirBateaVirtual: async (req, res) => {
+        const connection = await db.getConnection();
+        try {
+            await ensureBateasTable();
+            await connection.beginTransaction();
+
+            const { origen, destino, kilos } = req.body;
+            
+            if (!origen || !destino) {
+                return res.status(400).json({ error: 'Debes proporcionar la batea de origen y destino.' });
+            }
+
+            // Seleccionar y bloquear registros RINE de la batea virtual
+            const [activeRc] = await connection.query(
+                `SELECT * FROM residuos_comunes WHERE destino = ? AND batea_salida_id IS NULL ORDER BY created_at ASC FOR UPDATE`,
+                [origen]
+            );
+
+            // Seleccionar y bloquear registros Devoluciones de la batea virtual
+            const [activeDev] = await connection.query(
+                `SELECT * FROM devoluciones WHERE destino = ? AND batea_salida_id IS NULL ORDER BY created_at ASC FOR UPDATE`,
+                [origen]
+            );
+
+            const recordsToProcess = [
+                ...activeRc.map(r => ({ ...r, table: 'residuos_comunes', pesoCol: 'peso', recordId: r.id, idPrefix: 'SHG-RC-' })),
+                ...activeDev.map(r => ({ ...r, table: 'devoluciones', pesoCol: 'kilos', recordId: r.id, idPrefix: 'SHG-DEV-' }))
+            ];
+
+            // Validar capacidad de la batea de destino real
+            const [bateaRows] = await connection.query(`SELECT capacidad FROM bateas WHERE nombre = ?`, [destino]);
+            if (!bateaRows.length) {
+                await connection.rollback();
+                return res.status(404).json({ error: 'Batea destino no encontrada en la base de datos.' });
+            }
+            const capacidadDestino = bateaRows[0].capacidad;
+
+            const [rcDestinoRows] = await connection.query(`SELECT SUM(peso) as peso_acumulado FROM residuos_comunes WHERE destino = ? AND batea_salida_id IS NULL`, [destino]);
+            const [devDestinoRows] = await connection.query(`SELECT SUM(kilos) as peso_acumulado FROM devoluciones WHERE destino = ? AND batea_salida_id IS NULL`, [destino]);
+            const pesoAcumuladoDestino = (rcDestinoRows[0].peso_acumulado || 0) + (devDestinoRows[0].peso_acumulado || 0);
+            const disponibleDestino = Math.max(0, capacidadDestino - pesoAcumuladoDestino);
+
+            const totalVirtual = recordsToProcess.reduce((sum, r) => sum + parseFloat(r[r.pesoCol]), 0);
+            const targetKilos = kilos ? parseFloat(kilos) : totalVirtual;
+
+            if (targetKilos > disponibleDestino) {
+                await connection.rollback();
+                return res.status(400).json({ error: `La batea destino no tiene capacidad suficiente. Disponible: ${disponibleDestino} kg.` });
+            }
+
+            if (recordsToProcess.length === 0) {
+                await connection.rollback();
+                return res.status(400).json({ error: 'La batea de origen no tiene registros para traspasar.' });
+            }
+
+            let remainingKilos = parseFloat(kilos);
+            const isPartial = !isNaN(remainingKilos) && remainingKilos > 0;
+
+            for (const record of recordsToProcess) {
+                const recordPeso = parseFloat(record[record.pesoCol]);
+                
+                if (isPartial) {
+                    if (remainingKilos <= 0) break; // Terminado el traspaso
+                    
+                    if (recordPeso <= remainingKilos) {
+                        // Traspaso completo de este registro
+                        await connection.query(
+                            `UPDATE ${record.table} SET destino = ? WHERE id = ?`,
+                            [destino, record.recordId]
+                        );
+                        remainingKilos -= recordPeso;
+                    } else {
+                        // Traspaso parcial del registro (Split)
+                        const remainingEnVirtual = recordPeso - remainingKilos;
+                        await connection.query(
+                            `UPDATE ${record.table} SET ${record.pesoCol} = ? WHERE id = ?`,
+                            [remainingEnVirtual, record.recordId]
+                        );
+
+                        // Generar nuevo ID
+                        const [lastRows] = await connection.query(`SELECT id FROM ${record.table} ORDER BY id DESC LIMIT 1`);
+                        let index = 1;
+                        if (lastRows.length > 0) {
+                            const lastId = lastRows[0].id;
+                            const lastNum = parseInt(lastId.substring(lastId.lastIndexOf('-') + 1), 10);
+                            if (!isNaN(lastNum)) {
+                                index = lastNum + 1;
+                            }
+                        }
+                        const paddedIndex = index.toString().padStart(7, '0');
+                        const customId = `${record.idPrefix}${paddedIndex}`;
+
+                        // Generar insert dinámico (simplificado)
+                        const cols = Object.keys(record).filter(k => 
+                            k !== 'id' && k !== 'table' && k !== 'pesoCol' && k !== 'recordId' && k !== 'idPrefix' 
+                            && k !== record.pesoCol && k !== 'destino'
+                        );
+                        const placeholders = cols.map(() => '?').join(', ');
+                        const values = cols.map(k => record[k]);
+
+                        await connection.query(
+                            `INSERT INTO ${record.table} (id, ${record.pesoCol}, destino, ${cols.join(', ')}) VALUES (?, ?, ?, ${placeholders})`,
+                            [customId, remainingKilos, destino, ...values]
+                        );
+                        
+                        remainingKilos = 0;
+                        break;
+                    }
+                } else {
+                    // Traspaso total
+                    await connection.query(
+                        `UPDATE ${record.table} SET destino = ? WHERE id = ?`,
+                        [destino, record.recordId]
+                    );
+                }
+            }
+
+            await connection.commit();
+            res.json({ message: 'Traspaso realizado con éxito.' });
+        } catch (error) {
+            await connection.rollback();
+            console.error('Error en transferirBateaVirtual:', error);
+            res.status(500).json({ error: 'Error al realizar el traspaso de batea virtual.' });
+        } finally {
+            connection.release();
         }
     }
 };

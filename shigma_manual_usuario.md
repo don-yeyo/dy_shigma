@@ -184,14 +184,15 @@ Módulo rediseñado para registrar movimientos y transacciones individuales de p
 
 #### Tipos de Movimiento:
 1. **Descartes**: Para pallets rotos que se envían a disposición final. Requiere registrar Destino (texto libre capitalizado), número de Remito y Operario de entrega.
-2. **Reparación Externa**: Pallets enviados a un taller externo. Registra el Proveedor, número de Remito y el Operario de entrega. El estado inicial es "Retirado".
+2. **Recepción Externa**: Pallets enviados a un taller externo o circuito externo. Registra el Proveedor, número de Remito y el Operario de entrega. El estado inicial es "Retirado".
 3. **Reparación Interna**: Pallets reparados dentro de la fábrica. Registra el Operario de entrega y el Operario que recibe para reparación. El estado inicial es "Retirado".
 4. **Ingreso de Nuevos**: Registro de adquisición de pallets nuevos. Requiere Proveedor, número de Remito y el Operario que recibe.
 5. **Entrega Interna**: Traslado de pallets a una planta y sector específicos dentro de la fábrica. Requiere seleccionar Planta, Sector (fijos), Operario de entrega y Operario que recibe.
 6. **Entrega Externa**: Envío de pallets a proveedores o clientes externos. Requiere Proveedor, número de Remito y Operario de entrega.
+7. **Recepción Interna**: Registro de recepción agrupada de pallets desde sectores internos con clasificación por categorías: **En Buen Estado**, **Reparables**, **Irreparables** y **Descartables**, vinculadas automáticamente mediante un ID de grupo de lote.
 
-#### Circuito de Estados y Devoluciones de Reparaciones:
-* Para las reparaciones (tanto internas como externas), el registro nace en estado **"Retirado"**.
+#### Circuito de Estados y Devoluciones de Reparaciones / Recepciones:
+* Para los circuitos de reparación/recepción (internas y externas), el registro nace en estado **"Retirado"**.
 * Posteriormente, cuando los pallets son devueltos y recibidos en planta, un supervisor o registrador puede acceder al **Historial de Registros**, expandir el detalle del movimiento y presionar el botón **"Registrar Devolución"**.
 * Se abrirá un modal pidiendo seleccionar el **Operario que Recibe** y la fecha/hora de la devolución, lo cual cambiará el estado del lote a **"Devuelto"** para auditoría y sumará estas unidades como pallets reparados en el Dashboard.
 

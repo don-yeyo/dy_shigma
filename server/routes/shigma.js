@@ -35,6 +35,7 @@ router.delete('/operadores/:id', shigmaController.deleteOperador);
 
 // Rutas de Bateas
 router.get('/bateas', shigmaController.getBateasStatus);
+router.post('/bateas/virtual/transfer', shigmaController.transferirBateaVirtual);
 router.post('/bateas/:bateaId/restart', shigmaController.restartBatea);
 router.put('/bateas/:bateaId/capacity', shigmaController.updateBateaCapacity);
 router.get('/bateas/salidas', shigmaController.getBateaSalidas);
@@ -49,9 +50,10 @@ router.post('/deposito/salidas/:salidaId/confirm', requireRole('sysadmin', 'supe
 router.get('/deposito/operadores', shigmaController.getDepositoOperadores);
 
 
-// Rutas de Lugares y Sectores
+// Rutas de Lugares, Sectores y Áreas
 router.get('/lugares', shigmaController.getLugares);
 router.get('/sectores', shigmaController.getSectores);
+router.get('/areas', shigmaController.getAreas);
 
 
 module.exports = router;

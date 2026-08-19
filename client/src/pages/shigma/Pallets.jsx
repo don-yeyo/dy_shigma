@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Package, ArrowLeft, Send, Trash2, Wrench, Hammer, PlusCircle, ArrowRightLeft, Truck, RotateCcw } from 'lucide-react';
+import { Package, ArrowLeft, Send, Trash2, Wrench, Hammer, PlusCircle, ArrowRightLeft, Truck, RotateCcw, Building2, Globe } from 'lucide-react';
 import { Card, Input, Select, Textarea, NumberInput } from '../../components/FormElements';
 import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
@@ -34,8 +34,9 @@ const Pallets = () => {
     const [formData, setFormData] = useState({
         fechaCarga: todayStr,
         horaCarga: nowTimeStr,
-        tipoRegistro: '', // Descartes, Reparación Interna, Reparación Externa, Ingreso de Nuevos, Entrega Interna, Entrega Externa, Recepción Interna
+        tipoRegistro: '', // Descartes, Reparación Interna, Recepción Externa, Ingreso de Nuevos, Entrega Interna, Entrega Externa, Recepción Interna
         cantidad: '',
+        cantidadBuenEstado: '',
         cantidadReparables: '',
         cantidadIrreparables: '',
         cantidadDescartables: '',
@@ -43,13 +44,13 @@ const Pallets = () => {
         categoria: '',
         destino: '',
         remito: '',
-        remitoRetorno: '', // Remito de retorno para reparaciones externas
+        remitoRetorno: '', // Remito de retorno para recepciones/reparaciones externas
         proveedor: '',
         planta: '',
         sector: '',
         operarioEntrega: '',
         operarioRecibe: '',
-        estado: '', // 'Retirado', 'Devuelto' for Reparations
+        estado: '', // 'Retirado', 'Devuelto' for Reparations/Receptions
         observaciones: ''
     });
 
@@ -60,15 +61,33 @@ const Pallets = () => {
         }
     }, [formData.tipoRegistro]); // Autofocus on date when selection changes
 
-    const selectOptions = [
-        { id: 'Descartes', label: 'Descartes', icon: Trash2, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.04)', selectedBg: 'rgba(239, 68, 68, 0.12)' },
-        { id: 'Reparación Interna', label: 'Reparación Interna', icon: Wrench, color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.04)', selectedBg: 'rgba(6, 182, 212, 0.12)' },
-        { id: 'Reparación Externa', label: 'Reparación Externa', icon: Hammer, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.04)', selectedBg: 'rgba(59, 130, 246, 0.12)' },
-        { id: 'Ingreso de Nuevos', label: 'Ingreso de Nuevos', icon: PlusCircle, color: '#10b981', bg: 'rgba(16, 185, 129, 0.04)', selectedBg: 'rgba(16, 185, 129, 0.12)' },
-        { id: 'Entrega Interna', label: 'Entrega Interna', icon: ArrowRightLeft, color: '#84cc16', bg: 'rgba(132, 204, 22, 0.04)', selectedBg: 'rgba(132, 204, 22, 0.12)' },
-        { id: 'Entrega Externa', label: 'Entrega Externa', icon: Truck, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.04)', selectedBg: 'rgba(245, 158, 11, 0.12)' },
-        { id: 'Recepción Interna', label: 'Recepción Interna', icon: RotateCcw, color: '#ec4899', bg: 'rgba(236, 72, 153, 0.04)', selectedBg: 'rgba(236, 72, 153, 0.12)' }
+    const optionGroups = [
+        {
+            title: 'Movimientos Internos (Planta / Fábrica)',
+            icon: Building2,
+            badge: 'Circuito Interno',
+            badgeColor: '#06b6d4',
+            options: [
+                { id: 'Recepción Interna', label: 'Recepción Interna', icon: RotateCcw, color: '#ec4899', bg: 'rgba(236, 72, 153, 0.04)', selectedBg: 'rgba(236, 72, 153, 0.12)' },
+                { id: 'Entrega Interna', label: 'Entrega Interna', icon: ArrowRightLeft, color: '#84cc16', bg: 'rgba(132, 204, 22, 0.04)', selectedBg: 'rgba(132, 204, 22, 0.12)' },
+                { id: 'Reparación Interna', label: 'Reparación Interna', icon: Wrench, color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.04)', selectedBg: 'rgba(6, 182, 212, 0.12)' }
+            ]
+        },
+        {
+            title: 'Movimientos Externos y Bajas (Proveedores / Terceros)',
+            icon: Globe,
+            badge: 'Circuito Externo',
+            badgeColor: '#f59e0b',
+            options: [
+                { id: 'Ingreso de Nuevos', label: 'Ingreso de Nuevos', icon: PlusCircle, color: '#10b981', bg: 'rgba(16, 185, 129, 0.04)', selectedBg: 'rgba(16, 185, 129, 0.12)' },
+                { id: 'Recepción Externa', label: 'Recepción Externa', icon: Hammer, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.04)', selectedBg: 'rgba(59, 130, 246, 0.12)' },
+                { id: 'Entrega Externa', label: 'Entrega Externa', icon: Truck, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.04)', selectedBg: 'rgba(245, 158, 11, 0.12)' },
+                { id: 'Descartes', label: 'Descartes', icon: Trash2, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.04)', selectedBg: 'rgba(239, 68, 68, 0.12)' }
+            ]
+        }
     ];
+
+    const selectOptions = optionGroups.flatMap(g => g.options);
 
     const plantas = [
         { id: 'Elguea Roman', label: 'Elguea Roman' },
@@ -113,7 +132,7 @@ const Pallets = () => {
             const response = await SHIGMAService.getRecordsByForm('pallets');
             const recs = response.data || [];
             const pends = recs.filter(r =>
-                (r.tipoRegistro === 'Reparación Interna' || r.tipoRegistro === 'Reparación Externa') &&
+                (r.tipoRegistro === 'Reparación Interna' || r.tipoRegistro === 'Recepción Externa' || r.tipoRegistro === 'Reparación Externa') &&
                 r.estado === 'Retirado'
             );
             setPendientes(pends);
@@ -137,7 +156,8 @@ const Pallets = () => {
                         const dateObj = new Date(record.createdAt || record.fecha);
                         const fechaCarga = dateObj.toISOString().split('T')[0];
                         const horaCarga = dateObj.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
-                        
+
+                        let cantidadBuenEstado = '';
                         let cantidadReparables = '';
                         let cantidadIrreparables = '';
                         let cantidadDescartables = '';
@@ -145,9 +165,11 @@ const Pallets = () => {
                         if (record.idGrupo) {
                             const grupoRecords = response.data.filter(r => r.idGrupo === record.idGrupo);
                             setGrupoOriginalRecords(grupoRecords);
+                            const buen = grupoRecords.find(r => r.categoria === 'Buen Estado' || r.categoria === 'En Buen Estado');
                             const rep = grupoRecords.find(r => r.categoria === 'Reparables');
                             const irr = grupoRecords.find(r => r.categoria === 'Irreparables');
                             const des = grupoRecords.find(r => r.categoria === 'Descartables');
+                            if (buen) cantidadBuenEstado = String(buen.cantidad);
                             if (rep) cantidadReparables = String(rep.cantidad);
                             if (irr) cantidadIrreparables = String(irr.cantidad);
                             if (des) cantidadDescartables = String(des.cantidad);
@@ -160,6 +182,7 @@ const Pallets = () => {
                             horaCarga,
                             tipoRegistro: record.tipoRegistro || '',
                             cantidad: String(record.cantidad) || '',
+                            cantidadBuenEstado,
                             cantidadReparables,
                             cantidadIrreparables,
                             cantidadDescartables,
@@ -255,7 +278,7 @@ const Pallets = () => {
     };
 
     const handleTypeChange = (type) => {
-        const defaultState = (type === 'Reparación Interna' || type === 'Reparación Externa') ? 'Retirado' : '';
+        const defaultState = (type === 'Reparación Interna' || type === 'Recepción Externa' || type === 'Reparación Externa') ? 'Retirado' : '';
         const lastOperator = type === 'Reparación Interna' ? '' : (localStorage.getItem('shigma_last_operator_pallets') || '');
 
         setSelectedPendienteId(null);
@@ -277,6 +300,7 @@ const Pallets = () => {
             fechaCarga: todayStr,
             horaCarga: nowTimeStr,
             cantidad: '',
+            cantidadBuenEstado: '',
             cantidadReparables: '',
             cantidadIrreparables: '',
             cantidadDescartables: '',
@@ -307,10 +331,11 @@ const Pallets = () => {
                 return;
             }
         } else {
+            const cantBuen = parseInt(formData.cantidadBuenEstado) || 0;
             const cantRep = parseInt(formData.cantidadReparables) || 0;
             const cantIrr = parseInt(formData.cantidadIrreparables) || 0;
             const cantDes = parseInt(formData.cantidadDescartables) || 0;
-            if (cantRep <= 0 && cantIrr <= 0 && cantDes <= 0) {
+            if (cantBuen <= 0 && cantRep <= 0 && cantIrr <= 0 && cantDes <= 0) {
                 showAlert('Campo requerido', 'Debe ingresar al menos una cantidad mayor a cero.');
                 return;
             }
@@ -321,7 +346,7 @@ const Pallets = () => {
             if (!formData.destino.trim()) return showAlert('Campo requerido', 'Ingrese el Destino del descarte.');
             if (!formData.remito.trim()) return showAlert('Campo requerido', 'Ingrese el número de Remito.');
             if (!formData.operarioEntrega) return showAlert('Campo requerido', 'Seleccione el Operario de entrega.');
-        } else if (formData.tipoRegistro === 'Reparación Externa') {
+        } else if (formData.tipoRegistro === 'Recepción Externa' || formData.tipoRegistro === 'Reparación Externa') {
             if (modoRetorno) {
                 if (!formData.operarioRecibe) return showAlert('Campo requerido', 'Seleccione el Operario que recibe el retorno.');
             } else {
@@ -361,7 +386,7 @@ const Pallets = () => {
                     ...recordOriginal,
                     estado: 'Devuelto',
                     operarioRecibe: recordOriginal.tipoRegistro === 'Reparación Interna' ? null : formData.operarioRecibe,
-                    remitoRetorno: recordOriginal.tipoRegistro === 'Reparación Externa' && formData.remitoRetorno ? formData.remitoRetorno.trim() : null,
+                    remitoRetorno: (recordOriginal.tipoRegistro === 'Recepción Externa' || recordOriginal.tipoRegistro === 'Reparación Externa') && formData.remitoRetorno ? formData.remitoRetorno.trim() : null,
                     fechaDevolucion: combinedFechaHora,
                     usuarioDevolucion: user?.nombre || 'Gabriel Tonelli',
                     observaciones: formData.observaciones ? formData.observaciones.trim() : recordOriginal.observaciones
@@ -379,6 +404,7 @@ const Pallets = () => {
                 // Lógica especial para Recepción Interna (Múltiples registros con idGrupo)
                 const grupoId = formData.idGrupo || `GRP-${Date.now()}`;
                 const categorias = [
+                    { name: 'Buen Estado', val: parseInt(formData.cantidadBuenEstado) || 0 },
                     { name: 'Reparables', val: parseInt(formData.cantidadReparables) || 0 },
                     { name: 'Irreparables', val: parseInt(formData.cantidadIrreparables) || 0 },
                     { name: 'Descartables', val: parseInt(formData.cantidadDescartables) || 0 }
@@ -390,7 +416,7 @@ const Pallets = () => {
 
                     for (const cat of categorias) {
                         const originalRecord = grupoOriginalRecords.find(r => r.categoria === cat.name);
-                        
+
                         if (cat.val > 0) {
                             const payload = {
                                 tipoRegistro: 'Recepción Interna',
@@ -486,7 +512,7 @@ const Pallets = () => {
                     payload.destino = formData.destino.trim();
                     payload.remito = formData.remito.trim();
                     payload.operarioEntrega = formData.operarioEntrega;
-                } else if (formData.tipoRegistro === 'Reparación Externa') {
+                } else if (formData.tipoRegistro === 'Recepción Externa' || formData.tipoRegistro === 'Reparación Externa') {
                     payload.operarioEntrega = formData.operarioEntrega;
                     payload.proveedor = formData.proveedor.trim();
                     payload.remito = formData.remito.trim();
@@ -557,13 +583,21 @@ const Pallets = () => {
         <div className="card-anim" style={{ maxWidth: '800px', margin: '0 auto' }}>
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-                <Button
-                    variant="ghost"
-                    onClick={() => navigate('/')}
-                    style={{ width: '40px', height: '40px', borderRadius: '50%', padding: 0 }}
-                >
-                    <ArrowLeft size={20} />
-                </Button>
+                {(formData.tipoRegistro || editId) && (
+                    <Button
+                        variant="ghost"
+                        onClick={() => {
+                            if (editId) {
+                                navigate('/historial');
+                            } else {
+                                setFormData(prev => ({ ...prev, tipoRegistro: '' }));
+                            }
+                        }}
+                        style={{ width: '40px', height: '40px', borderRadius: '50%', padding: 0 }}
+                    >
+                        <ArrowLeft size={20} />
+                    </Button>
+                )}
                 <div>
                     <h1 style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--primary)' }}>
                         {editId ? 'Modificar Registro' : 'Gestión de Pallets'}<span style={{ color: 'var(--dy-red)' }}>.</span>
@@ -574,60 +608,101 @@ const Pallets = () => {
                 </div>
             </div>
 
-            {/* Selector de Tipo de Registro (Botonera de 2 columnas) */}
-            <div style={{ marginBottom: '24px' }}>
-                <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '12px' }}>
-                    Seleccione el Tipo de Registro *
-                </label>
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
-                    gap: '16px'
-                }}>
-                    {selectOptions.map(opt => {
-                        const IconComponent = opt.icon;
-                        const isSelected = formData.tipoRegistro === opt.id;
-                        return (
-                            <button
-                                key={opt.id}
-                                type="button"
-                                onClick={() => handleTypeChange(opt.id)}
-                                style={{
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '10px',
-                                    padding: '20px 16px',
+            {/* Selector de Tipo de Registro (Agrupado por Interno / Externo) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '28px' }}>
+
+
+                {optionGroups.map((group, groupIdx) => {
+                    const GroupIcon = group.icon;
+                    return (
+                        <div
+                            key={groupIdx}
+                            style={{
+                                padding: '16px 20px',
+                                borderRadius: '14px',
+                                background: 'var(--surface)',
+                                border: '1px solid var(--border)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '14px'
+                            }}
+                        >
+                            {/* Encabezado del Grupo */}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <GroupIcon size={18} style={{ color: group.badgeColor }} />
+                                    <span style={{ fontWeight: '800', fontSize: '0.95rem', color: 'var(--text)' }}>
+                                        {group.title}
+                                    </span>
+                                </div>
+                                <span style={{
+                                    fontSize: '0.75rem',
+                                    fontWeight: '800',
+                                    padding: '3px 10px',
                                     borderRadius: '12px',
-                                    border: `2px solid ${isSelected ? opt.color : 'var(--border)'}`,
-                                    backgroundColor: isSelected ? opt.selectedBg : opt.bg,
-                                    color: isSelected ? 'var(--text)' : 'var(--text-muted)',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s ease',
-                                    boxShadow: isSelected ? `0 0 10px ${opt.color}20` : 'none',
-                                    outline: 'none'
-                                }}
-                                onMouseEnter={(e) => {
-                                    if (!isSelected) e.currentTarget.style.borderColor = opt.color;
-                                }}
-                                onMouseLeave={(e) => {
-                                    if (!isSelected) e.currentTarget.style.borderColor = 'var(--border)';
-                                }}
-                            >
-                                <IconComponent size={28} style={{ color: opt.color }} />
-                                <span style={{ fontWeight: '700', fontSize: '0.95rem' }}>{opt.label}</span>
-                            </button>
-                        );
-                    })}
-                </div>
+                                    background: `${group.badgeColor}15`,
+                                    color: group.badgeColor,
+                                    border: `1px solid ${group.badgeColor}30`,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.5px'
+                                }}>
+                                    {group.badge}
+                                </span>
+                            </div>
+
+                            {/* Grilla de Botones del Grupo */}
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                                gap: '12px'
+                            }}>
+                                {group.options.map(opt => {
+                                    const IconComponent = opt.icon;
+                                    const isSelected = formData.tipoRegistro === opt.id;
+                                    return (
+                                        <button
+                                            key={opt.id}
+                                            type="button"
+                                            onClick={() => handleTypeChange(opt.id)}
+                                            style={{
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '8px',
+                                                padding: '16px 12px',
+                                                borderRadius: '12px',
+                                                border: `2px solid ${isSelected ? opt.color : 'var(--border)'}`,
+                                                backgroundColor: isSelected ? opt.selectedBg : opt.bg,
+                                                color: isSelected ? 'var(--text)' : 'var(--text-muted)',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s ease',
+                                                boxShadow: isSelected ? `0 0 10px ${opt.color}25` : 'none',
+                                                outline: 'none'
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                if (!isSelected) e.currentTarget.style.borderColor = opt.color;
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                if (!isSelected) e.currentTarget.style.borderColor = 'var(--border)';
+                                            }}
+                                        >
+                                            <IconComponent size={24} style={{ color: opt.color }} />
+                                            <span style={{ fontWeight: '700', fontSize: '0.9rem', textAlign: 'center' }}>{opt.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
 
             {formData.tipoRegistro && (
                 <form onSubmit={handleSubmit}>
 
-                    {/* Lista de Reparaciones Pendientes (Solo si aplica) */}
-                    {(formData.tipoRegistro === 'Reparación Interna' || formData.tipoRegistro === 'Reparación Externa') && pendientes.filter(p => p.tipoRegistro === formData.tipoRegistro).length > 0 && (
+                    {/* Lista de Reparaciones/Recepciones Pendientes (Solo si aplica) */}
+                    {(formData.tipoRegistro === 'Reparación Interna' || formData.tipoRegistro === 'Recepción Externa' || formData.tipoRegistro === 'Reparación Externa') && pendientes.filter(p => p.tipoRegistro === formData.tipoRegistro).length > 0 && (
                         <div style={{ marginBottom: '24px', padding: '16px', background: 'var(--surface-hover)', borderRadius: '12px', border: '1px solid var(--border)' }}>
                             <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>
                                 Reparaciones Pendientes de Retorno (Trazabilidad)
@@ -755,7 +830,7 @@ const Pallets = () => {
 
                         {/* Cantidad (Estilo similar a kilos en devoluciones, NumberInput) */}
                         {formData.tipoRegistro !== 'Recepción Interna' ? (
-                            <div style={{ marginBottom: '24px', maxWidth: '300px' }}>
+                            <div style={{ marginBottom: '24px', maxWidth: '225px' }}>
                                 <NumberInput
                                     label="Cantidad (en unidades) *"
                                     name="cantidad"
@@ -767,31 +842,69 @@ const Pallets = () => {
                                 />
                             </div>
                         ) : (
-                             <div className="form-grid" style={{ marginBottom: '24px' }}>
-                                <NumberInput
-                                    label="Reparables"
-                                    name="cantidadReparables"
-                                    value={formData.cantidadReparables}
-                                    onChange={handleChange}
-                                    min={0}
-                                    placeholder="0"
-                                />
-                                <NumberInput
-                                    label="Irreparables"
-                                    name="cantidadIrreparables"
-                                    value={formData.cantidadIrreparables}
-                                    onChange={handleChange}
-                                    min={0}
-                                    placeholder="0"
-                                />
-                                <NumberInput
-                                    label="Descartables"
-                                    name="cantidadDescartables"
-                                    value={formData.cantidadDescartables}
-                                    onChange={handleChange}
-                                    min={0}
-                                    placeholder="0"
-                                />
+                            <div style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '16px',
+                                width: '100%',
+                                marginBottom: '24px'
+                            }}>
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+                                    gap: '16px',
+                                    maxWidth: isMobile ? '100%' : '75%'
+                                }}>
+                                    <NumberInput
+                                        label="En Buen Estado"
+                                        name="cantidadBuenEstado"
+                                        value={formData.cantidadBuenEstado}
+                                        onChange={handleChange}
+                                        min={0}
+                                        placeholder="0"
+                                    />
+                                    <NumberInput
+                                        label="Reparables"
+                                        name="cantidadReparables"
+                                        value={formData.cantidadReparables}
+                                        onChange={handleChange}
+                                        min={0}
+                                        placeholder="0"
+                                    />
+                                    <NumberInput
+                                        label="Irreparables"
+                                        name="cantidadIrreparables"
+                                        value={formData.cantidadIrreparables}
+                                        onChange={handleChange}
+                                        min={0}
+                                        placeholder="0"
+                                    />
+                                    <NumberInput
+                                        label="Descartables"
+                                        name="cantidadDescartables"
+                                        value={formData.cantidadDescartables}
+                                        onChange={handleChange}
+                                        min={0}
+                                        placeholder="0"
+                                    />
+                                </div>
+
+                                <div style={{ width: '100%' }}>
+                                    <Input
+                                        label="Total de Pallets (Autocalculado)"
+                                        type="text"
+                                        name="totalAutocalculado"
+                                        value={`${(parseInt(formData.cantidadBuenEstado) || 0) + (parseInt(formData.cantidadReparables) || 0) + (parseInt(formData.cantidadIrreparables) || 0) + (parseInt(formData.cantidadDescartables) || 0)} unidades`}
+                                        disabled
+                                        style={{
+                                            fontWeight: '800',
+                                            color: 'var(--primary)',
+                                            backgroundColor: 'var(--surface-hover)',
+                                            cursor: 'default',
+                                            textAlign: 'center'
+                                        }}
+                                    />
+                                </div>
                             </div>
                         )}
 
@@ -854,8 +967,8 @@ const Pallets = () => {
                             </>
                         )}
 
-                        {/* Reparación Externa */}
-                        {formData.tipoRegistro === 'Reparación Externa' && (
+                        {/* Recepción Externa */}
+                        {(formData.tipoRegistro === 'Recepción Externa' || formData.tipoRegistro === 'Reparación Externa') && (
                             <>
                                 <div className="form-grid" style={isMobile ? { display: 'flex', flexDirection: 'column', gap: '16px' } : {}}>
                                     <Input

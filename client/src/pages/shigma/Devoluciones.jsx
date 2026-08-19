@@ -252,7 +252,7 @@ const Devoluciones = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
                 <Button
                     variant="ghost"
-                    onClick={() => navigate('/')}
+                    onClick={() => navigate('/despacho-rine')}
                     style={{ width: '40px', height: '40px', borderRadius: '50%', padding: 0 }}
                 >
                     <ArrowLeft size={20} />
@@ -435,7 +435,7 @@ const Devoluciones = () => {
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={() => navigate('/')}
+                        onClick={() => navigate('/despacho-rine')}
                         disabled={submitting}
                     >
                         Cancelar

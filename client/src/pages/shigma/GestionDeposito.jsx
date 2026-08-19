@@ -482,14 +482,14 @@ const GestionDeposito = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
                 <Button 
                     variant="ghost" 
-                    onClick={() => navigate('/')} 
+                    onClick={() => navigate('/despacho-rine')} 
                     style={{ width: '40px', height: '40px', borderRadius: '50%', padding: 0 }}
                 >
                     <ArrowLeft size={20} />
                 </Button>
                 <div>
                     <h1 style={{ fontSize: isMobile ? '1.8rem' : '2.1rem', fontWeight: '900', color: 'var(--primary)' }}>
-                        Gestión de Depósito<span style={{ color: 'var(--dy-red)' }}>.</span>
+                        Despacho de Recuperables<span style={{ color: 'var(--dy-red)' }}>.</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
                         Monitoreo de acopio físico de materiales inorgánicos recuperables y gestión de despachos.

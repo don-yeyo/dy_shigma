@@ -41,7 +41,7 @@ SHIGMA cuenta con 7 formularios independientes de alta fidelidad visual y valida
   - *Compost orgánico maduro*: Ahorra `0.5 kg` CO₂ por kg.
   - *Film stretch de Nylon*: Ahorra `1.5 kg` CO₂ por kg.
   - *Cajas de cartón reutilizadas*: Ahorra `0.9 kg` CO₂ por kg.
-- **Gestión de Pallets**: Registro de transacciones de pallets de madera dividida en 6 tipos de movimientos: Descartes, Reparación Interna, Reparación Externa, Ingreso de Nuevos, Entrega Interna y Entrega Externa. Soporta flujos de estados para reparaciones ("Retirado" y "Devuelto") y el registro del operario que recibe las devoluciones desde el historial de trazabilidad.
+- **Gestión de Pallets**: Registro de transacciones de pallets de madera dividida en movimientos: Descartes, Reparación Interna, Recepción Externa, Ingreso de Nuevos, Entrega Interna, Entrega Externa y Recepción Interna (con desglose por categorías: *En Buen Estado*, *Reparables*, *Irreparables* y *Descartables* agrupadas bajo un identificador único de lote). Soporta flujos de estados para reparaciones/recepciones ("Retirado" y "Devuelto") y el registro del operario que recibe las devoluciones desde el historial de trazabilidad.
 - **Registro de Espacios Verdes**: Monitoreo de la huella forestal de la fábrica. Registra riego ecológico, plantaciones nuevas de especies botánicas nativas y el estado general de salud del suelo y plantas.
 
 > Los módulos son accesibles por usuarios que los tengan explícitamente habilitados. Los sysadmin tienen acceso a todos.
@@ -50,6 +50,7 @@ SHIGMA cuenta con 7 formularios independientes de alta fidelidad visual y valida
 Pantalla de auditoría de trazabilidad completa dotada de:
 - **Paginación del Lado del Servidor**: Los registros se cargan paginados de forma eficiente desde el servidor según la variable de entorno `HISTORIAL_PAGE_SIZE`, optimizando el consumo de red y el rendimiento del navegador.
 - **Buscador global y Filtrado debounced**: Búsqueda por palabra clave y selector de formularios operando en conjunto del lado del servidor para garantizar consistencia con los datos paginados.
+- **Filtro por Rango de Fechas y Presets**: Barra interactiva de filtrado por fechas (`Desde` y `Hasta`) con botones rápidos de acceso directo (*Hoy*, *Últimos 7 días*, *Últimos 30 días* y *Limpiar fechas*), procesado directamente en el backend de forma sincronizada con la paginación y exportación.
 - **Diseño en Acordeón**: Visualización elegante de los campos específicos de cada uno de los 7 tipos de registros.
 - **Exportación a Excel con Rango**: Al exportar, un modal permite configurar el rango de exportación a formato de hoja de cálculo de Excel (`.xlsx`) de auditoría (todo el historial o a partir de una fecha determinada), integrando filtros activos de búsqueda/formulario y auto-ajustando el ancho de columnas con un desglose descriptivo de los campos.
 - **Modales de Confirmación y Éxito**: Todos los mensajes de confirmación de eliminación y alertas de éxito de modificación/creación han sido reemplazados por modales interactivos y estilizados que respetan la estética visual y el contraste de la aplicación, eliminando por completo el uso de `alert()` o `confirm()` nativos de JavaScript.
