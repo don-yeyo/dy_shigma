@@ -190,10 +190,11 @@ const shigmaController = {
                 const params = [];
                 if (tableName === 'residuos_comunes') {
                     sql = `
-                        SELECT rc.*, l.nombre AS lugar, s.nombre AS sector 
+                        SELECT rc.*, l.nombre AS lugar, s.nombre AS sector, a.nombre AS area 
                         FROM residuos_comunes rc
                         LEFT JOIN lugares l ON rc.lugar_id = l.id
                         LEFT JOIN sectores s ON rc.sector_id = s.id
+                        LEFT JOIN areas a ON rc.area_id = a.id
                     `;
                     if (isRegistrador) {
                         sql += ` WHERE rc.usuario = ?`;
@@ -297,10 +298,11 @@ const shigmaController = {
             const params = [];
             if (tableName === 'residuos_comunes') {
                 sql = `
-                    SELECT rc.*, l.nombre AS lugar, s.nombre AS sector 
+                    SELECT rc.*, l.nombre AS lugar, s.nombre AS sector, a.nombre AS area 
                     FROM residuos_comunes rc
                     LEFT JOIN lugares l ON rc.lugar_id = l.id
                     LEFT JOIN sectores s ON rc.sector_id = s.id
+                    LEFT JOIN areas a ON rc.area_id = a.id
                 `;
                 if (isRegistrador) {
                     sql += ` WHERE rc.usuario = ?`;
@@ -376,6 +378,7 @@ const shigmaController = {
             if (tableName === 'residuos_comunes') {
                 delete dbPayload.lugar;
                 delete dbPayload.sector;
+                delete dbPayload.area;
             }
 
             // Construcción e Inserción Dinámica
@@ -402,10 +405,11 @@ const shigmaController = {
             let insertedRows;
             if (tableName === 'residuos_comunes') {
                 [insertedRows] = await db.query(`
-                    SELECT rc.*, l.nombre AS lugar, s.nombre AS sector 
+                    SELECT rc.*, l.nombre AS lugar, s.nombre AS sector, a.nombre AS area 
                     FROM residuos_comunes rc
                     LEFT JOIN lugares l ON rc.lugar_id = l.id
                     LEFT JOIN sectores s ON rc.sector_id = s.id
+                    LEFT JOIN areas a ON rc.area_id = a.id
                     WHERE rc.id = ?
                 `, [customId]);
             } else {
@@ -511,6 +515,7 @@ const shigmaController = {
             if (tableName === 'residuos_comunes') {
                 delete dbPayload.lugar;
                 delete dbPayload.sector;
+                delete dbPayload.area;
             }
 
             // Preparar actualización dinámica
@@ -550,10 +555,11 @@ const shigmaController = {
             let updatedRows;
             if (tableName === 'residuos_comunes') {
                 [updatedRows] = await db.query(`
-                    SELECT rc.*, l.nombre AS lugar, s.nombre AS sector 
+                    SELECT rc.*, l.nombre AS lugar, s.nombre AS sector, a.nombre AS area 
                     FROM residuos_comunes rc
                     LEFT JOIN lugares l ON rc.lugar_id = l.id
                     LEFT JOIN sectores s ON rc.sector_id = s.id
+                    LEFT JOIN areas a ON rc.area_id = a.id
                     WHERE rc.id = ?
                 `, [id]);
             } else {
@@ -1230,6 +1236,25 @@ const shigmaController = {
         } catch (error) {
             console.error('Error en getSectores:', error);
             res.status(500).json({ error: 'Error al obtener sectores desde la base de datos.' });
+        }
+    },
+
+    // Obtener áreas, opcionalmente filtradas por idSector
+    getAreas: async (req, res) => {
+        try {
+            const { idSector } = req.query;
+            let sql = 'SELECT * FROM areas';
+            const params = [];
+            if (idSector) {
+                sql += ' WHERE id_sector = ?';
+                params.push(idSector);
+            }
+            sql += ' ORDER BY nombre ASC';
+            const [rows] = await db.query(sql, params);
+            res.json(rows.map(r => toCamelCaseObj(r)));
+        } catch (error) {
+            console.error('Error en getAreas:', error);
+            res.status(500).json({ error: 'Error al obtener áreas desde la base de datos.' });
         }
     },
 

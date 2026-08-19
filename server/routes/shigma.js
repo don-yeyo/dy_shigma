@@ -49,9 +49,10 @@ router.post('/deposito/salidas/:salidaId/confirm', requireRole('sysadmin', 'supe
 router.get('/deposito/operadores', shigmaController.getDepositoOperadores);
 
 
-// Rutas de Lugares y Sectores
+// Rutas de Lugares, Sectores y Áreas
 router.get('/lugares', shigmaController.getLugares);
 router.get('/sectores', shigmaController.getSectores);
+router.get('/areas', shigmaController.getAreas);
 
 
 module.exports = router;

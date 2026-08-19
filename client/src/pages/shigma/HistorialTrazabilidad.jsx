@@ -347,7 +347,7 @@ const HistorialTrazabilidad = () => {
             // Preparar las filas estructuradas para Excel
             const excelRows = exportRecords.map(r => {
                 const date = new Date(r.createdAt || r.fecha).toLocaleDateString('es-AR');
-                const sector = r.sector || r.sectorOrigen || r.clienteOrigen || r.espacioVerde || r.bateaNombre || 'N/A';
+                const sector = r.sector ? (r.area ? `${r.sector} - ${r.area}` : r.sector) : (r.sectorOrigen || r.clienteOrigen || r.espacioVerde || r.bateaNombre || 'N/A');
 
                 // Generar un desglose amigable del detalle de registro
                 let detalleAmigable = '';
@@ -362,7 +362,7 @@ const HistorialTrazabilidad = () => {
                 } else if (r.formType === 'residuos-especiales') {
                     detalleAmigable = `Tipo: ${r.tipoResiduoEspecial}, Peligro: ${r.categoriaPeligro}, Cantidad: ${r.cantidad} ${r.unidad}, Envase: ${r.tipoEnvase}`;
                 } else if (r.formType === 'devoluciones') {
-                    detalleAmigable = `Sector: ${r.sector}, Kilos: ${r.kilos} kg`;
+                    detalleAmigable = `Sector: ${r.sector ? (r.area ? `${r.sector} - ${r.area}` : r.sector) : 'N/A'}, Kilos: ${r.kilos} kg`;
                 } else if (r.formType === 'tratamiento') {
                     detalleAmigable = `Proceso: ${r.procesoTratamiento}, Material: ${r.materialEntrada}, Cantidad: ${r.cantidadProcesada} kg, Subproducto: ${r.subproductoObtenido}`;
                 } else if (r.formType === 'economia-circular') {
@@ -376,7 +376,7 @@ const HistorialTrazabilidad = () => {
                     if (r.remito) detailsList.push(`Remito: ${r.remito}`);
                     if (r.proveedor) detailsList.push(`Prov: ${r.proveedor}`);
                     if (r.planta) detailsList.push(`Planta: ${r.planta}`);
-                    if (r.sector) detailsList.push(`Sector: ${r.sector}`);
+                    if (r.sector) detailsList.push(`Sector: ${r.sector ? (r.area ? `${r.sector} - ${r.area}` : r.sector) : 'N/A'}`);
                     if (r.estado) detailsList.push(`Estado: ${r.estado}`);
                     detalleAmigable = detailsList.join(', ');
                 } else if (r.formType === 'espacios-verdes') {
@@ -453,6 +453,9 @@ const HistorialTrazabilidad = () => {
         } else if (record.formType === 'residuos-comunes') {
             details.push({ label: 'Planta Generadora', value: record.lugar || 'N/A' });
             details.push({ label: 'Sector', value: record.sector || 'N/A' });
+            if (record.area) {
+                details.push({ label: 'Área', value: record.area });
+            }
             details.push({ label: 'Tipo de Residuo', value: record.tipoResiduo });
 
 
@@ -518,7 +521,7 @@ const HistorialTrazabilidad = () => {
             }
             if (record.proveedor) details.push({ label: 'Proveedor', value: record.proveedor });
             if (record.planta) details.push({ label: record.tipoRegistro === 'Recepción Interna' ? 'Planta Origen' : 'Planta', value: record.planta });
-            if (record.sector) details.push({ label: record.tipoRegistro === 'Recepción Interna' ? 'Sector Origen' : 'Sector', value: record.sector });
+            if (record.sector) details.push({ label: record.tipoRegistro === 'Recepción Interna' ? 'Sector Origen' : 'Sector', value: record.area ? `${record.sector} - ${record.area}` : record.sector });
 
             if (record.operarioEntrega) {
                 details.push({ 

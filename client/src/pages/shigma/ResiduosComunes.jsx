@@ -193,6 +193,7 @@ const ResiduosComunes = () => {
         horaCarga: nowTimeStr,
         lugarId: '', // Planta Generadora ID
         sectorId: '', // Sector ID
+        areaId: '', // Área ID (Solo Pellegrini)
         tipoResiduo: '',
         clasificacionInorganico: 'Irrecuperables', // Irrecuperables o Recuperable
         subcategoriaInorganico: '', // Húmedo o Seco para Elguea Roman
@@ -219,6 +220,7 @@ const ResiduosComunes = () => {
 
     const [lugares, setLugares] = useState([]);
     const [sectores, setSectores] = useState([]);
+    const [areas, setAreas] = useState([]);
 
 
     const COMPANY_SHORT = import.meta.env.VITE_COMPANY_NAME_SHORT || 'DEMO';
@@ -310,6 +312,33 @@ const ResiduosComunes = () => {
         fetchSectoresData();
     }, [formData.lugarId]);
 
+    // Cargar áreas de forma reactiva cuando cambia el sector
+    useEffect(() => {
+        if (!formData.sectorId) {
+            setAreas([]);
+            return;
+        }
+
+        const fetchAreasData = async () => {
+            try {
+                const response = await SHIGMAService.getAreas(formData.sectorId);
+                const areasList = response.data || [];
+                setAreas(areasList);
+
+                // Si hay un único área disponible, preseleccionarlo automáticamente
+                if (areasList.length === 1) {
+                    setFormData(prev => ({
+                        ...prev,
+                        areaId: String(areasList[0].id)
+                    }));
+                }
+            } catch (error) {
+                console.error('Error fetching areas:', error);
+            }
+        };
+        fetchAreasData();
+    }, [formData.sectorId]);
+
     useEffect(() => {
         if (editId) {
             const loadRecord = async () => {
@@ -346,6 +375,7 @@ const ResiduosComunes = () => {
                             horaCarga,
                             lugarId: record.lugarId || '',
                             sectorId: record.sectorId || '',
+                            areaId: record.areaId || '',
                             tipoResiduo: record.tipoResiduo || '',
                             clasificacionInorganico: record.clasificacionInorganico || 'Irrecuperables',
                             subcategoriaInorganico: record.subcategoriaInorganico || '',
@@ -407,9 +437,14 @@ const ResiduosComunes = () => {
 
             if (name === 'lugarId') {
                 updated.sectorId = '';
+                updated.areaId = '';
                 updated.subcategoriaInorganico = '';
             }
             // Si cambia el tipo de residuo, reseteamos el destino para evitar inconsistencias
+            if (name === 'sectorId') {
+                updated.areaId = '';
+            }
+
             if (name === 'tipoResiduo') {
                 updated.destino = '';
                 if (value !== 'Inorgánicos Generales') {
@@ -566,6 +601,7 @@ const ResiduosComunes = () => {
 
         const selectedLugarObj = lugares.find(l => String(l.id) === String(formData.lugarId));
         const esElgueaRoman = selectedLugarObj?.nombre === 'Elguea Roman';
+        const esPellegrini = selectedLugarObj?.nombre === 'Pellegrini';
         const esInorganicoGeneral = formData.tipoResiduo === 'Inorgánicos Generales';
 
         // 1. Planta Generadora (Arriba Izquierda)
@@ -574,9 +610,13 @@ const ResiduosComunes = () => {
             return;
         }
 
-        // 1b. Sector
+        // 1b. Sector y Área
         if (!esInorganicoGeneral && !formData.sectorId) {
             showAlert('Por favor, seleccione el Sector.');
+            return;
+        }
+        if (!esInorganicoGeneral && esPellegrini && areas.length > 0 && !formData.areaId) {
+            showAlert('Por favor, seleccione el Área.');
             return;
         }
 
@@ -679,6 +719,7 @@ const ResiduosComunes = () => {
                 createdAt: `${formData.fechaCarga}T${formData.horaCarga}`,
                 lugarId: parseInt(formData.lugarId, 10),
                 sectorId: esInorganicoGeneral ? null : parseInt(formData.sectorId, 10),
+                areaId: (!esInorganicoGeneral && formData.areaId) ? parseInt(formData.areaId, 10) : null,
                 tipoResiduo: formData.tipoResiduo,
                 peso: parseFloat(finalPeso),
                 // Los inorgánicos recuperables NO van a batea, se asigna acopio general
@@ -722,6 +763,7 @@ const ResiduosComunes = () => {
                     horaCarga: constraints.nowTimeStr,
                     lugarId: '',
                     sectorId: '',
+                    areaId: '',
                     tipoResiduo: '',
                     clasificacionInorganico: 'Irrecuperables',
                     subcategoriaInorganico: '',
@@ -757,7 +799,9 @@ const ResiduosComunes = () => {
     const isRecuperable = formData.tipoResiduo === 'Inorgánicos Generales' && formData.clasificacionInorganico === 'Recuperable';
     const selectedLugarObj = lugares.find(l => String(l.id) === String(formData.lugarId));
     const selectedSectorObj = sectores.find(s => String(s.id) === String(formData.sectorId));
+    const selectedAreaObj = areas.find(a => String(a.id) === String(formData.areaId));
     const esElgueaRoman = selectedLugarObj?.nombre === 'Elguea Roman';
+    const esPellegrini = selectedLugarObj?.nombre === 'Pellegrini';
     const esInorganicoGeneral = formData.tipoResiduo === 'Inorgánicos Generales';
 
     return (
@@ -863,6 +907,37 @@ const ResiduosComunes = () => {
                             required
                         />
                     </div>
+
+                    {!esInorganicoGeneral && (
+                        <div style={{ marginBottom: '24px' }}>
+                            <Select
+                                label="Sector *"
+                                name="sectorId"
+                                value={formData.sectorId}
+                                onChange={handleChange}
+                                options={sectores.map(s => ({ id: s.id, label: s.nombre }))}
+                                includePlaceholder={true}
+                                required
+                                disabled={!formData.lugarId}
+                            />
+                        </div>
+                    )}
+
+                    {/* Área: Se muestra siempre que el lugar sea Pellegrini (y no sea Inorgánico General) */}
+                    {!esInorganicoGeneral && esPellegrini && (
+                        <div style={{ marginBottom: '24px' }}>
+                            <Select
+                                label={areas.length > 0 ? "Área *" : "Área"}
+                                name="areaId"
+                                value={formData.areaId}
+                                onChange={handleChange}
+                                options={areas.map(a => ({ id: a.id, label: a.nombre }))}
+                                includePlaceholder={true}
+                                required={areas.length > 0}
+                                disabled={!formData.sectorId || areas.length === 0}
+                            />
+                        </div>
+                    )}
 
                     <div style={{
                         display: 'grid',
@@ -1209,20 +1284,6 @@ const ResiduosComunes = () => {
                         </div>
                     )}
 
-                    {!esInorganicoGeneral && (
-                        <div style={{ marginBottom: '24px' }}>
-                            <Select
-                                label="Sector *"
-                                name="sectorId"
-                                value={formData.sectorId}
-                                onChange={handleChange}
-                                options={sectores.map(s => ({ id: s.id, label: s.nombre }))}
-                                includePlaceholder={true}
-                                required
-                                disabled={!formData.lugarId}
-                            />
-                        </div>
-                    )}
 
                     {/* HABILITADO SOLO SI NO ES RECUPERABLE (Los recuperables NO cargan peso general ni destino batea) */}
                     {!isRecuperable && (
@@ -1479,6 +1540,15 @@ const ResiduosComunes = () => {
                                 </div>
                             )}
 
+                            {/* Fila Área */}
+                            {formData.areaId && selectedAreaObj && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+                                    <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Área:</span>
+                                    <strong style={{ color: 'var(--text)' }}>
+                                        {selectedAreaObj.nombre}
+                                    </strong>
+                                </div>
+                            )}
 
                             {/* Fila Tipo Residuo */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>

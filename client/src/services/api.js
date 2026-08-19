@@ -84,11 +84,13 @@ export const SHIGMAService = {
     deleteRecord: (formType, id) =>
         api.delete(`/shigma/records/${formType}/${id}`),
     
-    // Lugares y Sectores
+    // Lugares, Sectores y Áreas
     getLugares: () =>
         api.get('/shigma/lugares'),
     getSectores: (idLugar) =>
         api.get('/shigma/sectores', { params: { idLugar } }),
+    getAreas: (idSector) =>
+        api.get('/shigma/areas', { params: { idSector } }),
 
     
     // Bateas API
