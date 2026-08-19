@@ -726,6 +726,36 @@ const shigmaController = {
                 };
             });
 
+            // Configuración de Bateas Virtuales
+            const enableVirtual = process.env.ENABLE_VIRTUAL_BATEAS === 'true';
+            const virtualThreshold = parseFloat(process.env.VIRTUAL_BATEA_THRESHOLD || '80');
+
+            if (enableVirtual) {
+                const tipos = ['Orgánicos', 'Inorgánicos'];
+                tipos.forEach(tipo => {
+                    const bateasDelTipo = status.filter(b => b.tipo === tipo && !b.isVirtual);
+                    const todasSuperan = bateasDelTipo.length > 0 && bateasDelTipo.every(b => b.porcentaje >= virtualThreshold);
+                    
+                    const nombreVirtual = `Depósito Temporal de ${tipo}`;
+                    const dbVirtual = combinedRows[nombreVirtual];
+                    const pesoAcumuladoVirtual = dbVirtual ? dbVirtual.peso_acumulado : 0;
+                    const recordsCountVirtual = dbVirtual ? dbVirtual.records_count : 0;
+
+                    if (todasSuperan || pesoAcumuladoVirtual > 0) {
+                        status.push({
+                            id: `virtual_${tipo.toLowerCase().replace(/á/g, 'a').replace(/ó/g, 'o')}`,
+                            nombre: nombreVirtual,
+                            tipo: tipo,
+                            capacidad: 9999999, // Infinity cause problems with json serialization
+                            pesoAcumulado: Math.round(pesoAcumuladoVirtual * 100) / 100,
+                            porcentaje: 0,
+                            recordsCount: recordsCountVirtual,
+                            isVirtual: true
+                        });
+                    }
+                });
+            }
+
             res.json(status);
         } catch (error) {
             console.error('Error en getBateasStatus:', error);
@@ -1700,6 +1730,135 @@ const shigmaController = {
         } catch (error) {
             console.error('Error en getDepositoOperadores:', error);
             res.status(500).json({ error: 'Error al obtener los operadores de depósito para este usuario.' });
+        }
+    },
+
+    // Endpoint para traspaso de registros desde batea virtual a batea real
+    transferirBateaVirtual: async (req, res) => {
+        const connection = await db.getConnection();
+        try {
+            await ensureBateasTable();
+            await connection.beginTransaction();
+
+            const { origen, destino, kilos } = req.body;
+            
+            if (!origen || !destino) {
+                return res.status(400).json({ error: 'Debes proporcionar la batea de origen y destino.' });
+            }
+
+            // Seleccionar y bloquear registros RINE de la batea virtual
+            const [activeRc] = await connection.query(
+                `SELECT * FROM residuos_comunes WHERE destino = ? AND batea_salida_id IS NULL ORDER BY created_at ASC FOR UPDATE`,
+                [origen]
+            );
+
+            // Seleccionar y bloquear registros Devoluciones de la batea virtual
+            const [activeDev] = await connection.query(
+                `SELECT * FROM devoluciones WHERE destino = ? AND batea_salida_id IS NULL ORDER BY created_at ASC FOR UPDATE`,
+                [origen]
+            );
+
+            const recordsToProcess = [
+                ...activeRc.map(r => ({ ...r, table: 'residuos_comunes', pesoCol: 'peso', recordId: r.id, idPrefix: 'SHG-RC-' })),
+                ...activeDev.map(r => ({ ...r, table: 'devoluciones', pesoCol: 'kilos', recordId: r.id, idPrefix: 'SHG-DEV-' }))
+            ];
+
+            // Validar capacidad de la batea de destino real
+            const [bateaRows] = await connection.query(`SELECT capacidad FROM bateas WHERE nombre = ?`, [destino]);
+            if (!bateaRows.length) {
+                await connection.rollback();
+                return res.status(404).json({ error: 'Batea destino no encontrada en la base de datos.' });
+            }
+            const capacidadDestino = bateaRows[0].capacidad;
+
+            const [rcDestinoRows] = await connection.query(`SELECT SUM(peso) as peso_acumulado FROM residuos_comunes WHERE destino = ? AND batea_salida_id IS NULL`, [destino]);
+            const [devDestinoRows] = await connection.query(`SELECT SUM(kilos) as peso_acumulado FROM devoluciones WHERE destino = ? AND batea_salida_id IS NULL`, [destino]);
+            const pesoAcumuladoDestino = (rcDestinoRows[0].peso_acumulado || 0) + (devDestinoRows[0].peso_acumulado || 0);
+            const disponibleDestino = Math.max(0, capacidadDestino - pesoAcumuladoDestino);
+
+            const totalVirtual = recordsToProcess.reduce((sum, r) => sum + parseFloat(r[r.pesoCol]), 0);
+            const targetKilos = kilos ? parseFloat(kilos) : totalVirtual;
+
+            if (targetKilos > disponibleDestino) {
+                await connection.rollback();
+                return res.status(400).json({ error: `La batea destino no tiene capacidad suficiente. Disponible: ${disponibleDestino} kg.` });
+            }
+
+            if (recordsToProcess.length === 0) {
+                await connection.rollback();
+                return res.status(400).json({ error: 'La batea de origen no tiene registros para traspasar.' });
+            }
+
+            let remainingKilos = parseFloat(kilos);
+            const isPartial = !isNaN(remainingKilos) && remainingKilos > 0;
+
+            for (const record of recordsToProcess) {
+                const recordPeso = parseFloat(record[record.pesoCol]);
+                
+                if (isPartial) {
+                    if (remainingKilos <= 0) break; // Terminado el traspaso
+                    
+                    if (recordPeso <= remainingKilos) {
+                        // Traspaso completo de este registro
+                        await connection.query(
+                            `UPDATE ${record.table} SET destino = ? WHERE id = ?`,
+                            [destino, record.recordId]
+                        );
+                        remainingKilos -= recordPeso;
+                    } else {
+                        // Traspaso parcial del registro (Split)
+                        const remainingEnVirtual = recordPeso - remainingKilos;
+                        await connection.query(
+                            `UPDATE ${record.table} SET ${record.pesoCol} = ? WHERE id = ?`,
+                            [remainingEnVirtual, record.recordId]
+                        );
+
+                        // Generar nuevo ID
+                        const [lastRows] = await connection.query(`SELECT id FROM ${record.table} ORDER BY id DESC LIMIT 1`);
+                        let index = 1;
+                        if (lastRows.length > 0) {
+                            const lastId = lastRows[0].id;
+                            const lastNum = parseInt(lastId.substring(lastId.lastIndexOf('-') + 1), 10);
+                            if (!isNaN(lastNum)) {
+                                index = lastNum + 1;
+                            }
+                        }
+                        const paddedIndex = index.toString().padStart(7, '0');
+                        const customId = `${record.idPrefix}${paddedIndex}`;
+
+                        // Generar insert dinámico (simplificado)
+                        const cols = Object.keys(record).filter(k => 
+                            k !== 'id' && k !== 'table' && k !== 'pesoCol' && k !== 'recordId' && k !== 'idPrefix' 
+                            && k !== record.pesoCol && k !== 'destino'
+                        );
+                        const placeholders = cols.map(() => '?').join(', ');
+                        const values = cols.map(k => record[k]);
+
+                        await connection.query(
+                            `INSERT INTO ${record.table} (id, ${record.pesoCol}, destino, ${cols.join(', ')}) VALUES (?, ?, ?, ${placeholders})`,
+                            [customId, remainingKilos, destino, ...values]
+                        );
+                        
+                        remainingKilos = 0;
+                        break;
+                    }
+                } else {
+                    // Traspaso total
+                    await connection.query(
+                        `UPDATE ${record.table} SET destino = ? WHERE id = ?`,
+                        [destino, record.recordId]
+                    );
+                }
+            }
+
+            await connection.commit();
+            res.json({ message: 'Traspaso realizado con éxito.' });
+        } catch (error) {
+            await connection.rollback();
+            console.error('Error en transferirBateaVirtual:', error);
+            res.status(500).json({ error: 'Error al realizar el traspaso de batea virtual.' });
+        } finally {
+            connection.release();
         }
     }
 };

@@ -96,6 +96,8 @@ export const SHIGMAService = {
     // Bateas API
     getBateasStatus: () =>
         api.get('/shigma/bateas'),
+    transferirBateaVirtual: (data) =>
+        api.post('/shigma/bateas/virtual/transfer', data),
     restartBatea: (bateaId, data) =>
         api.post(`/shigma/bateas/${bateaId}/restart`, data),
     updateBateaCapacity: (bateaId, capacidad) =>

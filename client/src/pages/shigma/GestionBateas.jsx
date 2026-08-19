@@ -156,6 +156,14 @@ const GestionBateas = () => {
         pesoBalanza: ''
     });
 
+    // Modal de Traspaso Virtual
+    const [showTransferModal, setShowTransferModal] = useState(false);
+    const [transfering, setTransfering] = useState(false);
+    const [transferFormData, setTransferFormData] = useState({
+        destino: '',
+        kilos: ''
+    });
+
     // Modal de Capacidad
     const [showCapacityModal, setShowCapacityModal] = useState(false);
     const [selectedBateaForCapacity, setSelectedBateaForCapacity] = useState(null);
@@ -215,6 +223,52 @@ const GestionBateas = () => {
         fetchBateasData();
         fetchSalidasData();
     }, []);
+
+    // Lógica para traspaso de batea virtual a real
+    const handleOpenTransferModal = (batea) => {
+        setSelectedBatea(batea);
+        setTransferFormData({
+            destino: '',
+            kilos: '' // Vacío significa traspaso total
+        });
+        setShowTransferModal(true);
+    };
+
+    const handleTransferSubmit = async (e) => {
+        e.preventDefault();
+        if (!transferFormData.destino) {
+            showAlert('Por favor, seleccione una batea real de destino.', 'Validación', 'warning');
+            return;
+        }
+
+        const bateaDestino = bateas.find(b => b.nombre === transferFormData.destino);
+        if (bateaDestino) {
+            const disponible = Math.max(0, bateaDestino.capacidad - bateaDestino.pesoAcumulado);
+            const kilosATraspasar = transferFormData.kilos ? parseFloat(transferFormData.kilos) : selectedBatea.pesoAcumulado;
+            
+            if (kilosATraspasar > disponible) {
+                showAlert(`La batea destino no tiene capacidad suficiente. Disponible: ${disponible.toLocaleString()} kg, Intentando traspasar: ${kilosATraspasar.toLocaleString()} kg.`, 'Validación', 'warning');
+                return;
+            }
+        }
+
+        setTransfering(true);
+        try {
+            await SHIGMAService.transferirBateaVirtual({
+                origen: selectedBatea.nombre,
+                destino: transferFormData.destino,
+                kilos: transferFormData.kilos
+            });
+            showAlert('Traspaso realizado con éxito.', 'Éxito', 'success');
+            setShowTransferModal(false);
+            fetchBateasData();
+        } catch (error) {
+            console.error('Error en el traspaso:', error);
+            showAlert('Error al realizar el traspaso. Inténtelo nuevamente.', 'Error', 'error');
+        } finally {
+            setTransfering(false);
+        }
+    };
 
     // Lógica para reiniciar batea
     const handleOpenRestartModal = (batea) => {
@@ -450,76 +504,101 @@ const GestionBateas = () => {
                                                     <span style={{ fontSize: '0.85rem', color: 'var(--text)', fontWeight: '700' }}>
                                                         {b.pesoAcumulado.toLocaleString()} kg cargados
                                                     </span>
-                                                    <span style={{ 
-                                                        fontSize: '0.75rem', 
-                                                        color: 'var(--text-muted)', 
-                                                        fontWeight: '600', 
-                                                        display: 'flex', 
-                                                        alignItems: 'center', 
-                                                        gap: '4px',
-                                                        flexWrap: 'wrap'
-                                                    }}>
-                                                        Disponible: <strong>{disponible.toLocaleString()} kg</strong>
-                                                        <span style={{ color: 'var(--text-muted)', opacity: 0.6 }}>|</span>
-                                                        <span>Capacidad: {b.capacidad.toLocaleString()} kg</span>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleOpenCapacityModal(b)}
-                                                            style={{
-                                                                background: 'var(--surface)',
-                                                                border: '1px solid var(--border)',
-                                                                color: 'var(--primary)',
-                                                                cursor: 'pointer',
-                                                                display: 'inline-flex',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'center',
-                                                                padding: '3px 6px',
-                                                                borderRadius: '6px',
-                                                                transition: 'all 0.2s ease',
-                                                                marginLeft: '6px',
-                                                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                                                                gap: '4px'
-                                                            }}
-                                                            title="Hacé click para cambiar la capacidad máxima de esta batea"
-                                                            onMouseEnter={(e) => {
-                                                                e.currentTarget.style.background = 'var(--surface-hover)';
-                                                                e.currentTarget.style.borderColor = 'var(--primary)';
-                                                                e.currentTarget.style.transform = 'translateY(-1px)';
-                                                            }}
-                                                            onMouseLeave={(e) => {
-                                                                e.currentTarget.style.background = 'var(--surface)';
-                                                                e.currentTarget.style.borderColor = 'var(--border)';
-                                                                e.currentTarget.style.transform = 'translateY(0)';
-                                                            }}
-                                                        >
-                                                            <Sliders size={11} />
-                                                            <span style={{ fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.3px', color: 'var(--text)' }}>
-                                                                Ajustar Capacidad
-                                                            </span>
-                                                        </button>
-                                                    </span>
+                                                    {!b.isVirtual && (
+                                                        <span style={{ 
+                                                            fontSize: '0.75rem', 
+                                                            color: 'var(--text-muted)', 
+                                                            fontWeight: '600', 
+                                                            display: 'flex', 
+                                                            alignItems: 'center', 
+                                                            gap: '4px',
+                                                            flexWrap: 'wrap'
+                                                        }}>
+                                                            Disponible: <strong>{disponible.toLocaleString()} kg</strong>
+                                                            <span style={{ color: 'var(--text-muted)', opacity: 0.6 }}>|</span>
+                                                            <span>Capacidad: {b.capacidad.toLocaleString()} kg</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleOpenCapacityModal(b)}
+                                                                style={{
+                                                                    background: 'var(--surface)',
+                                                                    border: '1px solid var(--border)',
+                                                                    color: 'var(--primary)',
+                                                                    cursor: 'pointer',
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    padding: '3px 6px',
+                                                                    borderRadius: '6px',
+                                                                    transition: 'all 0.2s ease',
+                                                                    marginLeft: '6px',
+                                                                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                                                                    gap: '4px'
+                                                                }}
+                                                                title="Hacé click para cambiar la capacidad máxima de esta batea"
+                                                                onMouseEnter={(e) => {
+                                                                    e.currentTarget.style.background = 'var(--surface-hover)';
+                                                                    e.currentTarget.style.borderColor = 'var(--primary)';
+                                                                    e.currentTarget.style.transform = 'translateY(-1px)';
+                                                                }}
+                                                                onMouseLeave={(e) => {
+                                                                    e.currentTarget.style.background = 'var(--surface)';
+                                                                    e.currentTarget.style.borderColor = 'var(--border)';
+                                                                    e.currentTarget.style.transform = 'translateY(0)';
+                                                                }}
+                                                            >
+                                                                <Sliders size={11} />
+                                                                <span style={{ fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.3px', color: 'var(--text)' }}>
+                                                                    Ajustar Capacidad
+                                                                </span>
+                                                            </button>
+                                                        </span>
+                                                    )}
                                                 </div>
 
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleOpenRestartModal(b)}
-                                                    style={{
-                                                        padding: '8px 16px',
-                                                        borderRadius: '12px',
-                                                        border: isFull ? '1px solid var(--dy-red)' : '1px solid var(--border)',
-                                                        background: isFull ? 'var(--dy-red)' : 'var(--surface)',
-                                                        color: isFull ? '#fff' : 'var(--text)',
-                                                        fontSize: '0.8rem',
-                                                        fontWeight: '700',
-                                                        cursor: 'pointer',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '6px',
-                                                        transition: 'all 0.2s'
-                                                    }}
-                                                >
-                                                    <RefreshCw size={14} /> Despachar / Vaciar
-                                                </button>
+                                                {b.isVirtual ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleOpenTransferModal(b)}
+                                                        style={{
+                                                            padding: '8px 16px',
+                                                            borderRadius: '12px',
+                                                            border: '1px solid #3b82f6',
+                                                            background: '#3b82f6',
+                                                            color: '#fff',
+                                                            fontSize: '0.8rem',
+                                                            fontWeight: '700',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '6px',
+                                                            transition: 'all 0.2s'
+                                                        }}
+                                                    >
+                                                        <RefreshCw size={14} /> Traspasar a Batea Real
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleOpenRestartModal(b)}
+                                                        style={{
+                                                            padding: '8px 16px',
+                                                            borderRadius: '12px',
+                                                            border: isFull ? '1px solid var(--dy-red)' : '1px solid var(--border)',
+                                                            background: isFull ? 'var(--dy-red)' : 'var(--surface)',
+                                                            color: isFull ? '#fff' : 'var(--text)',
+                                                            fontSize: '0.8rem',
+                                                            fontWeight: '700',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '6px',
+                                                            transition: 'all 0.2s'
+                                                        }}
+                                                    >
+                                                        <RefreshCw size={14} /> Despachar / Vaciar
+                                                    </button>
+                                                )}
                                             </div>
 
                                             {/* Alerta de Lleno Flashing */}
@@ -826,6 +905,83 @@ const GestionBateas = () => {
                                 style={{ background: 'var(--primary)' }}
                             >
                                 {updatingCapacity ? 'Guardando...' : 'Guardar Capacidad'}
+                            </Button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
+
+            {/* Modal de Traspaso Virtual */}
+            {showTransferModal && (
+                <Modal
+                    isOpen={showTransferModal}
+                    onClose={() => setShowTransferModal(false)}
+                    title={`Traspaso: ${selectedBatea?.nombre}`}
+                    showFooter={false}
+                >
+                    <form onSubmit={handleTransferSubmit} style={{ padding: '8px 0' }}>
+                        <div style={{ marginBottom: '16px' }}>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '12px' }}>
+                                Esta batea virtual contiene <strong>{selectedBatea?.pesoAcumulado.toLocaleString()} kg</strong>.
+                                Podés realizar un traspaso parcial o total hacia una batea real.
+                            </p>
+                            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--text)' }}>
+                                Batea Destino (Real) *
+                            </label>
+                            <select
+                                value={transferFormData.destino}
+                                onChange={(e) => setTransferFormData({ ...transferFormData, destino: e.target.value })}
+                                style={{
+                                    width: '100%',
+                                    padding: '10px 12px',
+                                    borderRadius: '8px',
+                                    border: '1px solid var(--border)',
+                                    background: 'var(--bg-input, var(--surface))',
+                                    color: 'var(--text)',
+                                    fontSize: '0.95rem'
+                                }}
+                                required
+                            >
+                                <option value="">Seleccioná una batea destino...</option>
+                                {bateas.filter(b => !b.isVirtual && b.tipo === selectedBatea?.tipo).map(b => (
+                                    <option key={b.id} value={b.nombre}>
+                                        {b.nombre} (Disponible: {Math.max(0, b.capacidad - b.pesoAcumulado).toLocaleString()} kg)
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div style={{ marginBottom: '16px' }}>
+                            <Input
+                                label="Kilos a Traspasar (Opcional)"
+                                type="number"
+                                placeholder="Ej: 500"
+                                value={transferFormData.kilos}
+                                onChange={(e) => setTransferFormData({ ...transferFormData, kilos: e.target.value })}
+                                min="0.1"
+                                max={selectedBatea?.pesoAcumulado}
+                                step="0.1"
+                            />
+                            <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
+                                Dejá este campo vacío para realizar un traspaso TOTAL.
+                            </small>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '24px' }}>
+                            <Button 
+                                type="button" 
+                                variant="outline" 
+                                onClick={() => setShowTransferModal(false)}
+                                disabled={transfering}
+                            >
+                                Cancelar
+                            </Button>
+                            <Button 
+                                type="submit" 
+                                variant="primary" 
+                                className={transfering ? 'btn-loading' : ''}
+                                disabled={transfering}
+                            >
+                                {transfering ? 'Procesando...' : 'Realizar Traspaso'}
                             </Button>
                         </div>
                     </form>

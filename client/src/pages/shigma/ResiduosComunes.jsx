@@ -662,7 +662,7 @@ const ResiduosComunes = () => {
         // VALIDACIÓN DE CAPACIDAD DE BATEA (Sólo si NO es recuperable, ya que los recuperables no van a batea)
         if (!isRecuperable) {
             const selectedB = bateas.find(b => b.nombre === formData.destino);
-            if (selectedB) {
+            if (selectedB && !selectedB.isVirtual) {
                 const disponible = Math.max(0, selectedB.capacidad - selectedB.pesoAcumulado);
                 if (parseFloat(formData.peso) > disponible) {
                     // Emitir modal de advertencia al usuario y bloquear
@@ -1302,6 +1302,27 @@ const ResiduosComunes = () => {
 
                                 {/* INFORMACIÓN DE CAPACIDAD SUTIL FUERA DEL SELECTOR */}
                                 {selectedBateaObj && (() => {
+                                    if (selectedBateaObj.isVirtual) {
+                                        return (
+                                            <div className="card-anim" style={{
+                                                marginTop: '-4px',
+                                                marginBottom: '16px',
+                                                padding: '12px 16px',
+                                                borderRadius: '12px',
+                                                background: 'var(--surface-hover)',
+                                                border: '1px solid var(--border)',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '6px'
+                                            }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                                                    <span style={{ color: 'var(--text-muted)', fontWeight: '600' }}>Capacidad:</span>
+                                                    <span style={{ color: 'var(--info)', fontWeight: '800' }}>Sin Límite (Virtual)</span>
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+
                                     const disponible = Math.max(0, selectedBateaObj.capacidad - selectedBateaObj.pesoAcumulado);
                                     const porcentaje = selectedBateaObj.porcentaje;
                                     const color = getCapacityColor(porcentaje);
