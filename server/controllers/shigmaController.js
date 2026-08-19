@@ -76,10 +76,29 @@ const ensurePalletsSchemaUpdated = async () => {
     }
 };
 
+// Asegurar que la tabla residuos_comunes tiene la columna area_id y su clave foránea
+const ensureResiduosComunesSchemaUpdated = async () => {
+    try {
+        const [areaIdCol] = await db.query("SHOW COLUMNS FROM residuos_comunes LIKE 'area_id'");
+        if (areaIdCol.length === 0) {
+            console.log("[DB] Agregando columna 'area_id' a la tabla 'residuos_comunes'...");
+            await db.query('ALTER TABLE residuos_comunes ADD COLUMN area_id int DEFAULT NULL');
+            try {
+                await db.query('ALTER TABLE residuos_comunes ADD CONSTRAINT fk_residuos_comunes_area FOREIGN KEY (area_id) REFERENCES areas (id) ON DELETE SET NULL ON UPDATE CASCADE');
+            } catch (fkErr) {
+                console.log("[DB] Clave foránea fk_residuos_comunes_area tal vez ya exista o la tabla areas no está disponible.");
+            }
+        }
+    } catch (err) {
+        console.error('[DB] Error al asegurar esquema actualizado en residuos_comunes:', err.message);
+    }
+};
+
 // Ejecutar inicializaciones asíncronas
 (async () => {
     await ensureBateasTable();
     await ensurePalletsSchemaUpdated();
+    await ensureResiduosComunesSchemaUpdated();
 })();
 
 // Mapeo de tipos de formulario a tablas en base de datos (Plurales, Minúsculas y Snake Case)
@@ -210,7 +229,18 @@ const shigmaController = {
                     sql += ` ORDER BY created_at DESC`;
                 }
 
-                const [rows] = await db.query(sql, params);
+                let rows = [];
+                try {
+                    const [result] = await db.query(sql, params);
+                    rows = result;
+                } catch (err) {
+                    if (err.code === 'ER_NO_SUCH_TABLE') {
+                        console.warn(`[WARN] Table ${tableName} does not exist yet. Skipping in getAllRecords.`);
+                        rows = [];
+                    } else {
+                        throw err;
+                    }
+                }
                 return rows.map(r => {
                     const camelRecord = toCamelCaseObj(r);
                     return {

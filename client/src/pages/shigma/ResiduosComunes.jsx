@@ -808,16 +808,9 @@ const ResiduosComunes = () => {
         <div className="card-anim" style={{ maxWidth: '800px', margin: '0 auto' }}>
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-                <Button
-                    variant="ghost"
-                    onClick={() => navigate('/')}
-                    style={{ width: '40px', height: '40px', borderRadius: '50%', padding: 0 }}
-                >
-                    <ArrowLeft size={20} />
-                </Button>
                 <div>
                     <h1 style={{ fontSize: '2.1rem', fontWeight: '900', color: 'var(--primary)' }}>
-                        {editId ? 'Modificar Registro' : 'Residuos Industriales No Especiales (RINE)'}<span style={{ color: 'var(--dy-red)' }}>.</span>
+                        {editId ? 'Modificar Registro' : 'Ingreso de RINE'}<span style={{ color: 'var(--dy-red)' }}>.</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
                         {editId ? `Editando registro ${editId} del historial.` : 'Registro y clasificación de desperdicios orgánicos, inorgánicos de marca y generales.'}

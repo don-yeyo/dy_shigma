@@ -13,6 +13,7 @@ import { Button } from './components/Button';
 
 // SHIGMA Pages
 import ResiduosComunes from './pages/shigma/ResiduosComunes';
+import DespachoRine from './pages/shigma/DespachoRine';
 import ResiduosEspeciales from './pages/shigma/ResiduosEspeciales';
 import Devoluciones from './pages/shigma/Devoluciones';
 import Tratamiento from './pages/shigma/Tratamiento';
@@ -318,6 +319,11 @@ function App() {
                                 <Route path="/residuos-comunes" element={
                                     <RouteGuard requiredModulo="residuos-comunes">
                                         <ResiduosComunes />
+                                    </RouteGuard>
+                                } />
+                                <Route path="/despacho-rine" element={
+                                    <RouteGuard requiredModulo="gestion-bateas">
+                                        <DespachoRine />
                                     </RouteGuard>
                                 } />
                                 <Route path="/gestion-bateas" element={

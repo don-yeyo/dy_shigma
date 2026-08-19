@@ -156,7 +156,7 @@ const Pallets = () => {
                         const dateObj = new Date(record.createdAt || record.fecha);
                         const fechaCarga = dateObj.toISOString().split('T')[0];
                         const horaCarga = dateObj.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false });
-                        
+
                         let cantidadBuenEstado = '';
                         let cantidadReparables = '';
                         let cantidadIrreparables = '';
@@ -416,7 +416,7 @@ const Pallets = () => {
 
                     for (const cat of categorias) {
                         const originalRecord = grupoOriginalRecords.find(r => r.categoria === cat.name);
-                        
+
                         if (cat.val > 0) {
                             const payload = {
                                 tipoRegistro: 'Recepción Interna',
@@ -583,13 +583,21 @@ const Pallets = () => {
         <div className="card-anim" style={{ maxWidth: '800px', margin: '0 auto' }}>
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-                <Button
-                    variant="ghost"
-                    onClick={() => navigate('/')}
-                    style={{ width: '40px', height: '40px', borderRadius: '50%', padding: 0 }}
-                >
-                    <ArrowLeft size={20} />
-                </Button>
+                {(formData.tipoRegistro || editId) && (
+                    <Button
+                        variant="ghost"
+                        onClick={() => {
+                            if (editId) {
+                                navigate('/historial');
+                            } else {
+                                setFormData(prev => ({ ...prev, tipoRegistro: '' }));
+                            }
+                        }}
+                        style={{ width: '40px', height: '40px', borderRadius: '50%', padding: 0 }}
+                    >
+                        <ArrowLeft size={20} />
+                    </Button>
+                )}
                 <div>
                     <h1 style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--primary)' }}>
                         {editId ? 'Modificar Registro' : 'Gestión de Pallets'}<span style={{ color: 'var(--dy-red)' }}>.</span>
@@ -602,9 +610,7 @@ const Pallets = () => {
 
             {/* Selector de Tipo de Registro (Agrupado por Interno / Externo) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '28px' }}>
-                <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block' }}>
-                    Seleccione el Tipo de Registro *
-                </label>
+
 
                 {optionGroups.map((group, groupIdx) => {
                     const GroupIcon = group.icon;

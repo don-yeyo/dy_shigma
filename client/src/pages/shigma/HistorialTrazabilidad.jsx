@@ -712,13 +712,6 @@ const HistorialTrazabilidad = () => {
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <Button
-                        variant="ghost"
-                        onClick={() => navigate('/')}
-                        style={{ width: '40px', height: '40px', borderRadius: '50%', padding: 0 }}
-                    >
-                        <ArrowLeft size={20} />
-                    </Button>
                     <div>
                         <h1 style={{ fontSize: '2rem', fontWeight: '900', color: 'var(--primary)' }}>
                             Historial de Registros<span style={{ color: 'var(--dy-red)' }}>.</span>

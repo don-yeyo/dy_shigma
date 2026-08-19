@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-    Users, Search, UserPlus, Edit3, Trash2, CheckCircle, 
+import {
+    Users, Search, UserPlus, Edit3, Trash2, CheckCircle,
     XCircle, AlertTriangle, ArrowLeft, Check, Plus, FormInput
 } from 'lucide-react';
 import { Card, Input, Switch } from '../../components/FormElements';
@@ -33,12 +33,12 @@ const GestionOperadores = () => {
     const [operadores, setOperadores] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    
+
     // Modal states
     const [isFormModalOpen, setIsFormModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [selectedOperador, setSelectedOperador] = useState(null);
-    
+
     // Form fields state
     const [formData, setFormData] = useState({
         apellidoNombre: '',
@@ -46,7 +46,7 @@ const GestionOperadores = () => {
         activo: true,
         formularios: []
     });
-    
+
     // Validation / Submit errors
     const [errorMsg, setErrorMsg] = useState('');
     const [submitting, setSubmitting] = useState(false);
@@ -84,7 +84,7 @@ const GestionOperadores = () => {
         setSearchQuery(e.target.value);
     };
 
-    const filteredOperadores = operadores.filter(op => 
+    const filteredOperadores = operadores.filter(op =>
         op.apellidoNombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
         op.legajo.toLowerCase().includes(searchQuery.toLowerCase())
     );
@@ -147,7 +147,7 @@ const GestionOperadores = () => {
 
     const handleFormSubmit = async (e) => {
         if (e) e.preventDefault();
-        
+
         if (!formData.apellidoNombre.trim() || !formData.legajo.trim()) {
             setErrorMsg('Apellido y Nombre y Legajo son obligatorios.');
             return;
@@ -176,7 +176,7 @@ const GestionOperadores = () => {
 
     const handleConfirmDelete = async () => {
         if (!selectedOperador) return;
-        
+
         try {
             await SHIGMAService.deleteOperador(selectedOperador.id);
             setIsDeleteModalOpen(false);
@@ -191,16 +191,9 @@ const GestionOperadores = () => {
         <div className="card-anim" style={{ width: '100%' }}>
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-                <Button 
-                    variant="ghost" 
-                    onClick={() => navigate('/')} 
-                    style={{ width: '40px', height: '40px', borderRadius: '50%', padding: 0 }}
-                >
-                    <ArrowLeft size={20} />
-                </Button>
                 <div>
-                    <h1 style={{ fontSize: '2.2rem', fontWeight: '900', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <Users size={32} /> Gestión de Operadores<span style={{ color: 'var(--dy-red)' }}>.</span>
+                    <h1 style={{ fontSize: '2.2rem', fontWeight: '900', color: 'var(--primary)', display: 'block', alignItems: 'center', gap: '12px' }}>
+                        Gestión de Operadores<span style={{ color: 'var(--dy-red)' }}>.</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>
                         Maestro de inspectores y operarios autorizados por formulario de carga en SHIGMA.
@@ -222,8 +215,8 @@ const GestionOperadores = () => {
                     maxWidth: '400px',
                     width: '100%'
                 }}>
-                    <input 
-                        type="text" 
+                    <input
+                        type="text"
                         placeholder="Buscar por nombre o legajo..."
                         value={searchQuery}
                         onChange={handleSearchChange}
@@ -246,8 +239,8 @@ const GestionOperadores = () => {
                     }} />
                 </div>
 
-                <Button 
-                    variant="primary" 
+                <Button
+                    variant="primary"
                     onClick={openAddModal}
                     style={{ background: 'var(--dy-blue)', color: '#fff', padding: '12px 24px' }}
                 >
@@ -377,7 +370,7 @@ const GestionOperadores = () => {
                                         {/* Actions */}
                                         <td style={{ textAlign: 'center', paddingRight: '24px' }}>
                                             <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                                                <button 
+                                                <button
                                                     title="Editar Operador"
                                                     onClick={() => openEditModal(op)}
                                                     style={{
@@ -404,7 +397,7 @@ const GestionOperadores = () => {
                                                 >
                                                     <Edit3 size={16} />
                                                 </button>
-                                                <button 
+                                                <button
                                                     title="Eliminar Operador"
                                                     onClick={() => openDeleteModal(op)}
                                                     style={{
@@ -474,7 +467,7 @@ const GestionOperadores = () => {
                     )}
 
                     <div className="form-grid">
-                        <Input 
+                        <Input
                             label="Apellido y Nombre *"
                             type="text"
                             name="apellidoNombre"
@@ -484,7 +477,7 @@ const GestionOperadores = () => {
                             required
                         />
 
-                        <Input 
+                        <Input
                             label="Legajo *"
                             type="text"
                             name="legajo"
@@ -496,7 +489,7 @@ const GestionOperadores = () => {
                         />
                     </div>
 
-                    <Switch 
+                    <Switch
                         label="Estado de Actividad"
                         checked={formData.activo}
                         onChange={handleActiveToggle}
@@ -509,16 +502,16 @@ const GestionOperadores = () => {
                         <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '12px' }}>
                             Asignar Habilitación por Módulo
                         </label>
-                        
-                        <div style={{ 
-                            display: 'grid', 
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', 
-                            gap: '12px' 
+
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                            gap: '12px'
                         }}>
                             {FORM_TYPES.map(form => {
                                 const isChecked = formData.formularios.includes(form.id);
                                 return (
-                                    <div 
+                                    <div
                                         key={form.id}
                                         onClick={() => handleFormCheckboxToggle(form.id)}
                                         style={{
@@ -541,10 +534,10 @@ const GestionOperadores = () => {
                                         }}
                                     >
                                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                            <span style={{ 
-                                                fontSize: '0.9rem', 
-                                                fontWeight: isChecked ? '700' : '600', 
-                                                color: isChecked ? form.textColor : 'var(--text)' 
+                                            <span style={{
+                                                fontSize: '0.9rem',
+                                                fontWeight: isChecked ? '700' : '600',
+                                                color: isChecked ? form.textColor : 'var(--text)'
                                             }}>
                                                 {form.label}
                                             </span>
@@ -598,43 +591,43 @@ const GestionOperadores = () => {
                 </div>
             </Modal>
 
-        {/* Modal de Alerta Genérico */}
-        {alertModal.isOpen && (
-            <Modal
-                isOpen={alertModal.isOpen}
-                onClose={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
-                title={alertModal.title}
-                showCancel={false}
-                showFooter={false}
-            >
-                <div style={{ padding: '8px 0', textAlign: 'center' }}>
-                    <div style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '50%',
-                        background: 'rgba(239, 68, 68, 0.1)',
-                        color: 'var(--error)',
-                        marginBottom: '16px'
-                    }}>
-                        <AlertTriangle size={24} />
+            {/* Modal de Alerta Genérico */}
+            {alertModal.isOpen && (
+                <Modal
+                    isOpen={alertModal.isOpen}
+                    onClose={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
+                    title={alertModal.title}
+                    showCancel={false}
+                    showFooter={false}
+                >
+                    <div style={{ padding: '8px 0', textAlign: 'center' }}>
+                        <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '50%',
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            color: 'var(--error)',
+                            marginBottom: '16px'
+                        }}>
+                            <AlertTriangle size={24} />
+                        </div>
+                        <p style={{ color: 'var(--text)', fontSize: '0.95rem', marginBottom: '24px', lineHeight: '1.5' }}>
+                            {alertModal.message}
+                        </p>
+                        <Button
+                            variant="primary"
+                            onClick={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
+                            style={{ margin: '0 auto', display: 'block', minWidth: '120px' }}
+                        >
+                            Entendido
+                        </Button>
                     </div>
-                    <p style={{ color: 'var(--text)', fontSize: '0.95rem', marginBottom: '24px', lineHeight: '1.5' }}>
-                        {alertModal.message}
-                    </p>
-                    <Button
-                        variant="primary"
-                        onClick={() => setAlertModal(prev => ({ ...prev, isOpen: false }))}
-                        style={{ margin: '0 auto', display: 'block', minWidth: '120px' }}
-                    >
-                        Entendido
-                    </Button>
-                </div>
-            </Modal>
-        )}
-    </div>
+                </Modal>
+            )}
+        </div>
     );
 };
 

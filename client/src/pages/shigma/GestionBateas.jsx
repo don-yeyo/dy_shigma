@@ -341,14 +341,14 @@ const GestionBateas = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
                 <Button 
                     variant="ghost" 
-                    onClick={() => navigate('/')} 
+                    onClick={() => navigate('/despacho-rine')} 
                     style={{ width: '40px', height: '40px', borderRadius: '50%', padding: 0 }}
                 >
                     <ArrowLeft size={20} />
                 </Button>
                 <div>
                     <h1 style={{ fontSize: '2.1rem', fontWeight: '900', color: 'var(--primary)' }}>
-                        Gestión de Bateas<span style={{ color: 'var(--dy-red)' }}>.</span>
+                        Estado de Bateas<span style={{ color: 'var(--dy-red)' }}>.</span>
                     </h1>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>
                         Monitoreo de almacenamiento de residuos industriales no especiales en tiempo real y despacho de batea con manifiestos.

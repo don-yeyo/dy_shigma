@@ -22,21 +22,23 @@ const Drawer = ({ isOpen, onClose }) => {
         ] : []),
     ];
 
-    const formItems = [
-        { icon: <Trash2 size={18} />, label: 'Residuos Ind. No Especiales (RINE)', path: '/residuos-comunes', modulo: 'residuos-comunes' },
-        { icon: <Scale size={18} />, label: 'Gestión de Bateas', path: '/gestion-bateas', modulo: 'gestion-bateas' },
-        { icon: <Package size={18} />, label: 'Gestión de Depósito', path: '/gestion-deposito', modulo: 'gestion-bateas' },
+    const rineItems = [
+        { icon: <Trash2 size={18} />, label: 'Ingreso de RINE', path: '/residuos-comunes', modulo: 'residuos-comunes' },
+        { icon: <Package size={18} />, label: 'Despacho de RINE', path: '/despacho-rine', modulo: 'gestion-bateas' },
+        { icon: <Package size={18} />, label: 'Gestión de Pallets', path: '/pallets', modulo: 'pallets' },
+    ].filter(item => hasModulo(item.modulo));
+
+    const medioambienteItems = [
         { icon: <ShieldAlert size={18} />, label: 'Residuos Especiales', path: '/residuos-especiales', modulo: 'residuos-especiales' },
-        { icon: <CornerUpLeft size={18} />, label: 'Devoluciones', path: '/devoluciones', modulo: 'devoluciones' },
         { icon: <RefreshCw size={18} />, label: 'Tratamiento', path: '/tratamiento', modulo: 'tratamiento' },
         { icon: <Recycle size={18} />, label: 'Economía Circular', path: '/economia-circular', modulo: 'economia-circular' },
-        { icon: <Package size={18} />, label: 'Gestión de Pallets', path: '/pallets', modulo: 'pallets' },
         { icon: <Leaf size={18} />, label: 'Espacios Verdes', path: '/espacios-verdes', modulo: 'espacios-verdes' },
     ].filter(item => hasModulo(item.modulo));
 
-    const adminItems = hasRole('sysadmin') ? [
-        { icon: <ShieldCheck size={18} />, label: 'Gestión de Usuarios', path: '/gestion-usuarios' },
-    ] : [];
+    const adminItems = [
+        ...(hasRole('sysadmin') ? [{ icon: <ShieldCheck size={18} />, label: 'Gestión de Usuarios', path: '/gestion-usuarios' }] : []),
+        { icon: <Settings size={18} />, label: 'Configuración', path: '/configuracion' }
+    ];
 
     const handleClick = (path) => {
         navigate(path);
@@ -129,8 +131,8 @@ const Drawer = ({ isOpen, onClose }) => {
                         </div>
                     )}
 
-                    {/* Sección Formularios */}
-                    {formItems.length > 0 && (
+                    {/* Sección Gestión de RINE */}
+                    {rineItems.length > 0 && (
                         <div style={{ marginBottom: '20px' }}>
                             <p style={{
                                 fontSize: '0.75rem',
@@ -140,12 +142,28 @@ const Drawer = ({ isOpen, onClose }) => {
                                 letterSpacing: '1px',
                                 marginBottom: '8px',
                                 paddingLeft: '8px'
-                            }}>Registros Reciclado</p>
-                            {formItems.map(renderLink)}
+                            }}>Gestión de RINE</p>
+                            {rineItems.map(renderLink)}
                         </div>
                     )}
 
-                    {/* Sección Admin */}
+                    {/* Sección Medioambiente */}
+                    {medioambienteItems.length > 0 && (
+                        <div style={{ marginBottom: '20px' }}>
+                            <p style={{
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                color: 'var(--text-muted)',
+                                textTransform: 'uppercase',
+                                letterSpacing: '1px',
+                                marginBottom: '8px',
+                                paddingLeft: '8px'
+                            }}>Medioambiente</p>
+                            {medioambienteItems.map(renderLink)}
+                        </div>
+                    )}
+
+                    {/* Sección Administración */}
                     {adminItems.length > 0 && (
                         <div style={{ marginBottom: '20px' }}>
                             <p style={{
@@ -160,12 +178,6 @@ const Drawer = ({ isOpen, onClose }) => {
                             {adminItems.map(renderLink)}
                         </div>
                     )}
-
-                    {/* Separador */}
-                    <div style={{ height: '1px', background: 'var(--border)', margin: '16px 0' }} />
-
-                    {/* Configuración */}
-                    {renderLink({ icon: <Settings size={18} />, label: 'Configuración', path: '/configuracion' })}
                 </div>
 
                 {/* Footer con info del usuario */}
