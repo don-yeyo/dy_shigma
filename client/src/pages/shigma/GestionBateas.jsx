@@ -4,7 +4,7 @@ import { useAuth } from '../../config/AuthContext';
 import { 
     Scale, ArrowLeft, RefreshCw, AlertTriangle, Calendar, Clock, FileText, CheckCircle, Sliders
 } from 'lucide-react';
-import { Card, Input } from '../../components/FormElements';
+import { Card, Input, Textarea } from '../../components/FormElements';
 import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
 import { SHIGMAService } from '../../services/api';
@@ -229,7 +229,8 @@ const GestionBateas = () => {
         setSelectedBatea(batea);
         setTransferFormData({
             destino: '',
-            kilos: '' // Vacío significa traspaso total
+            kilos: '', // Vacío significa traspaso total
+            comentarios: ''
         });
         setShowTransferModal(true);
     };
@@ -257,7 +258,8 @@ const GestionBateas = () => {
             await SHIGMAService.transferirBateaVirtual({
                 origen: selectedBatea.nombre,
                 destino: transferFormData.destino,
-                kilos: transferFormData.kilos
+                kilos: transferFormData.kilos,
+                comentarios: transferFormData.comentarios
             });
             showAlert('Traspaso realizado con éxito.', 'Éxito', 'success');
             setShowTransferModal(false);
@@ -277,7 +279,8 @@ const GestionBateas = () => {
             fecha: new Date().toISOString().split('T')[0],
             hora: new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false }),
             nroManifiesto: '',
-            pesoBalanza: String(batea.pesoAcumulado) // Autopoblar con el peso acumulado
+            pesoBalanza: String(batea.pesoAcumulado), // Autopoblar con el peso acumulado
+            observaciones: ''
         });
         setShowRestartModal(true);
     };
@@ -442,18 +445,19 @@ const GestionBateas = () => {
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                                 {bateas.map(b => {
+                                    const esTemporal = b.isVirtual || b.nombre?.toLowerCase().includes('temporal');
                                     // Determinar colores según nivel de llenado
                                     let barColor = 'var(--success)';
                                     let bgAlert = 'rgba(16, 185, 129, 0.08)';
                                     let textColor = 'var(--success)';
-                                    let isFull = b.porcentaje >= 90;
+                                    let isFull = !esTemporal && b.porcentaje >= 90;
                                     let disponible = Math.max(0, b.capacidad - b.pesoAcumulado);
                                     
-                                    if (b.porcentaje >= 70 && b.porcentaje < 90) {
+                                    if (!esTemporal && b.porcentaje >= 70 && b.porcentaje < 90) {
                                         barColor = 'var(--warning)';
                                         bgAlert = 'rgba(245, 158, 11, 0.08)';
                                         textColor = 'var(--warning)';
-                                    } else if (b.porcentaje >= 90) {
+                                    } else if (!esTemporal && b.porcentaje >= 90) {
                                         barColor = 'var(--dy-red)';
                                         bgAlert = 'rgba(228, 5, 33, 0.08)';
                                         textColor = 'var(--dy-red)';
@@ -482,21 +486,38 @@ const GestionBateas = () => {
                                                         Destinado a: {b.tipo}
                                                     </span>
                                                 </div>
-                                                <span style={{ fontWeight: '800', fontSize: '1.2rem', color: textColor }}>
-                                                    {b.porcentaje}%
-                                                </span>
+                                                {!esTemporal ? (
+                                                    <span style={{ fontWeight: '800', fontSize: '1.2rem', color: textColor }}>
+                                                        {b.porcentaje}%
+                                                    </span>
+                                                ) : (
+                                                    <span style={{ 
+                                                        fontSize: '0.75rem', 
+                                                        fontWeight: '800', 
+                                                        padding: '4px 10px', 
+                                                        borderRadius: '8px', 
+                                                        background: 'rgba(59, 130, 246, 0.1)', 
+                                                        color: '#3b82f6',
+                                                        textTransform: 'uppercase',
+                                                        letterSpacing: '0.5px'
+                                                    }}>
+                                                        Depósito Temporal
+                                                    </span>
+                                                )}
                                             </div>
 
-                                            {/* Barra de Progreso */}
-                                            <div style={{ width: '100%', height: '12px', backgroundColor: 'var(--border)', borderRadius: '6px', overflow: 'hidden', marginBottom: '16px' }}>
-                                                <div style={{ 
-                                                    width: `${b.porcentaje}%`, 
-                                                    height: '100%', 
-                                                    backgroundColor: barColor, 
-                                                    borderRadius: '6px',
-                                                    transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
-                                                }} />
-                                            </div>
+                                            {/* Barra de Progreso (Oculta para depósitos temporales) */}
+                                            {!esTemporal && (
+                                                <div style={{ width: '100%', height: '12px', backgroundColor: 'var(--border)', borderRadius: '6px', overflow: 'hidden', marginBottom: '16px' }}>
+                                                    <div style={{ 
+                                                        width: `${b.porcentaje}%`, 
+                                                        height: '100%', 
+                                                        backgroundColor: barColor, 
+                                                        borderRadius: '6px',
+                                                        transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
+                                                    }} />
+                                                </div>
+                                            )}
 
                                             {/* Métricas y Acción */}
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
@@ -504,7 +525,7 @@ const GestionBateas = () => {
                                                     <span style={{ fontSize: '0.85rem', color: 'var(--text)', fontWeight: '700' }}>
                                                         {b.pesoAcumulado.toLocaleString()} kg cargados
                                                     </span>
-                                                    {!b.isVirtual && (
+                                                    {!esTemporal && (
                                                         <span style={{ 
                                                             fontSize: '0.75rem', 
                                                             color: 'var(--text-muted)', 
@@ -692,10 +713,23 @@ const GestionBateas = () => {
                                                 <div style={{ marginBottom: '2px' }}>Batea de origen: <strong style={{ color: 'var(--text)' }}>{salida.bateaNombre}</strong></div>
                                                 <div style={{ marginBottom: '2px' }}>Nro. de Manifiesto: <strong style={{ color: 'var(--text)' }}>{salida.nroManifiesto}</strong></div>
                                                 <div style={{ marginBottom: '6px' }}>Peso de Balanza: <strong style={{ color: 'var(--primary)' }}>{salida.pesoBalanza.toLocaleString()} kg</strong> (Kilos en batea: {salida.pesoAcumulado.toLocaleString()} kg)</div>
+                                                {salida.observaciones && (
+                                                    <div style={{ 
+                                                        marginTop: '6px', 
+                                                        padding: '6px 10px', 
+                                                        background: 'var(--surface)', 
+                                                        border: '1px solid var(--border)', 
+                                                        borderRadius: '6px', 
+                                                        fontSize: '0.8rem', 
+                                                        color: 'var(--text)' 
+                                                    }}>
+                                                        <strong>Observación:</strong> {salida.observaciones}
+                                                    </div>
+                                                )}
                                                 
                                                 <div style={{ 
                                                     marginTop: '8px', 
-                                                    paddingTop: '8px',
+                                                    paddingTop: '8px', 
                                                     borderTop: '1px dashed var(--border)',
                                                     fontSize: '0.8rem', 
                                                     display: 'flex', 
@@ -743,6 +777,7 @@ const GestionBateas = () => {
                     isOpen={showRestartModal}
                     onClose={() => setShowRestartModal(false)}
                     title={`Manifiesto de Salida - ${selectedBatea.nombre}`}
+                    maxWidth="540px"
                     showFooter={false}
                 >
                     <form onSubmit={handleRestartSubmit} style={{ padding: '8px 0' }}>
@@ -800,6 +835,15 @@ const GestionBateas = () => {
                             value={restartFormData.pesoBalanza}
                             onChange={(e) => setRestartFormData(prev => ({ ...prev, pesoBalanza: e.target.value }))}
                             required
+                        />
+
+                        <Textarea
+                            label="Comentarios"
+                            placeholder="Ingrese comentarios u observaciones adicionales sobre el despacho o vaciado..."
+                            value={restartFormData.observaciones || ''}
+                            onChange={(e) => setRestartFormData(prev => ({ ...prev, observaciones: e.target.value }))}
+                            rows={3}
+                            style={{ minHeight: '80px' }}
                         />
                         
                         <div style={{
@@ -917,6 +961,7 @@ const GestionBateas = () => {
                     isOpen={showTransferModal}
                     onClose={() => setShowTransferModal(false)}
                     title={`Traspaso: ${selectedBatea?.nombre}`}
+                    maxWidth="540px"
                     showFooter={false}
                 >
                     <form onSubmit={handleTransferSubmit} style={{ padding: '8px 0' }}>
@@ -965,6 +1010,15 @@ const GestionBateas = () => {
                                 Dejá este campo vacío para realizar un traspaso TOTAL.
                             </small>
                         </div>
+
+                        <Textarea
+                            label="Comentarios"
+                            placeholder="Ingrese comentarios u observaciones sobre el traspaso..."
+                            value={transferFormData.comentarios || ''}
+                            onChange={(e) => setTransferFormData({ ...transferFormData, comentarios: e.target.value })}
+                            rows={3}
+                            style={{ minHeight: '80px' }}
+                        />
 
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', marginTop: '24px' }}>
                             <Button 

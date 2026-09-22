@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS `bateas_salidas` (
   `record_ids` json NOT NULL, -- Lista estructurada de IDs vinculados
   `status` varchar(30) DEFAULT 'pendiente',
   `nro_certificado` varchar(30) DEFAULT NULL, -- Número de certificado al confirmar
+  `observaciones` text NULL,
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP(),
   `usuario` varchar(100) DEFAULT '',
   PRIMARY KEY (`id`),

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Package, ArrowLeft, Send, Trash2, Wrench, Hammer, PlusCircle, ArrowRightLeft, Truck, RotateCcw, Building2, Globe } from 'lucide-react';
+import { Package, ArrowLeft, Send, Trash2, Wrench, Hammer, PlusCircle, ArrowRightLeft, Truck, RotateCcw, Building2, Globe, Boxes, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card, Input, Select, Textarea, NumberInput } from '../../components/FormElements';
 import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
@@ -26,6 +26,11 @@ const Pallets = () => {
     const [selectedPendienteId, setSelectedPendienteId] = useState(null);
     const [modoRetorno, setModoRetorno] = useState(false);
     const [grupoOriginalRecords, setGrupoOriginalRecords] = useState([]); // Registros originales del grupo para Recepción Interna
+    
+    // Estados para cuadro de resumen de stock en galpón
+    const [palletsRecords, setPalletsRecords] = useState([]);
+    const [loadingResumen, setLoadingResumen] = useState(true);
+    const [showDetalleResumen, setShowDetalleResumen] = useState(false);
 
     const showAlert = (title, message) => setAlertModal({ isOpen: true, title, message });
 
@@ -81,8 +86,8 @@ const Pallets = () => {
             options: [
                 { id: 'Ingreso de Nuevos', label: 'Ingreso de Nuevos', icon: PlusCircle, color: '#10b981', bg: 'rgba(16, 185, 129, 0.04)', selectedBg: 'rgba(16, 185, 129, 0.12)' },
                 { id: 'Recepción Externa', label: 'Recepción Externa', icon: Hammer, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.04)', selectedBg: 'rgba(59, 130, 246, 0.12)' },
-                { id: 'Entrega Externa', label: 'Entrega Externa', icon: Truck, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.04)', selectedBg: 'rgba(245, 158, 11, 0.12)' },
-                { id: 'Descartes', label: 'Descartes', icon: Trash2, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.04)', selectedBg: 'rgba(239, 68, 68, 0.12)' }
+                { id: 'Entrega Externa', label: 'Entrega Externa', help: 'como Reparación', icon: Truck, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.04)', selectedBg: 'rgba(245, 158, 11, 0.12)' },
+                { id: 'Descartes', label: 'Descartes', help: 'como Destrucción', icon: Trash2, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.04)', selectedBg: 'rgba(239, 68, 68, 0.12)' }
             ]
         }
     ];
@@ -127,23 +132,96 @@ const Pallets = () => {
         }
     };
 
-    const fetchPendientes = async () => {
+    const fetchPalletsRecords = async () => {
         try {
+            setLoadingResumen(true);
             const response = await SHIGMAService.getRecordsByForm('pallets');
             const recs = response.data || [];
+            setPalletsRecords(recs);
+
             const pends = recs.filter(r =>
                 (r.tipoRegistro === 'Reparación Interna' || r.tipoRegistro === 'Recepción Externa' || r.tipoRegistro === 'Reparación Externa') &&
                 r.estado === 'Retirado'
             );
             setPendientes(pends);
         } catch (error) {
-            console.error('Error fetching pendientes:', error);
+            console.error('Error fetching pallets records:', error);
+        } finally {
+            setLoadingResumen(false);
         }
     };
 
+    // Cálculo dinámico del stock teórico en galpón
+    const resumenStock = React.useMemo(() => {
+        let nuevos = 0;
+        let recepcionInternaBuenEstado = 0;
+        let recepcionInternaReparables = 0;
+        let recepcionInternaIrreparables = 0;
+        let recepcionInternaDescartables = 0;
+        let recepcionInternaSinCat = 0;
+        let recepcionExterna = 0;
+
+        let entregaExternaReparacion = 0;
+        let descartesDestruccion = 0;
+        let entregaInterna = 0;
+
+        palletsRecords.forEach(r => {
+            const cant = Number(r.cantidad || 0);
+            const tipo = r.tipoRegistro;
+            const cat = (r.categoria || '').trim().toLowerCase();
+
+            if (tipo === 'Ingreso de Nuevos') {
+                nuevos += cant;
+            } else if (tipo === 'Recepción Interna') {
+                if (cat.includes('buen estado')) {
+                    recepcionInternaBuenEstado += cant;
+                } else if (cat.includes('reparable')) {
+                    recepcionInternaReparables += cant;
+                } else if (cat.includes('irreparable')) {
+                    recepcionInternaIrreparables += cant;
+                } else if (cat.includes('descartable')) {
+                    recepcionInternaDescartables += cant;
+                } else {
+                    recepcionInternaSinCat += cant;
+                }
+            } else if (tipo === 'Recepción Externa' || tipo === 'Reparación Externa') {
+                recepcionExterna += cant;
+            } else if (tipo === 'Entrega Externa') {
+                entregaExternaReparacion += cant;
+            } else if (tipo === 'Descartes') {
+                descartesDestruccion += cant;
+            } else if (tipo === 'Entrega Interna') {
+                entregaInterna += cant;
+            }
+        });
+
+        const totalRecepcionInterna = recepcionInternaBuenEstado + recepcionInternaReparables + recepcionInternaIrreparables + recepcionInternaDescartables + recepcionInternaSinCat;
+        const totalIngresos = nuevos + totalRecepcionInterna + recepcionExterna;
+        
+        // Stock en galpón según la regla: Ingresos teniendo en cuenta el tipo menos Entrega Externa (Reparación) y Descarte (Destrucción)
+        const totalGalpon = totalIngresos - entregaExternaReparacion - descartesDestruccion - entregaInterna;
+
+        return {
+            nuevos,
+            recepcionInternaBuenEstado,
+            recepcionInternaReparables,
+            recepcionInternaIrreparables,
+            recepcionInternaDescartables,
+            recepcionInternaSinCat,
+            totalRecepcionInterna,
+            recepcionExterna,
+            totalIngresos,
+            entregaExternaReparacion,
+            descartesDestruccion,
+            entregaInterna,
+            totalSalidas: entregaExternaReparacion + descartesDestruccion + entregaInterna,
+            totalGalpon: Math.max(0, totalGalpon)
+        };
+    }, [palletsRecords]);
+
     useEffect(() => {
         fetchOperadores();
-        fetchPendientes();
+        fetchPalletsRecords();
     }, []);
 
     useEffect(() => {
@@ -546,8 +624,8 @@ const Pallets = () => {
                     setShowSuccessModal(true);
                 }
 
-                // Actualizar la lista de pendientes reactivamente
-                await fetchPendientes();
+                // Actualizar la lista de pendientes y métricas de stock reactivamente
+                await fetchPalletsRecords();
             }
 
             // Resetear formulario si no es edición clásica de URL
@@ -607,6 +685,171 @@ const Pallets = () => {
                     </p>
                 </div>
             </div>
+
+            {/* Cuadro de Resumen: Stock Teórico de Pallets en Galpón */}
+            {!editId && (
+                <div style={{
+                    marginBottom: '28px',
+                    borderRadius: '16px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface)',
+                    boxShadow: 'var(--shadow-sm)',
+                    overflow: 'hidden',
+                    transition: 'all 0.3s ease'
+                }}>
+                    {/* Header del Resumen */}
+                    <div style={{
+                        padding: '16px 20px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '12px',
+                        borderBottom: showDetalleResumen ? '1px solid var(--border)' : 'none',
+                        background: 'var(--surface-hover)'
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{
+                                width: '42px',
+                                height: '42px',
+                                borderRadius: '12px',
+                                background: 'rgba(20, 184, 166, 0.12)',
+                                color: '#14b8a6',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0
+                            }}>
+                                <Boxes size={22} />
+                            </div>
+                            <div>
+                                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '800', color: 'var(--text)' }}>
+                                    Stock Teórico en Galpón
+                                </h3>
+                                <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                    Balance acumulado: Ingresos totales menos salidas a reparación y descarte.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                            <div style={{ textAlign: 'right' }}>
+                                <span style={{
+                                    fontSize: '1.75rem',
+                                    fontWeight: '900',
+                                    color: 'var(--primary)',
+                                    display: 'block',
+                                    lineHeight: 1
+                                }}>
+                                    {loadingResumen ? '...' : `${resumenStock.totalGalpon.toLocaleString()} uds`}
+                                </span>
+                                <span style={{ fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.5px' }}>
+                                    En Galpón
+                                </span>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setShowDetalleResumen(!showDetalleResumen)}
+                                style={{
+                                    background: 'var(--surface)',
+                                    border: '1px solid var(--border)',
+                                    borderRadius: '8px',
+                                    padding: '6px 10px',
+                                    color: 'var(--text)',
+                                    fontSize: '0.8rem',
+                                    fontWeight: '600',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    transition: 'all 0.2s ease'
+                                }}
+                            >
+                                {showDetalleResumen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                {showDetalleResumen ? 'Ocultar Desglose' : 'Ver Desglose'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Desglose Detallado */}
+                    {showDetalleResumen && (
+                        <div style={{ padding: '20px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' }}>
+                                {/* Columna Ingresos */}
+                                <div style={{
+                                    padding: '16px',
+                                    borderRadius: '12px',
+                                    border: '1px solid rgba(16, 185, 129, 0.25)',
+                                    background: 'rgba(16, 185, 129, 0.03)'
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                        <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                            (+) Ingresos al Galpón
+                                        </span>
+                                        <strong style={{ fontSize: '1rem', color: '#10b981' }}>
+                                            {resumenStock.totalIngresos.toLocaleString()} uds
+                                        </strong>
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.82rem', color: 'var(--text)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span style={{ color: 'var(--text-muted)' }}>• Ingreso de Nuevos:</span>
+                                            <strong>{resumenStock.nuevos.toLocaleString()} uds</strong>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span style={{ color: 'var(--text-muted)' }}>• Recepción Interna (Fábrica):</span>
+                                            <strong>{resumenStock.totalRecepcionInterna.toLocaleString()} uds</strong>
+                                        </div>
+                                        <div style={{ paddingLeft: '12px', fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                            <div>- Buen Estado: <strong style={{ color: 'var(--text)' }}>{resumenStock.recepcionInternaBuenEstado} uds</strong></div>
+                                            <div>- Reparables: <strong style={{ color: 'var(--text)' }}>{resumenStock.recepcionInternaReparables} uds</strong></div>
+                                            <div>- Irreparables / Descartables: <strong style={{ color: 'var(--text)' }}>{resumenStock.recepcionInternaIrreparables + resumenStock.recepcionInternaDescartables} uds</strong></div>
+                                            {resumenStock.recepcionInternaSinCat > 0 && (
+                                                <div>- Otros / Sin Categoría: <strong style={{ color: 'var(--text)' }}>{resumenStock.recepcionInternaSinCat} uds</strong></div>
+                                            )}
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2px' }}>
+                                            <span style={{ color: 'var(--text-muted)' }}>• Retorno Reparación Externa:</span>
+                                            <strong>{resumenStock.recepcionExterna.toLocaleString()} uds</strong>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Columna Salidas */}
+                                <div style={{
+                                    padding: '16px',
+                                    borderRadius: '12px',
+                                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                                    background: 'rgba(239, 68, 68, 0.03)'
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                        <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                            (-) Salidas y Bajas
+                                        </span>
+                                        <strong style={{ fontSize: '1rem', color: '#ef4444' }}>
+                                            {resumenStock.totalSalidas.toLocaleString()} uds
+                                        </strong>
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.82rem', color: 'var(--text)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span style={{ color: 'var(--text-muted)' }}>• Entrega Externa (como Reparación):</span>
+                                            <strong>{resumenStock.entregaExternaReparacion.toLocaleString()} uds</strong>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span style={{ color: 'var(--text-muted)' }}>• Descartes (como Destrucción):</span>
+                                            <strong>{resumenStock.descartesDestruccion.toLocaleString()} uds</strong>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span style={{ color: 'var(--text-muted)' }}>• Entrega Interna (a Planta):</span>
+                                            <strong>{resumenStock.entregaInterna.toLocaleString()} uds</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Selector de Tipo de Registro (Agrupado por Interno / Externo) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '28px' }}>
@@ -689,6 +932,17 @@ const Pallets = () => {
                                         >
                                             <IconComponent size={24} style={{ color: opt.color }} />
                                             <span style={{ fontWeight: '700', fontSize: '0.9rem', textAlign: 'center' }}>{opt.label}</span>
+                                            {opt.help && (
+                                                <span style={{ 
+                                                    fontSize: '0.75rem', 
+                                                    color: isSelected ? 'var(--text)' : 'var(--text-muted)', 
+                                                    fontWeight: '600',
+                                                    marginTop: '-2px',
+                                                    opacity: 0.9
+                                                }}>
+                                                    ({opt.help})
+                                                </span>
+                                            )}
                                         </button>
                                     );
                                 })}

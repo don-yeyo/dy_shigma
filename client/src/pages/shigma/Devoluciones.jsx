@@ -64,7 +64,7 @@ const Devoluciones = () => {
         }
     }, []);
 
-    const sectoresOpciones = (import.meta.env.VITE_SECTORES_DEVOLUCIONES || 'Panificados,Tapas,Pastas')
+    const sectoresOpciones = (import.meta.env.VITE_SECTORES_DEVOLUCIONES || 'Panificados,Tapas y Pastas')
         .split(',')
         .map(sec => ({ id: sec.trim(), label: sec.trim() }));
 

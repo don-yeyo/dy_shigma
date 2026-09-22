@@ -94,11 +94,25 @@ const ensureResiduosComunesSchemaUpdated = async () => {
     }
 };
 
+// Asegurar que la tabla bateas_salidas tiene la columna observaciones
+const ensureBateasSalidasSchemaUpdated = async () => {
+    try {
+        const [obsCol] = await db.query("SHOW COLUMNS FROM bateas_salidas LIKE 'observaciones'");
+        if (obsCol.length === 0) {
+            console.log("[DB] Agregando columna 'observaciones' a la tabla 'bateas_salidas'...");
+            await db.query('ALTER TABLE bateas_salidas ADD COLUMN observaciones text NULL AFTER nro_certificado');
+        }
+    } catch (err) {
+        console.error('[DB] Error al asegurar columna observaciones en bateas_salidas:', err.message);
+    }
+};
+
 // Ejecutar inicializaciones asíncronas
 (async () => {
     await ensureBateasTable();
     await ensurePalletsSchemaUpdated();
     await ensureResiduosComunesSchemaUpdated();
+    await ensureBateasSalidasSchemaUpdated();
 })();
 
 // Mapeo de tipos de formulario a tablas en base de datos (Plurales, Minúsculas y Snake Case)
@@ -541,6 +555,17 @@ const shigmaController = {
             // Convertir el body entrante a snake_case
             const dbPayload = toSnakeCaseObj(recordData);
 
+            // Eliminar campos auxiliares de formulario que no existen en tablas físicas
+            delete dbPayload.fecha_carga;
+            delete dbPayload.hora_carga;
+            delete dbPayload.fecha_carga_str;
+            delete dbPayload.hora_carga_str;
+
+            // Si vino fechaCarga y horaCarga pero no created_at, reconstruirlo
+            if (!dbPayload.created_at && recordData.fechaCarga && recordData.horaCarga) {
+                dbPayload.created_at = `${recordData.fechaCarga}T${recordData.horaCarga}`;
+            }
+
             // Eliminar campos que son solo para UI y no están en la tabla física de residuos_comunes
             if (tableName === 'residuos_comunes') {
                 delete dbPayload.lugar;
@@ -553,8 +578,25 @@ const shigmaController = {
             const values = [];
 
             Object.entries(dbPayload).forEach(([key, val]) => {
-                // No permitir modificar id, created_at, o usuario original
-                if (key === 'id' || key === 'created_at' || key === 'usuario' || key === 'ediciones' || key === 'form_type' || key === 'form_label') return;
+                // No permitir modificar id, usuario original, contador ediciones o metadatos de formulario
+                if (key === 'id' || key === 'usuario' || key === 'ediciones' || key === 'form_type' || key === 'form_label' || key === 'usuario_edicion') return;
+
+                if (key === 'created_at') {
+                    if (!val) return;
+                    // Formatear al estándar de fecha/hora de MySQL: YYYY-MM-DD HH:mm:ss
+                    const dateObj = new Date(val);
+                    if (!isNaN(dateObj.getTime())) {
+                        const yyyy = dateObj.getFullYear();
+                        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                        const dd = String(dateObj.getDate()).padStart(2, '0');
+                        const hh = String(dateObj.getHours()).padStart(2, '0');
+                        const min = String(dateObj.getMinutes()).padStart(2, '0');
+                        const ss = String(dateObj.getSeconds()).padStart(2, '0');
+                        val = `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+                    } else {
+                        return;
+                    }
+                }
 
                 sets.push(`${key} = ?`);
                 if (val !== null && typeof val === 'object') {
@@ -726,33 +768,28 @@ const shigmaController = {
                 };
             });
 
-            // Configuración de Bateas Virtuales
-            const enableVirtual = process.env.ENABLE_VIRTUAL_BATEAS === 'true';
-            const virtualThreshold = parseFloat(process.env.VIRTUAL_BATEA_THRESHOLD || '80');
+            // Configuración de Bateas Virtuales (Depósito Temporal siempre presente)
+            const enableVirtual = process.env.ENABLE_VIRTUAL_BATEAS !== 'false';
 
             if (enableVirtual) {
                 const tipos = ['Orgánicos', 'Inorgánicos'];
                 tipos.forEach(tipo => {
-                    const bateasDelTipo = status.filter(b => b.tipo === tipo && !b.isVirtual);
-                    const todasSuperan = bateasDelTipo.length > 0 && bateasDelTipo.every(b => b.porcentaje >= virtualThreshold);
-                    
                     const nombreVirtual = `Depósito Temporal de ${tipo}`;
                     const dbVirtual = combinedRows[nombreVirtual];
                     const pesoAcumuladoVirtual = dbVirtual ? dbVirtual.peso_acumulado : 0;
                     const recordsCountVirtual = dbVirtual ? dbVirtual.records_count : 0;
 
-                    if (todasSuperan || pesoAcumuladoVirtual > 0) {
-                        status.push({
-                            id: `virtual_${tipo.toLowerCase().replace(/á/g, 'a').replace(/ó/g, 'o')}`,
-                            nombre: nombreVirtual,
-                            tipo: tipo,
-                            capacidad: 9999999, // Infinity cause problems with json serialization
-                            pesoAcumulado: Math.round(pesoAcumuladoVirtual * 100) / 100,
-                            porcentaje: 0,
-                            recordsCount: recordsCountVirtual,
-                            isVirtual: true
-                        });
-                    }
+                    // El depósito temporal siempre está presente en el monitor
+                    status.push({
+                        id: `virtual_${tipo.toLowerCase().replace(/á/g, 'a').replace(/ó/g, 'o')}`,
+                        nombre: nombreVirtual,
+                        tipo: tipo,
+                        capacidad: 9999999, // Depósito sin límite estricto
+                        pesoAcumulado: Math.round(pesoAcumuladoVirtual * 100) / 100,
+                        porcentaje: 0,
+                        recordsCount: recordsCountVirtual,
+                        isVirtual: true
+                    });
                 });
             }
 
@@ -779,10 +816,11 @@ const shigmaController = {
             const nroManifiesto = body.nroManifiesto || body.nro_manifiesto || body.nromanifiesto;
             const pesoBalanza = body.pesoBalanza !== undefined ? body.pesoBalanza : body.peso_balanza;
             const usuario = body.usuario || 'Gabriel Tonelli';
+            const observaciones = body.observaciones ? String(body.observaciones).trim() : null;
 
             console.log('[DEBUG restartBatea] Params bateaId:', bateaId);
             console.log('[DEBUG restartBatea] Body:', body);
-            console.log('[DEBUG restartBatea] Extraídos:', { fecha, hora, nroManifiesto, pesoBalanza, usuario });
+            console.log('[DEBUG restartBatea] Extraídos:', { fecha, hora, nroManifiesto, pesoBalanza, usuario, observaciones });
 
             if (!fecha || !hora || !nroManifiesto || pesoBalanza === undefined || pesoBalanza === null || pesoBalanza === '') {
                 return res.status(400).json({
@@ -842,8 +880,8 @@ const shigmaController = {
 
             // Registrar vaciado
             const insertSql = `
-                INSERT INTO bateas_salidas (id, batea_id, batea_nombre, fecha, hora, nro_manifiesto, peso_balanza, peso_acumulado, record_ids, status, usuario)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?)
+                INSERT INTO bateas_salidas (id, batea_id, batea_nombre, fecha, hora, nro_manifiesto, peso_balanza, peso_acumulado, record_ids, status, usuario, observaciones)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, ?)
             `;
             await connection.query(insertSql, [
                 customSalidaId,
@@ -855,7 +893,8 @@ const shigmaController = {
                 parseFloat(pesoBalanza),
                 pesoAcumulado,
                 JSON.stringify(recordIds),
-                usuario || 'Gabriel Tonelli'
+                usuario || 'Gabriel Tonelli',
+                observaciones
             ]);
 
             // Vincular RINE relacionados
@@ -1740,7 +1779,8 @@ const shigmaController = {
             await ensureBateasTable();
             await connection.beginTransaction();
 
-            const { origen, destino, kilos } = req.body;
+            const { origen, destino, kilos, comentarios, observaciones } = req.body;
+            const comentarioTraspaso = (comentarios || observaciones || '').trim();
             
             if (!origen || !destino) {
                 return res.status(400).json({ error: 'Debes proporcionar la batea de origen y destino.' });
@@ -1800,10 +1840,17 @@ const shigmaController = {
                     
                     if (recordPeso <= remainingKilos) {
                         // Traspaso completo de este registro
-                        await connection.query(
-                            `UPDATE ${record.table} SET destino = ? WHERE id = ?`,
-                            [destino, record.recordId]
-                        );
+                        if (comentarioTraspaso) {
+                            await connection.query(
+                                `UPDATE ${record.table} SET destino = ?, observaciones = CASE WHEN observaciones IS NULL OR observaciones = '' THEN ? ELSE CONCAT(observaciones, ' | [Traspaso]: ', ?) END WHERE id = ?`,
+                                [destino, comentarioTraspaso, comentarioTraspaso, record.recordId]
+                            );
+                        } else {
+                            await connection.query(
+                                `UPDATE ${record.table} SET destino = ? WHERE id = ?`,
+                                [destino, record.recordId]
+                            );
+                        }
                         remainingKilos -= recordPeso;
                     } else {
                         // Traspaso parcial del registro (Split)
@@ -1827,6 +1874,12 @@ const shigmaController = {
                         const customId = `${record.idPrefix}${paddedIndex}`;
 
                         // Generar insert dinámico (simplificado)
+                        if (comentarioTraspaso) {
+                            record.observaciones = record.observaciones 
+                                ? `${record.observaciones} | [Traspaso]: ${comentarioTraspaso}`
+                                : comentarioTraspaso;
+                        }
+
                         const cols = Object.keys(record).filter(k => 
                             k !== 'id' && k !== 'table' && k !== 'pesoCol' && k !== 'recordId' && k !== 'idPrefix' 
                             && k !== record.pesoCol && k !== 'destino'
@@ -1844,10 +1897,17 @@ const shigmaController = {
                     }
                 } else {
                     // Traspaso total
-                    await connection.query(
-                        `UPDATE ${record.table} SET destino = ? WHERE id = ?`,
-                        [destino, record.recordId]
-                    );
+                    if (comentarioTraspaso) {
+                        await connection.query(
+                            `UPDATE ${record.table} SET destino = ?, observaciones = CASE WHEN observaciones IS NULL OR observaciones = '' THEN ? ELSE CONCAT(observaciones, ' | [Traspaso]: ', ?) END WHERE id = ?`,
+                            [destino, comentarioTraspaso, comentarioTraspaso, record.recordId]
+                        );
+                    } else {
+                        await connection.query(
+                            `UPDATE ${record.table} SET destino = ? WHERE id = ?`,
+                            [destino, record.recordId]
+                        );
+                    }
                 }
             }
 
