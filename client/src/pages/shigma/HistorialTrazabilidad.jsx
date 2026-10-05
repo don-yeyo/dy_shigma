@@ -505,13 +505,18 @@ const HistorialTrazabilidad = () => {
             if (record.destino) details.push({ label: 'Destino', value: record.destino });
             if (record.remito) {
                 const isRepExterna = record.tipoRegistro === 'Recepción Externa' || record.tipoRegistro === 'Reparación Externa';
+                const isDevProv = record.tipoRegistro === 'Devolución a Proveedor' || record.tipoRegistro === 'Devolucion a Proveedor';
                 details.push({
-                    label: isRepExterna ? 'Remito de Salida' : 'Remito',
+                    label: isRepExterna ? 'Remito de Salida' : isDevProv ? 'Remito de Devolución' : 'Remito',
                     value: record.remito
                 });
             }
             if (record.remitoRetorno) {
-                details.push({ label: 'Remito de Retorno', value: record.remitoRetorno });
+                const isDevProv = record.tipoRegistro === 'Devolución a Proveedor' || record.tipoRegistro === 'Devolucion a Proveedor';
+                details.push({ 
+                    label: isDevProv ? 'Remito Origen MP' : 'Remito de Retorno', 
+                    value: record.remitoRetorno 
+                });
             }
             if (record.grupo) {
                 const desglose = record.grupo.map(r => `${r.categoria}: ${r.cantidad} uds`).join(', ');
@@ -524,8 +529,9 @@ const HistorialTrazabilidad = () => {
             if (record.sector) details.push({ label: record.tipoRegistro === 'Recepción Interna' ? 'Sector Origen' : 'Sector', value: record.area ? `${record.sector} - ${record.area}` : record.sector });
 
             if (record.operarioEntrega) {
+                const isDevProv = record.tipoRegistro === 'Devolución a Proveedor' || record.tipoRegistro === 'Devolucion a Proveedor';
                 details.push({ 
-                    label: record.tipoRegistro === 'Recepción Interna' ? 'Operario que Entrega (Sector Origen)' : 'Operario que Entrega (Salida)', 
+                    label: record.tipoRegistro === 'Recepción Interna' ? 'Operario que Entrega (Sector Origen)' : isDevProv ? 'Operario que Entrega (Devolución)' : 'Operario que Entrega (Salida)', 
                     value: record.operarioEntrega 
                 });
                 const fechaSalidaStr = new Date(record.createdAt || record.fecha).toLocaleString('es-AR', {

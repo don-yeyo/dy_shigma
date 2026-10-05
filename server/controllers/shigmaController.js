@@ -61,14 +61,17 @@ const ensurePalletsSchemaUpdated = async () => {
             await db.query('ALTER TABLE pallets ADD COLUMN id_grupo varchar(50) DEFAULT NULL AFTER categoria;');
         }
 
-        // 4. Modificar tipo_registro enum para incluir 'Recepción Interna'
+        // 4. Modificar tipo_registro enum para incluir 'Recepción Externa', 'Recepción Interna' y 'Devolución a Proveedor'
         const [tipoRegCol] = await db.query("SHOW COLUMNS FROM pallets LIKE 'tipo_registro'");
-        if (tipoRegCol.length > 0 && !tipoRegCol[0].Type.includes('Recepción Interna')) {
-            console.log("[DB] Modificando enum tipo_registro en la tabla 'pallets' para incluir 'Recepción Interna'...");
-            await db.query(`
-                ALTER TABLE pallets MODIFY COLUMN tipo_registro 
-                enum('Descartes', 'Reparación Interna', 'Reparación Externa', 'Recepción Externa', 'Ingreso de Nuevos', 'Entrega Interna', 'Entrega Externa', 'Recepción Interna') NOT NULL
-            `);
+        if (tipoRegCol.length > 0) {
+            const currentType = tipoRegCol[0].Type;
+            if (!currentType.includes('Recepción Externa') || !currentType.includes('Devolución a Proveedor') || !currentType.includes('Recepción Interna')) {
+                console.log("[DB] Modificando enum tipo_registro en la tabla 'pallets' para incluir 'Recepción Externa', 'Recepción Interna' y 'Devolución a Proveedor'...");
+                await db.query(`
+                    ALTER TABLE pallets MODIFY COLUMN tipo_registro 
+                    enum('Descartes', 'Reparación Interna', 'Reparación Externa', 'Recepción Externa', 'Ingreso de Nuevos', 'Entrega Interna', 'Entrega Externa', 'Recepción Interna', 'Devolución a Proveedor') NOT NULL
+                `);
+            }
         }
         console.log("[DB] Esquema de tabla 'pallets' validado y actualizado con éxito.");
     } catch (err) {
@@ -418,6 +421,13 @@ const shigmaController = {
             // Convertir a snake_case para la base de datos
             const dbPayload = toSnakeCaseObj(insertData);
 
+            // Validar que pallets contenga un tipo_registro válido y no vacío
+            if (tableName === 'pallets') {
+                if (!dbPayload.tipo_registro || typeof dbPayload.tipo_registro !== 'string' || !dbPayload.tipo_registro.trim()) {
+                    return res.status(400).json({ error: 'El campo tipo_registro es obligatorio para movimientos de pallets.' });
+                }
+            }
+
             // Eliminar campos que son solo para UI y no están en la tabla física de residuos_comunes
             if (tableName === 'residuos_comunes') {
                 delete dbPayload.lugar;
@@ -580,6 +590,13 @@ const shigmaController = {
             Object.entries(dbPayload).forEach(([key, val]) => {
                 // No permitir modificar id, usuario original, contador ediciones o metadatos de formulario
                 if (key === 'id' || key === 'usuario' || key === 'ediciones' || key === 'form_type' || key === 'form_label' || key === 'usuario_edicion') return;
+
+                // Proteger tipo_registro en pallets para evitar que quede vacío por un payload parcial
+                if (tableName === 'pallets' && key === 'tipo_registro') {
+                    if (!val || typeof val !== 'string' || !val.trim()) {
+                        return; // Omitir para mantener el valor existente en base de datos
+                    }
+                }
 
                 if (key === 'created_at') {
                     if (!val) return;

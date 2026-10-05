@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Package, ArrowLeft, Send, Trash2, Wrench, Hammer, PlusCircle, ArrowRightLeft, Truck, RotateCcw, Building2, Globe, Boxes, ChevronDown, ChevronUp } from 'lucide-react';
+import { Package, ArrowLeft, Send, Trash2, Wrench, Hammer, PlusCircle, ArrowRightLeft, Truck, RotateCcw, Building2, Globe, Boxes, ChevronDown, ChevronUp, Undo2 } from 'lucide-react';
 import { Card, Input, Select, Textarea, NumberInput } from '../../components/FormElements';
 import { Button } from '../../components/Button';
 import Modal from '../../components/Modal';
@@ -26,7 +26,7 @@ const Pallets = () => {
     const [selectedPendienteId, setSelectedPendienteId] = useState(null);
     const [modoRetorno, setModoRetorno] = useState(false);
     const [grupoOriginalRecords, setGrupoOriginalRecords] = useState([]); // Registros originales del grupo para Recepción Interna
-    
+
     // Estados para cuadro de resumen de stock en galpón
     const [palletsRecords, setPalletsRecords] = useState([]);
     const [loadingResumen, setLoadingResumen] = useState(true);
@@ -85,9 +85,10 @@ const Pallets = () => {
             badgeColor: '#f59e0b',
             options: [
                 { id: 'Ingreso de Nuevos', label: 'Ingreso de Nuevos', icon: PlusCircle, color: '#10b981', bg: 'rgba(16, 185, 129, 0.04)', selectedBg: 'rgba(16, 185, 129, 0.12)' },
-                { id: 'Recepción Externa', label: 'Recepción Externa', icon: Hammer, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.04)', selectedBg: 'rgba(59, 130, 246, 0.12)' },
-                { id: 'Entrega Externa', label: 'Entrega Externa', help: 'como Reparación', icon: Truck, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.04)', selectedBg: 'rgba(245, 158, 11, 0.12)' },
-                { id: 'Descartes', label: 'Descartes', help: 'como Destrucción', icon: Trash2, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.04)', selectedBg: 'rgba(239, 68, 68, 0.12)' }
+                { id: 'Recepción Externa', label: 'Retorno de Reparación', help: 'recepción Externa', icon: Hammer, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.04)', selectedBg: 'rgba(59, 130, 246, 0.12)' },
+                { id: 'Devolución a Proveedor', label: 'Devolución a Proveedor', help: '', icon: Undo2, color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.04)', selectedBg: 'rgba(139, 92, 246, 0.12)' },
+                { id: 'Entrega Externa', label: 'Envío a Reparar', help: 'entrega Externa', icon: Truck, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.04)', selectedBg: 'rgba(245, 158, 11, 0.12)' },
+                { id: 'Descartes', label: 'Descartes', help: 'a Destrucción', icon: Trash2, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.04)', selectedBg: 'rgba(239, 68, 68, 0.12)' }
             ]
         }
     ];
@@ -164,6 +165,7 @@ const Pallets = () => {
         let entregaExternaReparacion = 0;
         let descartesDestruccion = 0;
         let entregaInterna = 0;
+        let devolucionProveedor = 0;
 
         palletsRecords.forEach(r => {
             const cant = Number(r.cantidad || 0);
@@ -192,12 +194,14 @@ const Pallets = () => {
                 descartesDestruccion += cant;
             } else if (tipo === 'Entrega Interna') {
                 entregaInterna += cant;
+            } else if (tipo === 'Devolución a Proveedor' || tipo === 'Devolucion a Proveedor') {
+                devolucionProveedor += cant;
             }
         });
 
         const totalRecepcionInterna = recepcionInternaBuenEstado + recepcionInternaReparables + recepcionInternaIrreparables + recepcionInternaDescartables + recepcionInternaSinCat;
         const totalIngresos = nuevos + totalRecepcionInterna + recepcionExterna;
-        
+
         // Stock en galpón según la regla: Ingresos teniendo en cuenta el tipo menos Entrega Externa (Reparación) y Descarte (Destrucción)
         const totalGalpon = totalIngresos - entregaExternaReparacion - descartesDestruccion - entregaInterna;
 
@@ -214,6 +218,7 @@ const Pallets = () => {
             entregaExternaReparacion,
             descartesDestruccion,
             entregaInterna,
+            devolucionProveedor,
             totalSalidas: entregaExternaReparacion + descartesDestruccion + entregaInterna,
             totalGalpon: Math.max(0, totalGalpon)
         };
@@ -356,7 +361,7 @@ const Pallets = () => {
     };
 
     const handleTypeChange = (type) => {
-        const defaultState = (type === 'Reparación Interna' || type === 'Recepción Externa' || type === 'Reparación Externa') ? 'Retirado' : '';
+        const defaultState = (type === 'Reparación Interna' || type === 'Recepción Externa' || type === 'Reparación Externa') ? 'Retirado' : (type === 'Devolución a Proveedor' ? 'Devuelto' : '');
         const lastOperator = type === 'Reparación Interna' ? '' : (localStorage.getItem('shigma_last_operator_pallets') || '');
 
         setSelectedPendienteId(null);
@@ -432,6 +437,10 @@ const Pallets = () => {
                 if (!formData.proveedor.trim()) return showAlert('Campo requerido', 'Ingrese el Proveedor.');
                 if (!formData.remito.trim()) return showAlert('Campo requerido', 'Ingrese el número de Remito.');
             }
+        } else if (formData.tipoRegistro === 'Devolución a Proveedor' || formData.tipoRegistro === 'Devolucion a Proveedor') {
+            if (!formData.proveedor.trim()) return showAlert('Campo requerido', 'Ingrese el Proveedor de Materia Prima.');
+            if (!formData.remito.trim()) return showAlert('Campo requerido', 'Ingrese el número de Remito de devolución.');
+            if (!formData.operarioEntrega) return showAlert('Campo requerido', 'Seleccione el Operario de entrega.');
         } else if (formData.tipoRegistro === 'Reparación Interna') {
             // Las reparaciones internas no requieren registro de operarios
         } else if (formData.tipoRegistro === 'Ingreso de Nuevos') {
@@ -595,6 +604,12 @@ const Pallets = () => {
                     payload.proveedor = formData.proveedor.trim();
                     payload.remito = formData.remito.trim();
                     payload.estado = editId ? (formData.estado || 'Retirado') : 'Retirado';
+                } else if (formData.tipoRegistro === 'Devolución a Proveedor' || formData.tipoRegistro === 'Devolucion a Proveedor') {
+                    payload.proveedor = formData.proveedor.trim();
+                    payload.remito = formData.remito.trim();
+                    payload.remitoRetorno = formData.remitoRetorno ? formData.remitoRetorno.trim() : null;
+                    payload.operarioEntrega = formData.operarioEntrega;
+                    payload.estado = 'Devuelto';
                 } else if (formData.tipoRegistro === 'Reparación Interna') {
                     payload.operarioEntrega = null;
                     payload.operarioRecibe = null;
@@ -832,16 +847,20 @@ const Pallets = () => {
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.82rem', color: 'var(--text)' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span style={{ color: 'var(--text-muted)' }}>• Entrega Externa (como Reparación):</span>
+                                            <span style={{ color: 'var(--text-muted)' }}>• Entrega Externa (envío a  Reparar):</span>
                                             <strong>{resumenStock.entregaExternaReparacion.toLocaleString()} uds</strong>
                                         </div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span style={{ color: 'var(--text-muted)' }}>• Descartes (como Destrucción):</span>
+                                            <span style={{ color: 'var(--text-muted)' }}>• Descartes (a Destrucción):</span>
                                             <strong>{resumenStock.descartesDestruccion.toLocaleString()} uds</strong>
                                         </div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                             <span style={{ color: 'var(--text-muted)' }}>• Entrega Interna (a Planta):</span>
                                             <strong>{resumenStock.entregaInterna.toLocaleString()} uds</strong>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span style={{ color: 'var(--text-muted)' }}>• Devolución a Proveedor (MP):</span>
+                                            <strong>{resumenStock.devolucionProveedor.toLocaleString()} uds</strong>
                                         </div>
                                     </div>
                                 </div>
@@ -933,9 +952,9 @@ const Pallets = () => {
                                             <IconComponent size={24} style={{ color: opt.color }} />
                                             <span style={{ fontWeight: '700', fontSize: '0.9rem', textAlign: 'center' }}>{opt.label}</span>
                                             {opt.help && (
-                                                <span style={{ 
-                                                    fontSize: '0.75rem', 
-                                                    color: isSelected ? 'var(--text)' : 'var(--text-muted)', 
+                                                <span style={{
+                                                    fontSize: '0.75rem',
+                                                    color: isSelected ? 'var(--text)' : 'var(--text-muted)',
                                                     fontWeight: '600',
                                                     marginTop: '-2px',
                                                     opacity: 0.9
@@ -1016,7 +1035,7 @@ const Pallets = () => {
                             color: selectOptions.find(o => o.id === formData.tipoRegistro)?.color || '#14b8a6',
                             borderColor: `${selectOptions.find(o => o.id === formData.tipoRegistro)?.color || '#14b8a6'}20`
                         }}>
-                            {modoRetorno ? 'Registrar Retorno de Reparación' : 'Datos del Movimiento'}: {formData.tipoRegistro}
+                            {modoRetorno ? 'Registrar Retorno de Reparación' : 'Datos del Movimiento'}: {selectOptions.find(o => o.id === formData.tipoRegistro)?.label || formData.tipoRegistro}
                         </div>
 
                         {/* Fecha y Hora de la Carga */}
@@ -1323,6 +1342,94 @@ const Pallets = () => {
                                         required
                                     />
                                 )}
+                            </>
+                        )}
+
+                        {/* Devolución a Proveedor */}
+                        {(formData.tipoRegistro === 'Devolución a Proveedor' || formData.tipoRegistro === 'Devolucion a Proveedor') && (
+                            <>
+                                <div className="form-grid" style={isMobile ? { display: 'flex', flexDirection: 'column', gap: '16px' } : {}}>
+                                    <Input
+                                        label="Proveedor (Materia Prima) *"
+                                        type="text"
+                                        name="proveedor"
+                                        placeholder="Ej: Molino Cañuelas / Distribuidora Sur"
+                                        maxLength={100}
+                                        value={formData.proveedor}
+                                        onChange={handleChange}
+                                        required
+                                    />
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <Input
+                                            label="Remito de Devolución *"
+                                            type="text"
+                                            name="remito"
+                                            placeholder="Ej: R-0006-0032322"
+                                            maxLength={30}
+                                            value={formData.remito}
+                                            onChange={handleChange}
+                                            required
+                                        />
+                                        <div style={{
+                                            display: 'inline-block',
+                                            padding: '4px 8px',
+                                            background: 'rgba(139, 92, 246, 0.08)',
+                                            color: '#8b5cf6',
+                                            borderRadius: '6px',
+                                            fontSize: '0.75rem',
+                                            fontWeight: '700',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.5px',
+                                            border: '1px solid rgba(139, 92, 246, 0.2)',
+                                            marginTop: '-12px',
+                                            marginBottom: '16px',
+                                            alignSelf: 'flex-start',
+                                            width: 'fit-content'
+                                        }}>
+                                            Emitir Remito
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <Input
+                                        label="Remito de Ingreso MP (Opcional - Remito de descarga original)"
+                                        type="text"
+                                        name="remitoRetorno"
+                                        placeholder="Ej: R-0001-0009845 (Remito de origen con que ingresaron los pallets)"
+                                        maxLength={30}
+                                        value={formData.remitoRetorno}
+                                        onChange={handleChange}
+                                    />
+                                    <div style={{
+                                        display: 'inline-block',
+                                        padding: '4px 8px',
+                                        background: 'rgba(16, 185, 129, 0.08)',
+                                        color: '#10b981',
+                                        borderRadius: '6px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: '700',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.5px',
+                                        border: '1px solid rgba(16, 185, 129, 0.2)',
+                                        marginTop: '-12px',
+                                        marginBottom: '16px',
+                                        alignSelf: 'flex-start',
+                                        width: 'fit-content'
+                                    }}>
+                                        Remito Origen MP
+                                    </div>
+                                </div>
+
+                                <Select
+                                    label="Operario que Entrega (Devolución) *"
+                                    name="operarioEntrega"
+                                    value={formData.operarioEntrega}
+                                    onChange={handleChange}
+                                    options={operadores.map(op => ({ id: op.apellidoNombre, label: op.apellidoNombre }))}
+                                    includePlaceholder={true}
+                                    required
+                                />
                             </>
                         )}
 
